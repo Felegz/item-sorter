@@ -1,0 +1,64 @@
+<link
+      rel="icon"
+      type="image/x-icon"
+      href="https://cdn.glitch.global/407ab00e-ad0f-4a26-96b9-c38df5056084/favicon.ico?v=1679470260332"
+    />
+    
+    
+    
+    <link rel="stylesheet" href="style.css" />
+  
+  
+    <br />
+    <textarea
+      class="text-field"
+      id="task-list"
+      placeholder="Enter your list of tasks here.
+Write one task per line.
+Duplicate and empty lines will be ignored automatically.
+Hit Sort button.
+Output will appear in the same area as input.
+Your text will be stored in browser memory even after page reload, but it's not reliable! Better save it somewhere else too!"
+    ></textarea>
+
+    <br />
+
+    <!-- Add this input field for the user's question -->
+    <!-- <label for="user-question">Enter your question:</label> -->
+    <textarea
+      id="user-question"
+      rows="1"
+      cols="50"
+      placeholder="Which task would bring more value or impact if completed first? (Enter your сustom question here)"
+      class="text-field"
+    ></textarea>
+
+    <!-- Фильтрация (редактирование + разделение) -->
+    <button id="filter-button">Filter Tasks</button>
+
+    <!-- Чистая сортировка уже отфильтрованных -->
+    <button id="sort-button">Sort Tasks</button>
+    <button id="insert-button">Insert Unsorted Tasks</button>
+
+    <button id="merge-button">Merge Arrays</button>
+    
+   <button id="copy-button">📋 Copy to clipboard</button>
+
+
+
+    <button id="save-button" onclick="saveAsTxt()">Save as .txt file</button>
+
+    <!-- SweetAlert2 -->
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+    <script src="app.js"></script>
+
+    <footer style="text-align: center; margin-top: 20px">
+      <p style="font-size: 14px; color: #888">
+        Created by
+        <a href="https://linktr.ee/kostya.kushko" style="color: #888"
+          >Kostya Kushko</a
+        >
+        with 🖤
+      </p>
+    </footer>

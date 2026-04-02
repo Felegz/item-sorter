@@ -1,0 +1,222 @@
+/* Основные значения CSS-переменных для темной темы */
+:root {
+  --color-bg: #121212;
+  --color-text-main: #e0e0e0;
+  --color-primary: #bb86fc;
+  --color-secondary: #03dac6;
+  --wrapper-height: 87vh;
+  --image-max-width: 300px;
+  --image-margin: 3rem;
+  --font-family: "HK Grotesk";
+  --font-family-header: "HK Grotesk";
+}
+
+/* «swal2-actions-vertical» ставит кнопки в столбик */
+.swal2-actions-vertical {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 0.5rem; /* расстояние между кнопками */
+}
+
+/* Переопределяем высоту встроенного textarea */
+.swal2-textarea {
+  height: 200px !important; /* например, 200px */
+  min-height: 150px; /* минимальная высота */
+  resize: vertical; /* разрешаем пользователю менять высоту */
+}
+
+/* Базовые стили для сброса */
+* {
+  box-sizing: border-box;
+}
+[hidden] {
+  display: none !important;
+}
+
+/* Импорт шрифтов */
+@font-face {
+  font-family: HK Grotesk;
+  src: url("https://cdn.glitch.me/605e2a51-d45f-4d87-a285-9410ad350515%2FHKGrotesk-Regular.otf?v=1603136326027")
+    format("opentype");
+}
+@font-face {
+  font-family: HK Grotesk;
+  font-weight: bold;
+  src: url("https://cdn.glitch.me/605e2a51-d45f-4d87-a285-9410ad350515%2FHKGrotesk-Bold.otf?v=1603136323437")
+    format("opentype");
+}
+
+/* Тема */
+body {
+  font-family: HK Grotesk;
+  background-color: var(--color-bg);
+  color: var(--color-text-main);
+}
+
+/* Структура страницы */
+.wrapper {
+  min-height: var(--wrapper-height);
+  display: grid;
+  place-items: center;
+  margin: 0 1rem;
+}
+.content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Поле ввода текста */
+.text-field {
+  background-color: #1f1f1f;
+  color: var(--color-text-main);
+  border: 1px solid #333333;
+  line-height: 1.5;
+  padding: 1rem;
+  border-radius: 4px;
+  resize: none;
+  width: 100%;
+}
+
+/* Заголовок */
+.title {
+  color: var(--color-primary);
+  font-family: HK Grotesk;
+  font-style: normal;
+  font-weight: bold;
+  font-size: 3rem;
+  line-height: 105%;
+  margin: 0 0 1rem 0;
+}
+
+/* Инструкция */
+.instructions {
+  margin: 1rem auto 0;
+}
+
+/* Стили кнопок */
+button {
+  font-family: inherit;
+  font-size: 1rem;
+  background: var(--color-primary);
+  border: none;
+  color: var(--color-text-main);
+  padding: 0.75rem 1.5rem;
+  border-radius: 8px;
+  cursor: pointer;
+  transition:
+    background-color 0.3s ease,
+    transform 0.3s ease;
+}
+
+button:hover {
+  background-color: #985eff;
+  transform: scale(1.05);
+}
+
+button:active {
+  transform: scale(0.95);
+}
+
+/* Подзаголовки */
+h2 {
+  color: var(--color-secondary);
+}
+
+/* Ссылки */
+a:link,
+a:visited {
+  color: var(--color-primary);
+  text-decoration: none;
+}
+
+a:hover {
+  color: var(--color-secondary);
+}
+
+/* Футер */
+.footer {
+  display: flex;
+  justify-content: space-between;
+  margin: 1rem auto 0;
+  padding: 1rem 0 0.75rem 0;
+  width: 100%;
+  flex-wrap: wrap;
+  border-top: 4px solid #333333;
+}
+
+.footer a:not(.btn--remix):link,
+.footer a:not(.btn--remix):visited {
+  color: var(--color-text-main);
+}
+
+.footer a:hover {
+  color: var(--color-primary);
+}
+
+/* Кнопка "Remix on Glitch" */
+.btn--remix {
+  font-family: HK Grotesk;
+  padding: 0.75rem 1rem;
+  font-size: 1rem;
+  line-height: 1rem;
+  font-weight: 500;
+  height: 2.75rem;
+  align-items: center;
+  cursor: pointer;
+  background: #333333;
+  border: 1px solid var(--color-primary);
+  box-sizing: border-box;
+  border-radius: 4px;
+  text-decoration: none;
+  color: var(--color-text-main);
+  white-space: nowrap;
+}
+
+.btn--remix:hover {
+  background-color: #444444;
+}
+
+/* Иллюстрации */
+.illustration {
+  max-width: 100%;
+  max-height: var(--image-max-width);
+  margin-top: var(--image-margin);
+}
+
+.illustration:active {
+  transform: translateY(5px);
+}
+#task-list {
+  display: block;
+  margin: 0 auto;
+  width: 80%;
+  height: calc(50vh - 50px); /* Subtract 50px to account for button height */
+  resize: none;
+}
+
+#user-question {
+  display: block;
+  margin: 0 auto;
+  width: 80%;
+  resize: none;
+}
+
+/* Button style */
+button {
+  display: block;
+  margin: 20px auto;
+  padding: 10px 20px;
+  font-size: 18px;
+  border-radius: 5px;
+  border: none;
+  background-color: #4caf50; /* You can change this color if needed */
+  color: #fff;
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+}
+
+button:hover {
+  background-color: #45a049;
+}
