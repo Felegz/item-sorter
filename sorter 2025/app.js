@@ -443,7 +443,7 @@ function saveAsTxt() {
 
   // Разрешаем латиницу, кириллицу, цифры, дефис и подчёркивание
   const sanitizedFirstLine = firstLine
-    .replace(/[^a-zA-Zа-яА-ЯёЁ0-9-_]/g, '_')
+    .replace(/[^a-zA-Z0-9\u0430-\u044F\u0410-\u042F\u0451\u0401_-]/g, '_')
     .slice(0, 20);
 
 // Дата и время для имени файла
