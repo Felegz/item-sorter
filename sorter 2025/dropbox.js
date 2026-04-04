@@ -39,6 +39,7 @@ async function dropboxLogin() {
     code_challenge: challenge,
     code_challenge_method: 'S256',
     token_access_type: 'offline',
+    scope: 'files.content.write files.content.read',
   });
 
   window.location.href = 'https://www.dropbox.com/oauth2/authorize?' + params.toString();
@@ -135,19 +136,21 @@ async function dropboxSave() {
       body: content,
     });
 
+    const responseText = await response.text();
     if (response.ok) {
       Swal.fire({ title: 'Сохранено в Dropbox!', icon: 'success', timer: 1500, showConfirmButton: false });
     } else if (response.status === 401) {
       dropboxLogout();
-      Swal.fire('Сессия истекла', 'Войдите в Dropbox снова', 'warning');
+      Swal.fire('Сессия истекла', 'Токен недействителен. Войдите в Dropbox снова.', 'warning');
     } else {
-      const err = await response.json();
-      console.error('Upload error:', err);
-      Swal.fire('Ошибка сохранения', err.error_summary || 'Неизвестная ошибка', 'error');
+      console.error('Upload error HTTP', response.status, responseText);
+      let errMsg = responseText;
+      try { errMsg = JSON.parse(responseText).error_summary || responseText; } catch(_) {}
+      Swal.fire('Ошибка сохранения (HTTP ' + response.status + ')', errMsg, 'error');
     }
   } catch (err) {
-    console.error('dropboxSave error:', err);
-    Swal.fire('Ошибка', 'Не удалось сохранить файл', 'error');
+    console.error('dropboxSave exception:', err);
+    Swal.fire('Сетевая ошибка при сохранении', String(err), 'error');
   }
 }
 
@@ -169,24 +172,25 @@ async function dropboxLoad() {
       },
     });
 
+    const responseText = await response.text();
     if (response.ok) {
-      const text = await response.text();
-      document.getElementById('task-list').value = text;
-      localStorage.setItem('tasks', text);
+      document.getElementById('task-list').value = responseText;
+      localStorage.setItem('tasks', responseText);
       Swal.fire({ title: 'Загружено из Dropbox!', icon: 'success', timer: 1500, showConfirmButton: false });
     } else if (response.status === 401) {
       dropboxLogout();
-      Swal.fire('Сессия истекла', 'Войдите в Dropbox снова', 'warning');
+      Swal.fire('Сессия истекла', 'Токен недействителен. Войдите в Dropbox снова.', 'warning');
     } else if (response.status === 409) {
       Swal.fire('Файл не найден', 'Сначала сохраните задачи в Dropbox с этого устройства', 'info');
     } else {
-      const err = await response.json();
-      console.error('Download error:', err);
-      Swal.fire('Ошибка загрузки', err.error_summary || 'Неизвестная ошибка', 'error');
+      console.error('Download error HTTP', response.status, responseText);
+      let errMsg = responseText;
+      try { errMsg = JSON.parse(responseText).error_summary || responseText; } catch(_) {}
+      Swal.fire('Ошибка загрузки (HTTP ' + response.status + ')', errMsg, 'error');
     }
   } catch (err) {
-    console.error('dropboxLoad error:', err);
-    Swal.fire('Ошибка', 'Не удалось загрузить файл', 'error');
+    console.error('dropboxLoad exception:', err);
+    Swal.fire('Сетевая ошибка при загрузке', String(err), 'error');
   }
 }
 
