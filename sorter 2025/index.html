@@ -49,10 +49,18 @@ Your text will be stored in browser memory even after page reload, but it's not 
 
     <button id="save-button" onclick="saveAsTxt()">Save as .txt file</button>
 
+    <div id="dropbox-section">
+      <button id="dbx-login-btn" class="dbx-btn dbx-btn--login">&#x1F4E6; Войти в Dropbox</button>
+      <button id="dbx-save-btn" class="dbx-btn dbx-btn--save" hidden>&#x2601; Сохранить в Dropbox</button>
+      <button id="dbx-load-btn" class="dbx-btn dbx-btn--load" hidden>&#x1F4E5; Загрузить из Dropbox</button>
+      <button id="dbx-logout-btn" class="dbx-btn dbx-btn--logout" hidden>Выйти из Dropbox</button>
+    </div>
+
     <!-- SweetAlert2 -->
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
     <script src="app.js"></script>
+    <script src="dropbox.js"></script>
 
     <footer style="text-align: center; margin-top: 20px">
       <p style="font-size: 14px; color: #888">
