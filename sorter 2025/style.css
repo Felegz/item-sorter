@@ -1,3 +1,5 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap');
+
 /* Основные значения CSS-переменных для темной темы */
 :root {
   --color-bg: #121212;
@@ -7,8 +9,8 @@
   --wrapper-height: 87vh;
   --image-max-width: 300px;
   --image-margin: 3rem;
-  --font-family: "HK Grotesk";
-  --font-family-header: "HK Grotesk";
+  --font-family: 'Inter', sans-serif;
+  --font-family-header: 'Inter', sans-serif;
 }
 
 /* «swal2-actions-vertical» ставит кнопки в столбик */
@@ -33,22 +35,11 @@
   display: none !important;
 }
 
-/* Импорт шрифтов */
-@font-face {
-  font-family: HK Grotesk;
-  src: url("https://cdn.glitch.me/605e2a51-d45f-4d87-a285-9410ad350515%2FHKGrotesk-Regular.otf?v=1603136326027")
-    format("opentype");
-}
-@font-face {
-  font-family: HK Grotesk;
-  font-weight: bold;
-  src: url("https://cdn.glitch.me/605e2a51-d45f-4d87-a285-9410ad350515%2FHKGrotesk-Bold.otf?v=1603136323437")
-    format("opentype");
-}
+
 
 /* Тема */
 body {
-  font-family: HK Grotesk;
+  font-family: 'Inter', sans-serif;
   background-color: var(--color-bg);
   color: var(--color-text-main);
 }
@@ -82,7 +73,7 @@ body {
 /* Заголовок */
 .title {
   color: var(--color-primary);
-  font-family: HK Grotesk;
+  font-family: 'Inter', sans-serif;
   font-style: normal;
   font-weight: bold;
   font-size: 3rem;
@@ -157,7 +148,7 @@ a:hover {
 
 /* Кнопка "Remix on Glitch" */
 .btn--remix {
-  font-family: HK Grotesk;
+  font-family: 'Inter', sans-serif;
   padding: 0.75rem 1rem;
   font-size: 1rem;
   line-height: 1rem;

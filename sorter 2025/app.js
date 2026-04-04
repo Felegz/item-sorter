@@ -1,5 +1,5 @@
 
-console.log('🔥 app.js загружен — консоль работает!');
+console.log('app.js loaded');
 
 
 
@@ -81,9 +81,9 @@ function chooseWindow(task) {
     inputValue: task,                 // подставляем старый текст
     showDenyButton: true,
     showCancelButton: true,
-    confirmButtonText: '✅ Включить',
-    denyButtonText:    '❌ Игнорировать',
-    cancelButtonText:  '🗑 Удалить',
+    confirmButtonText: '\u2705 \u0412\u043A\u043B\u044E\u0447\u0438\u0442\u044C',
+    denyButtonText:    '\u274C \u0418\u0433\u043D\u043E\u0440\u0438\u0440\u043E\u0432\u0430\u0442\u044C',
+    cancelButtonText:  '\uD83D\uDDD1 \u0423\u0434\u0430\u043B\u0438\u0442\u044C',
     returnInputValueOnDeny: true,     // вот она, магия!
     preConfirm: text => ({ action: 'include', text: text.trim() || task }),
     preDeny:    text => ({ action: 'ignore',  text: text.trim() || task }),
@@ -738,7 +738,7 @@ function copyTasksToClipboard() {
 
   const textarea = document.getElementById("task-list");
   if (!textarea) {
-    console.error("❌ #task-list not found");
+    console.error('task-list not found');
     return;
   }
   console.log("Found textarea, length:", textarea.value.length);
@@ -758,10 +758,10 @@ function copyTasksToClipboard() {
   // Пробуем скопировать
   navigator.clipboard.writeText(cleanedText)
     .then(() => {
-      console.log("✅ Successfully copied to clipboard");
+      console.log('Copied to clipboard');
     })
     .catch(err => {
-      console.error("❌ Copy to clipboard failed:", err);
+      console.error('Copy to clipboard failed:', err);
     });
 }
 
@@ -773,7 +773,7 @@ if (copyBtn) {
     copyTasksToClipboard();
   });
 } else {
-  console.error("❌ copy-button not found, cannot attach listener");
+  console.error('copy-button not found, cannot attach listener');
 }
 
 
