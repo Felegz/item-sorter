@@ -712,6 +712,11 @@ async function sortTasks() {
     taskList.value = result.join("\n\n");
 
     saveDataToLocalStorage();
+
+    // 8) авто-приоритеты и перерисовка подсветки
+    if (typeof assignPrioritiesAfterSort === 'function') assignPrioritiesAfterSort();
+    if (typeof syncHighlight === 'function') syncHighlight();
+    if (typeof renderFilterBar === 'function') renderFilterBar();
     console.log('sortTasks: done, sortedTasks count =', sortedTasks.length);
   } catch (err) {
     console.error('sortTasks error:', err);

@@ -1,0 +1,1552 @@
+:: StoryTitle
+Pomogator
+
+
+:: StoryData
+{
+  "ifid": "130FFCA4-1DFF-42D3-A87B-2AACBB3DF667",
+  "format": "Harlowe",
+  "format-version": "3.3.9",
+  "start": "Начало",
+  "tag-colors": {
+    "end-of-line": "blue"
+  },
+  "zoom": 1
+}
+
+
+:: Actionable {"position":"2350,2075","size":"100,100"}
+Can it be done in one action?
+
+//(print: $yourProject)//
+
+[[Yes->Can be done in one]]
+[[No->Can't be done in one]]
+
+
+:: After input of next action {"position":"300,2425","size":"100,100"}
+Is it a priority right now?
+
+[[Yes, it is->It's a priority]]
+[[No, it's not->It's not a priority]]
+
+
+:: Can be done by someone else {"position":"625,2500","size":"100,100"}
+Add it to shared project and assign it to the right person.
+
+//(print: $someProject)// #Delegated #WeeklyReview
+
+Track tasks during your weekly review with your custom delegated filter.
+
+
+
+🫵Лист ожиданий — полезная фича из GTD, которой мало кто пользуется
+
+В многочисленных обсуждениях и гайдах по GTD крайне редко вспоминают, что кроме Сделать и Отложить, есть ещё третий вариант, как можно поступить с делами, — Делегировать. И ещё реже, в этом контексте, говорят о Листе ожиданий. Совершенно, надо сказать, зря.
+
+Лист ожиданий — это список действий, выполнения которых вы ждёте от других. Попросили коллегу прислать отчёт за прошлый месяц, заказали книжки в МИФе, подали заявление в МФЦ — всё надо записать в Лист ожиданий. Незаменимый список, чтобы не забывать не только свои задачи, но и обязательства перед вами.
+
+Я веду Лист ожиданий, в том или ином виде, практически с самого момента моего знакомства с GTD. В основном, пользуюсь этим списком для ведения рабочих проектов и задач. Коллег много, тут важно не запутаться, кто и что мне должен.
+
+Раньше у меня в Things был отдельный список, который я разделил заголовками по фамилиям. Но мне было неудобно постоянно переключаться между списками. Написал текст рассылки, поставил галочку в списке Следующих действий, отправил на согласование. Надо перейти в Лист ожиданий, записать задачу на руководителя, вернуться обратно. Вроде бы ерунда, но лишние действия напрягали.
+
+Поэтому я объединил два списка: Следующих действий и Лист ожиданий. В едином списке записываю задачи для себя и которые ожидаю от других. К чужим задачам добавляю теги с именем и фамилией. Теги помогают группировать задачи по исполнителям. Ну и визуально делегированные задачи выделяются из общего списка, что тоже удобно.
+
+Наверно, такой способ не очень подойдёт тем, кто активно использует теги для организации своих задач — получится каша из фамилий и организационных тегов. Но я ими больше ни для чего не пользуюсь, так что мне норм.
+
+Недостатком может быть то, что для одного какого-нибудь случайного персонажа надо будет заводить отдельный тег. Например, мне надо было получить закрывающие документы от организаторов одной премии, в которой участвовала моя компания. Это был первый и единственный раз, когда я использовал тег с фамилией представителя компании-организатора. Так что, если ваша работа подразумевает много таких «одноразовых» контактов, то список тегов придётся регулярно чистить от неактуальных фамилий.
+
+Сейчас подумываю немного поменять метод. Всем делегированным задачам буду ставить тег Лист ожиданий, а ответственного писать в заголовке задачи, через значок собачки — @. Идею этого значка давным-давно подсмотрел у создателя буллет джорнал Райдера Кэррола. Так, вроде, будет проще.
+
+Ещё Дэвид Аллен советовал указывать даты, когда поставили задачу. Иногда это может пригодиться — «Да я уже три недели назад попросил тебя прислать этот отчёт!». В Things не нужно проставлять дату создания задачи вручную. Её можно посмотреть в пункте Сведения, из контекстного меню.
+
+Так что очень советую завести такой список.
+
+
+:: Can be done in one {"position":"2350,2200","size":"100,100"}
+Define the next physical visible action to move forward
+
+|input>[ (input-box: bind $nextStep) ]
+
+Can it be done in under 2 minutes?
+
+[[Yes->Yes, single action, under 2 minutes]]
+[[No->No, single action, more than 2 minutes]]
+
+
+:: Can be done in two minutes {"position":"625,2375","size":"100,100"}
+//(print: $yourProject)//
+
+Do it right now and mark done.
+
+
+:: Can't be done in one {"position":"2550,2200","size":"100,100"}
+This is a project. Define project as needed outcome.
+
+Write outcome.
+|input>[ (input-box: bind $whatResultLooksLike) ]
+
+[[Next->Define next action]]
+
+
+
+
+:: Can't be done in two minutes {"position":"500,2375","size":"100,100"}
+//(print: $yourProject)//
+
+Can it be done by someone else?
+
+[[Yes->Can be done by someone else]]
+[[No->Cannot be done by someone else]]
+
+
+:: Cannot be done by someone else {"position":"500,2500","size":"100,100"}
+//(print: $yourProject)//
+
+Do you wait for something in order to complete it?
+
+[[Yes->Waiting for something in order to complete]]
+[[No->Not waiting for something in order to complete]]
+
+
+:: Define next action {"position":"2550,2325","size":"100,100"}
+Define the next physical visible action to move forward.
+
+Формулируй как для труслового льва или для глупого дворецкого. Или как для глупого ребенка. 
+
+<img src="https://i.imgflip.com/20kt9u.jpg" width="256">
+
+|input>[ (input-box: bind $nextStep) ]
+
+
+Option A. 
+Decide next action by
+1. Context
+2. Time
+3. Energy
+4. Priority
+
+
+Option B. Intuition
+
+Option C. 
+1. What will produce most value?
+2. What is riskiest not to do?
+
+Option D. 
+1. Previously defined work (next actions)
+2. Ad-hoc work as it appears
+3. Take time to define your work
+
+Вотяков:
+1. Декомпозиция.
+2. Критерий завершения. 
+3. Первый шаг.
+4. С кем обсудить. 
+
+
+[[Next->Следующая страница]] 
+
+
+:: Delete it {"position":"625,2250","size":"100,100"}
+//(print: $someProject)//
+
+Delete it. 
+
+Feel good about it. 
+
+
+:: Doesn't need to be done on specific date {"position":"500,2750","size":"100,100"}
+Add @next label. Also add any applicable context labels like @office or @home
+
+Do these things with the next opportunity
+
+// @next (print: $yourProject)//
+
+
+:: Expectancy {"position":"3750,1125","size":"100,100"}
+How to Increase Value
+We want to increase a task’s value by making it more pleasant and rewarding. What can we do to generally increase the value of a task?
+
+Set Major Goals
+Having a clear idea of our important, bigger goals in life is a great way to inject some meaning into what we do. It is generally better to have less of these than more, as it gives us something to focus our attention and effort on.
+
+Having major goals that are personally meaningful can help us see the value of each small task and goal that is linked to them. (even if it’s through a long chain) which will increase our motivation.
+
+What are the big goals that you’re currently working on?
+
+Write them out, in detail, using proper goal forming (see Advanced Goal Making under How to Decrease Impulsiveness).
+
+Put them somewhere easy to access and easily visible.
+
+Know Your Skills and Achieve Flow
+Flow is the state where you get lost in a task because your skill level matches the difficulty level. If it’s too easy, you’ll be bored. If it’s too hard, you’ll run out of steam or get frustrated.
+
+Remember, always try to match difficulty with your skills.
+
+Increase Your Energy
+Steel says being too tired is a one of the top reasons for procrastination! For many people this is the biggest factor in their procrastination. Consider each of the following lifestyles that influence your energy levels, and think about what you can do to change them.
+
+Are you exercising? Exercise is just all-around awesome. It’s good for your energy levels, mental alertness, physical health, attractiveness, and so on.
+
+How often, and in what form, do you exercise? Preferably find a form of exercise that you enjoy (rock climbing, anyone?), as it will be much easier to stick with it.
+
+Find a fun way to exercise and do it!
+
+Are you eating healthy food. What does your typical meal look like? What are your nutrition habits? How often do you eat fast food? Are your blood sugar levels fluctuating wildly throughout the day from unhealthy snacking and too many simple carbs?
+
+Buy less junk food. Buy a bunch of small, healthy, nutritious snacks.
+
+Make healthy snack easily accessible and graze on them throughout the day; this helps steady blood sugar levels.
+
+How is your sleep hygiene? Are you getting enough sleep? How is the quality of your sleep? How hard is it to get out of bed in the morning? How many times do you tend to snooze your alarm clock?
+
+Go to sleep at the same time; wake up at the same time.
+
+Have a regular wind-down routine (make one if needed).
+
+Make your sleep time and space a place to escape away from the day’s stresses; have separate spaces for separate things.
+
+Do you plan around your energy, not your time? Attack your harder work when you have the mental energy to do it. Consider that for most people, the optimal time to do your mental “heavy lifting” is in the first few hours of the day. When is your optimal time to work? Are you a morning person or a night owl?
+
+Plan the most difficult work around your peak energy.
+
+Do you take breaks? How often do you take breaks? When you take breaks, are you genuinely relaxed? How long are your stretches of productive work? Consider which forms of non-work are genuinely relaxing.
+
+Can you reduce your commitments? If you can’t seem to get enough energy to do your work, try to cut back on your commitments or get some help. Your brain has a limited amount of willpower and resources. By stretching yourself too thin you may be reducing your effectiveness on all tasks.
+
+Do you overcommit? Respect your limitations!
+
+Create Rewards
+Rewards can be a great way to motivate ourselves to get our work done. It helps to know what sort of rewards we like, such as specialty coffee (my personal choice), a scoop of ice cream, self-praise, a night out, or a frivolous purchase. As another example, could you make exercise more enjoyable by having a workout partner whose company you enjoy?
+
+List the types of rewards you like and could give yourself.
+
+Are your recognizing and appreciating your accomplishments?
+
+Know Your Passion
+What are you passionate about? Can you clarify it? Can you write it out? Consider performing a career personality test, such as the RIASEC. Then, go out and find a career that is more in line with your passions and accounts for your personality, the job market, and your abilities.
+
+Passion creates intrinsic motivation to do something. For example, it isn’t hard for me to spend time reading and writing about procrastination and how the brain works, because I really enjoy it.
+
+
+:: File as reference [end-of-line] {"position":"1950,2700","size":"100,100"}
+Will you need to open this information often?
+
+Will you need this information often?
+
+is this idea
+
+<span id="t2" onclick="copyToClipboard('t2')" style="cursor:pointer; color:yellow;">
+    $yourProject
+</span>
+
+[[Yes->Need this often]]
+[[No->Need this not often]]
+
+
+:: Impulsiveness {"position":"3875,1125","size":"100,100"}
+HOW TO DECREASE IMPULSIVENESS _
+
+We want to decrease our impulsiveness so we can maintain focus on a task. What can we do to generally decrease our impulsiveness?
+
+(Too many different things to do? Keep getting distracted? Keep getting interrupted? Keep getting strong, intense cravings? Can’t decide what to work on next?)
+
+
+
+''1/ Advanced Goal Setting''
+
+Steel calls goal setting the smartest thing you can do to battle procrastination.
+
+Are you good at setting goals? Are you good at organizing and outlining your goals? Do you ever take the time to write them down, or just keep them in your head? Are they specific and measurable? Do you specify deadlines? Do you make them realistic, yet challenging? Do you highlight why they are valuable to you?
+
+When goal-setting, try to make them specific and measurable, realistic yet challenging, and meaningful.
+
+Approach goals are better than avoidance goals. For example, “Get in shape” is much better than “Stop being unfit.”
+
+Make approach (positive) goals.
+
+Are you better with input (process) or output (product) goals? For example, do you prefer “work on this for two hours” over “get this done”? How about running for one hour versus running five kilometres? Input goals tend to be better at the start of a project, such as “Write for three hours.”
+
+Try setting goals both ways and see what works better for you, and when.
+
+Can you break it down into sub-goals? Goals are often too large to be tackled in one go. Breaking goals down into sub-goals reduces the delay between now and the completion of an important task. In general, daily and weekly goals seem to work
+
+
+
+2/ Eliminiate Distractions
+
+What tends to distract you? Are people constantly walking into your office? Is the phone always ringing? Are text messages and emails always flowing in? These are distractions that interrupt your workflow. Turn off those email alerts and popups! Set your phone to go directly to voicemail when you’re busy. Keep the door closed with a Do Not Disturb sign.
+
+Eliminate distraction cues from your life!
+
+Where is there clutter in your life? Is your desk a mess? How about your office, or your whole house? Clutter creates visual distractions and increases the time spent off-task searching for something like a pen or notebook.
+
+Get rid of the clutter!
+
+Every second of distraction is an opportunity for your mind to lose focus, and increases the time required to get back on track.
+
+
+
+
+
+
+
+:: Is it actionable? {"position":"375,1975","size":"100,100"}
+//(print: $yourProject)//
+
+Is it actionable?
+
+[[Yes->It is actionable]]
+[[No->It is not actionable]]
+
+
+
+
+:: It is actionable {"position":"375,2125","size":"100,100"}
+
+Can you do it in one step?
+
+(text-colour:black)+(bg:#d5d737)[//(print: $yourProject)//]
+
+[[Yes->Requires one step]]
+[[No->Requires more than one step]]
+
+
+
+:: It is not actionable {"position":"500,2125","size":"100,100"}
+//(print: $someProject)//
+
+Will you need it?
+
+[[No->Delete it]]
+[[Yes->Move to reference project]]
+
+
+:: It is not trash {"position":"2075,2200","size":"100,100"}
+Remind yourself on a specific date?
+
+//(print: $yourProject)//
+
+[[Yes->Remind on specific date]]
+[[No->Not remind on specific date]]
+
+
+:: It is trash [end-of-line] {"position":"1950,2200","size":"100,100"}
+Delete this shit.
+
+
+:: It's a priority {"position":"375,2625","size":"100,100"}
+1. Create next project that reflects the outcome you want.
+
+2. Then add each step as a new task. 
+
+[[What is next action->Requires more than one step]]
+
+
+:: It's not a priority {"position":"250,2625","size":"100,100"}
+Put it in your Someday Maybe list to come back to later. 
+
+//+SomedayMaybe (print: $nextStep) ➤ (print: $yourProject) //
+
+
+:: Move to reference project {"position":"750,2250","size":"100,100"}
+//(print: $someProject)//
+
+Move it to the reference project or attach it in the relevant task's comments. 
+
+Will you need this information often?
+
+[[Yes->Need this often]]
+[[No->Need this not often]]
+
+
+:: Need this not often {"position":"750,2375","size":"100,100"}
+//(print: $someProject)//
+
+Add it to Справочные материалы — информация, которую вы используете редко, поэтому нет необходимости держать ее под рукой.
+
+цеттелькастен.
+
+1. одна карточка = 1 мысль.
+
+2. каждая новая карточка должна быть связана/линковаться  с другой карточкой.
+
+3. идея своими соовами
+
+
+:: Need this often {"position":"875,2375","size":"100,100"}
+//(print: $someProject)//
+
+Add it to Вспомогательные материалы — информация, которую вы используете чаще.
+
+
+:: Need to be done on specific date {"position":"625,2750","size":"100,100"}
+Add to calendar
+
+(text-style:"mark")[//(print: $yourProject) +shag <span id="currentDate">Загрузка даты...</span>//]
+
+
+
+<span id="calendarLink">Создание ссылки...</span>
+
+
+
+<script>
+    const today = new Date();
+    const formattedDate = today.getFullYear() + "-" +
+        String(today.getMonth() + 1).padStart(2, '0') + "-" +
+        String(today.getDate()).padStart(2, '0');
+    document.getElementById("currentDate").textContent = "due:" + formattedDate;
+    
+    
+
+    // Форматируем дату для Google Календаря (YYYYMMDD)
+    const googleDate = today.getFullYear() + 
+        String(today.getMonth() + 1).padStart(2, '0') + 
+        String(today.getDate()).padStart(2, '0');
+
+    // Создаем ссылку на событие
+    const googleCalendarLink = `https://calendar.google.com/calendar/r/eventedit?dates=${googleDate}/${googleDate}&text=Новое+Событие&details=Описание+события&location=Онлайн`;
+
+    // Вставляем ссылку в элемент #calendarLink
+    document.getElementById("calendarLink").innerHTML = `<a href="${googleCalendarLink}" target="_blank">Добавить событие в Google Календарь</a>`;
+</script>
+
+
+
+:: No, does not depend on someone else [end-of-line] {"position":"2350,2450","size":"100,100"}
+Add next action to context list
+
+<span id="t2" onclick="copyToClipboard('t2')" style="cursor:pointer; color:yellow;">
+    (C) |priorityEmoji>[ ] 🍭 $nextStep +shag |contextPlaceholder>[ ]  #selfhelp
+</span>
+
+@internet
+@phone
+@notebook
+
+@home
+@office
+
+
+
+
+:: No, single action, more than 2 minutes {"position":"2350,2325","size":"100,100"}
+Does it depend on someone else?
+
+[[Yes->Yes, depends on someone else]]
+[[No->No, does not depend on someone else]]
+
+
+:: Not actionable {"position":"1950,2075","size":"100,100"}
+Is it trash?
+
+//(print: $yourProject)//
+
+[[Yes->It is trash]]
+[[No->It is not trash]]
+
+
+:: Not file as reference {"position":"2075,2700","size":"100,100"}
+So it is actually trash. 
+
+
+:: Not remind on specific date {"position":"2075,2325","size":"100,100"}
+Remind yourself this is an option in general?
+
+//(print: $yourProject)//
+
+[[Yes->Reming myself this is an option in general]]
+[[No->Not to remind myself this is an option in general]]
+
+
+
+:: Not remind when with someone {"position":"2075,2575","size":"100,100"}
+File as reference?
+
+//(print: $yourProject)//
+
+[[Yes->File as reference]]
+[[No->Not file as reference]]
+
+
+:: Not to remind myself this is an option in general {"position":"2075,2450","size":"100,100"}
+Remind yourself when you are with someone?
+
+//(print: $yourProject)//
+
+[[Yes->This is Agendas]]
+[[No->Not remind when with someone]]
+
+
+:: Not waiting for something in order to complete {"position":"500,2625","size":"100,100"}
+//(print: $yourProject)//
+
+Needs to be done at specific day and time?
+
+[[Yes->Need to be done on specific date]]
+[[No->Doesn't need to be done on specific date]]
+
+
+:: Remind on specific date [end-of-line] {"position":"1950,2325","size":"100,100"}
+Tickler file something
+
+<span id="t2" onclick="copyToClipboard('t2')" style="cursor:pointer; color:yellow;">
+    $yourProject
+</span>
+
+
+:: Reming myself this is an option in general [end-of-line] {"position":"1950,2450","size":"100,100"}
+Move to Someday Maybe list
+
+<span id="t2" onclick="copyToClipboard('t2')" style="cursor:pointer; color:yellow;">
+   (O) +idea $yourProject +SomedayMaybe  #selfhelp 
+</span>
+
+
+:: Requires more than one step {"position":"375,2250","size":"100,100"}
+What is the next action?
+
+|input>[ (input-box: bind $nextStep) ]
+[[Дальше->After input of next action]]
+
+
+
+:: Requires one step {"position":"500,2250","size":"100,100"}
+//(print: $yourProject)//
+
+Can you do it in 2 minutes?
+
+[[Yes->Can be done in two minutes]]
+[[No->Can't be done in two minutes]]
+
+
+:: This is Agendas [end-of-line] {"position":"1950,2575","size":"100,100"}
+Mark as Agenda
+(a list of items to be discussed at a formal meeting)
+
+<span id="t2" onclick="copyToClipboard('t2')" style="cursor:pointer; color:yellow;">
+    +Agenda +ToDiscuss $yourProject  #selfhelp
+</span>
+
+
+:: Value {"position":"4000,1125","size":"100,100"}
+How to Increase Value Right Now
+We want to increase a task’s value by making it more pleasant and rewarding. What can we do, right now, to increase the value of a task?
+
+Find Meaning
+Review your major goals. Does this task connect to any of those major goals, even if it’s through a long chain?
+
+For example, working on an assignment may be dull, but remind yourself why your goal of becoming an industry leader in this field is important to you. You want that. Presumably, a better assignment means better knowledge and grades, which means better job prospects, which means better opportunities to become a leader.
+
+Find Flow
+Make sure you are matching the difficulty of the current task with your ability. If it’s too easy, you’ll be bored. If it’s too hard, you’ll run out of steam or get frustrated. The goal is to find that state of ‘flow’ where you are in a perfect balance.
+
+Create Competition
+Can you turn this into a game or a competition? Can you compete against a friend? How about racing to see who can finish their assignment first, with the loser treating the winner to lunch? Can you compete against yourself?
+
+Get Some Energy
+Feeling tired or sluggish? Right now might not be a good time to catch up on your sleep or do an hour long workout, but at least get your blood moving. Do a few jumping jacks or splash some cold water on your face. Listen to some pump-up music to get you energized.
+
+Are you taking genuine breaks from your work? Willpower is a limited resource that needs replenishment! Plan around your energy and willpower, now around your time.
+
+Also be sure you are drinking enough water and eating enough nutritious food (maybe have a quick snack right now?).
+
+Rewards
+Is there a way you can make the situation more rewarding? Review the ways you enjoy rewarding yourself. What exactly are you trying to accomplish, and how can you reward yourself when you finish?
+
+Find Passion
+Hopefully you’ve already figured out what you’re passionate about. Is this task somehow connected to your passion? Can you frame it in such a way as to be intrinsically motivated by it?
+
+Productive Procrastination
+Procrastinating by doing less-important work is better than procrastinating by doing nothing. Motivation can come easy when we’re avoiding something. It’s not a coincidence that my bedroom was always cleanest during exams.
+
+Is there something else, still important, but not as pressing, that you could work on right now instead?
+
+Accountability
+Who else knows about what you’re working on? Can you let a friend in on your work, and promise them you’ll finish it?
+
+Public commitment and accountability, such as on a blog or social media, may be an excellent way to keep yourself motivated.
+
+Bitter & Sweet
+Try combining a long-term interest with a short-term impulse. For example, could you only let yourself listen to your new albums while exercising?
+
+
+:: Version 3 {"position":"2150,1875","size":"100,100"}
+Is it actioanable?
+
+//(print: $yourProject)//
+
+[[Yes->Actionable]]
+[[No->Not actionable]]
+
+
+:: Waiting for something in order to complete {"position":"625,2625","size":"100,100"}
+Add @waiting label.
+
+
+(H)//(print: $someProject)// +waiting #waiting #WeeklyReview
+
+
+Review these tasks during your weekly review with you waiting label list. 
+
+
+:: What's on your mind? {"position":"375,1825","size":"100,100"}
+What's on your mind?
+
+|input>[ (input-box: bind $yourProject) ]
+
+[[Next->Is it actionable?]]
+
+
+:: Yes, depends on someone else [end-of-line] {"position":"2225,2450","size":"100,100"}
+Add #Waiting
+
+(text-style:"mark")[(C) |priorityEmoji>[ ] 🍭 #WaitingFor (print: $nextStep) +shag |contextPlaceholder>[ ]  #selfhelp  ] 
+
+<span id="t2" onclick="copyToClipboard('t2')" style="cursor:pointer; color:yellow;">
+    (C) #Waiting $nextStep +shag #selfhelp
+</span>
+
+https://www.reddit.com/r/gtd/comments/c5jix1/waiting_for_context_or_a_folder_in_your_system/
+
+
+:: Yes, single action, under 2 minutes [end-of-line] {"position":"2225,2325","size":"100,100"}
+Do it now. 
+
+<span id="t2" onclick="copyToClipboard('t2')" style="cursor:pointer; color:yellow;">
+    (C) |priorityEmoji>[ ] 🍭 $nextStep +shag |contextPlaceholder>[ ]  #selfhelp
+</span>
+
+<a href="https://e.ggtimer.com/2%20min" target="_blank">Запустить таймер на две минуты</a>
+
+
+[[Сделано. Рассмотреть следующую задачу?->Начало]]
+
+
+
+:: А как бы поступил другой {"position":"50,950","size":"100,100"}
+«А как бы поступил на моем месте ...?»
+
+Сомнения провоцируют появление таких эмоций, как страх, тревога, уныние, которые делают нас уязвимыми. Оказавшись в их власти, мы перестаем адекватно оценивать ситуацию и думаем лишь об одном: поскорее найти какой-нибудь выход, чтобы закончить мучения и разорвать круг неопределенности.
+
+Понятно, что в таком состоянии принять взвешенное решение, которое принесет пользу, достаточно сложно. Поэтому очень важно попробовать абстрагироваться и взглянуть на ситуацию глазами постороннего человека. Спросите себя: «А как на моем месте поступил бы кто-то другой?» Вы не знаете, есть ли у этого человека долги, какая у него работа, о чем он мечтает и какие планы на ближайшее будущее он строит. Но в этом и состоит главный плюс: лишняя информация создает шум в голове и мешает по достоинству оценить каждый вариант.
+
+Отбросьте двойные стандарты: не требуйте от себя того, чего вы не стали бы требовать от других. Иначе в будущем не получится избежать мучительных колебаний в процессе принятия решений.
+
+
+:: Бредогенерация {"position":"175,525","size":"100,100"}
+1. Как бы подошел к этому проекту:
+
+А. Ребенок.
+Б. Бэтмен.
+В. Полный идиот.
+Г. Эрик Картман.
+Д. Ваш лучший друг.
+Е. Василий Иванович Чапаев.
+
+
+4. Какие ограничения есть у проекта? Попробуйте представить, что вы их нарушили. В каких случаях это будет даже к лучшему? Например:
+
+А. Нужно выпустить релиз до отпуска — я в отпуске, а команда все делает сама без меня… (они так намного продуктивнее трудятся, тем более из отпуска я не смогу ничего сломать).
+
+Б. Проект нужно завершить до конца месяца — через полгода мы еще работаем… (клиенту понравилась наша идея, и он с радостью согласился на дополнительные улучшения).
+
+В. Для въезда страну мне нужна виза — я стою на пограничном контроле без паспорта… (меня депортируют на родину рейсом с пересадкой продолжительностью в три недели на тропическом острове без интернета).
+
+5. Если у вас уже есть направление решения, можно ли выполнить проект, делая все наоборот?
+
+А. Для того чтобы похудеть, записываться на фитнес? Может, купить новый телевизор?
+
+Б. Для того чтобы выучить английский, записаться на курсы? Может, самому преподавать?
+
+В. Задавать головоломки кандидату на собеседовании? А пусть он нас тестирует!
+
+6. Если ваше решение не идеально и приводит к нежелательным побочным эффектам, в каких ситуациях эти эффекты были бы очень даже желательны? Например:
+
+А. Отпуск в декабре — холодно. Но вот если бы я катался на лыжах…
+
+Б. Делать ремонт в квартире с мебелью — неудобно, хотя если белить потолок, лежа на шкафу, то можно не тратиться на стремянку…
+
+7. Порвите шаблон, сделайте не так, как принято. Например:
+
+А. Начать новую жизнь с понедельника? А давай со среды!
+
+Б. Отвечать на e-mail? Может, отправить ответ на открытке обычной почтой?
+
+
+:: Бросить монетку {"position":"475,600","size":"100,100"}
+//(print: $yourProject)//
+
+
+Ты бросаешь монетку.
+(set: $coin to (random: 1, 2))(if: $coin is 1)[Выпал орел. Монетка решила, что не надо делать. 
+
+Ты выбираешь: 
+[[it is not actionable->It is not actionable]]
+
+- удалить это в корзину
+- перенести в список «когда-нибудь»
+- сохранить как важную информацию. 
+[[Подробнее->В корзину или список задач]].
+](else:)[Выпала решка. [[Делаем->Решаема за одно действие]].
+]
+
+[[Перебросить монетку?->Бросить монетку]]
+
+<!--Возможно добавить пункт Задача вызывает сложные чувства?-->
+
+
+<!--Полезные ссылки:
+
+[P.S.
+https://lifehacker.ru/sposoby-prinyatiya-reshenij/
+https://twinery.org/forum/discussion/5104/harlowe-random-events
+-->
+
+
+
+<!--Делегирование будущему себе
+Ключ к личной эффективности - любить себя в будущем и стараться сделать жизнь будущего себя проще, а не подбрасывать ему всякую хрень.
+
+Начните с малого,- сформулируйте задачи. Вчитайтесь в написанный вами список и прислушайтесь к себе. Какие чувства возникают ? Если вам настоящему не хочется делать эту задачу, то с чего вы решили, что будущему вам это захочется ?
+Если основная причина откладывания задачи на будущее это ваше не желание ее делать, то может вообще стоит эту задачу выкинуть или кому то делегировать? Если ее выкидывать жалко, то подумайте над тем, какую выгоду вы хотите получить в результате выполнения этой задачи. Может есть более простой способ получить этот результат ?
+
+Это очень сильная техника,- мысленный диалог с будущим собой и принятие решений, осуществление действий в настоящем в его интересах.
+
+Зачем подкидывать будущему себе всякое говно, если вы в настоящем когда то станете им в настоящем? И это вы в настоящем скажет большое спасибо вам сегодняшнему, который поставил себе простые и понятные задачи, выполнение которых привело к реализации больших целей.-->
+
+
+:: В корзину или список задач {"position":"475,275","size":"100,100"}
+//(print: $yourProject)//
+
+Ты решаешь, что эта информация/задача не требует действий. 
+
+Вот что ты можешь с ней сделать:
+
+- Отложить задачу в списки «Когда-нибудь» или «может быть» (и рассмотреть позже, когда напомнит система напоминаний) [[В списки->Когда-нибудь и можеть быть]]
+
+- Добавить в справочные материалы (доступны при необходимости) [[Перенести в архив->Перенести в Архив]]
+
+(text-style:"mark")[//(print: $yourProject) +idea +someday +maybe//]
+- [[Удалить в корзину->Удалить в корзину]]
+
+
+[[Рассмотреть следующую задачу?->Начало]]
+
+
+:: Выполняем в порядке очередности {"position":"1500,1175","size":"100,100"}
+Текст для todo.txt
+(text-style:"mark")[//(print: $yourProject)// +shag]
+
+Задача не имеет жёсткой даты. Ты решаешь выполнить её в порядке очередности среди других задач.
+Конец.
+
+
+https://task-sorter.glitch.me/
+
+
+What will give you the biggest payoff to do in this moment?
+
+
+:: Делаем прямо сейчас {"position":"1375,925","size":"100,100"}
+//(print: $yourProject)//
+
+Задача занимает менее двух минут, и ты решаешь её сделать прямо сейчас. Отлично!
+
+<a href="https://e.ggtimer.com/2%20min" target="_blank">Запустить таймер на две минуты</a>
+
+
+
+
+
+
+[[Рассмотреть следующую задачу?->Начало]]
+Если не удалось сделать за две минуты.
+
+
+:: Делегируем {"position":"1375,1050","size":"100,100"}
+//(print: $yourProject)//
+
+Эта задача не требует твоего участия. Ты делегируешь её кому-то другому.
+
+<!--Тут может быть что-то о том, как делегировать задачу другому человеку.-->
+
+
+:: Запиши следующее действие {"position":"2575,1175","size":"100,100"}
+Запиши ОДНО следующее действие:
+- На один шаг приближает тебя к результату «//(print: $whatResultLooksLike)//»
+- Можно сделать за 20 минут без перерыва
+- Действие должно ощущаться маленьким и легким
+- Сформулировано настолько понятно, что можно даже перепоручить соседскому ребенку
+- Желательно приложены важные ссылки
+1) Формулировка задачи долна звучать как ответ на вопрос "Что нужно сделать?".
+
+2) Формулировка задачи должна начинаться с глагола в неопределенной форме.
+
+3) Задачу должно быть возможно выполнить по минимуму используя мышление. В идеале формулировка должна вызывать внутренний возглас: "Да это же проще сделать чем записать!".
+
+4) Задача должна представлять собой первоочередное действие по достижению конечной цели. Все большие цели отпугивают и браться за них не хочется, поэтому включается откладывание и прокрастинация.
+
+требует минимально возможных размышлений
+все готово для выполнения задачи
+
+Следующий шаг:
+|input>[ (input-box: bind $nextStep) ]
+[[Дальше->нужно ли сделать в конкретный день]]
+
+[[Проверка на прокрастиногены->Проверка на прокрастиногены]]
+
+
+
+
+:: Имеет определённую дату {"position":"1500,1050","size":"100,100"}
+//(print: $yourProject)//
+
+Эта задачу нужно сделать в конкретный день и/или время?
+
+[[Да->Фиксируем в календаре]]
+[[Нет->Выполняем в порядке очередности]]
+
+
+:: Когда-нибудь и можеть быть {"position":"700,925","size":"100,100"}
+Списки «когда-нибудь» и «может быть». В них входят пункты, которые вы не можете сделать прямо сейчас, потому что они неактуальны в данный момент или потому что вы еще не взяли на себя обязательства по их выполнению.\\
+
+Это идеи, которые потоком приходят в голову. Список «Когда-нибудь» — не склад несбыточных мечт, а место для сбора идей, которые нужно обдумать или к реализации которых нужно подготовиться.
+
+💡 Возвращаться к этому списку можно, когда будет время, силы, желание, необходимость. И этот список точно надо чистить от идей, которые не прошли испытание временем.
+
+
+:: Могу сделать только я {"position":"1500,925","size":"100,100"}
+//(print: $yourProject)//
+
+
+Можно ли эту задачу делегировать кому-то или чему-то другому?
+
+[[Да->Делегируем]]
+[[Нет->Имеет определённую дату]]
+
+
+
+:: Начало {"position":"200,275","size":"100,100"}
+
+
+Ты стоишь перед входящей информацией (задачей, мыслью, идеей)
+|input>[ (input-box: bind $yourProject) ]
+
+
+[[Начали->Предполагает ли задача действия]]
+
+
+[[Try version 2->What's on your mind?]]
+[[Try version 3->Version 3]]
+
+[[Нужен совет?->Советы]]
+
+[[Пожаловаться другу->друг. что откладываешь?]]
+<!--Ты стоишь перед входящей информацией.
+|input>[ (input-box: bind $yourProject, "Введите ваш проект") ]
+-->
+
+
+<!--
+Когда проверяешь этот проект на то, сделан или шаг, который ты обозначил ранее. 
+
+1. Совсем не сделано
+2. Сделано приемлемо
+3. Сделано идеально-->
+
+
+
+[[(?)->О проекте]]
+
+<!-- 1. Берём строку вида "HH:MM AM/PM" -->
+(set: $timeString to (current-time:))
+
+<!-- 2. Извлекаем первые два символа (символы 1 и 2) -->
+(set: $hourString to (substring: $timeString, 1, 2))
+
+<!-- 3. Превращаем в число -->
+(set: $hour to (num: $hourString))
+
+<!-- 4. Выводим только в интервале [0;6) -->
+(if: $hour >= 0 and $hour < 6)[
+  Это сообщение видно только с 00:00 до 06:00.
+]
+
+
+:: О проекте {"position":"200,100","size":"100,100"}
+Что это?
+
+Это инструмент, который я сделал для себя.
+
+Я использую его, чтобы мне было проще фиксировать задачи так, чтобы потом доводить их до конца. Смысл такой: ты пишешь задачу или идею, отвечаешь на вопросы, и в конце получаешь кусок текста, который можешь скопировать себе в таск-трекер. Или сразу начать работать над задачей. 
+
+Задача формулируется по методологии todo.txt — в виде простой строки текста с хештегами. Вы можете использовать какой-нибудь более удобный формат или таск-трекер, чтобы фиксировать задачи. 
+
+Он использует идеи из «Getting Things Done», «Джедайских техник» и прочих источников. Но, конечно, не заменяет их. 
+
+Инструмент сделан с помощью Twine (формат Harlowe). Подходит ли Twine для создания такого инструмента? Так себе. Но это лучше, чем ничего. 
+
+
+:: Определяем приоритет, добавляем контексты и пр {"position":"3200,1150","size":"100,100"}
+Какой приоритет у этого проекта?
+
+(link: "- Красный — Если не выполнить, случится что-то плохое. Если эту задачу выполнить, всё останется как есть и хуже точно не станет. Но и ближе к цели вы не подойдёте.")[(replace: ?priorityEmoji)[#❤️]]
+(link: "- Зелёный — Если не выполнить, то всё останется как есть, по крайней мере в кратко- и среднесрочной перспективе. А если выполнить, то вы станете ближе к какой-то из своих целей.")[(replace: ?priorityEmoji)[#💚]]
+
+• В каком контексте ты можешь выполнить задачу //«$nextStep»//?
+
+(link: "@ноут")[(append: ?contextPlaceholder)[ @ноут]]
+(link: "@телефон")[(append: ?contextPlaceholder)[ @телефон]]
+(link: "@магазин")[(append: ?contextPlaceholder)[ @магазин]]
+
+
+(link: "когда есть свободные десять минут")[(append: ?contextPlaceholder)[ @10минут]]
+(link: "когда иду по улице")[(append: ?contextPlaceholder)[ @на_улице]]
+(link: "в транспорте")[(append: ?contextPlaceholder)[ @транспорт]]
+(link: "дома")[(append: ?contextPlaceholder)[ @дома]]
+(link: "когда есть свободное время в городе")[(append: ?contextPlaceholder)[ @город]]
+(link: "запланированная поездка")[(append: ?contextPlaceholder)[ @поездка]]
+(link: "звонки")[(append: ?contextPlaceholder)[ @звонок]]
+(link: "мессенджеры")[(append: ?contextPlaceholder)[ @мессенджер]]
+(link: "когда нет доступа в интернет")[(append: ?contextPlaceholder)[ @без_интернета]]
+(link: "лягушка (большая неприятная задача)")[(append: ?contextPlaceholder)[ @лягушка]]
+
+
+<span id="t2" onclick="copyToClipboard('t2')" style="cursor:pointer; color:yellow;">
+    (C) |priorityEmoji>[ ] |contextPlaceholder>[ ] (print: $nextStep) +shag  ➤ (🎯Цель):  (print: $whatResultLooksLike)  ➤ (💜Мотивация): $why #selfhelp
+</span>
+
+• Есть ли в проекте еще задачи, которые ты можешь делать параллельно и независимо от этой? ([[Создать еще одну задачу->Запиши следующее действие]])
+• Добавить хештег проекта (автоматически формируется из слов "названия проекта/цели", но также можно отредактировать и изменить.)
+
+
+• Как насчет поделать это всего лишь пять минуточек?
+
+• <a href="https://e.ggtimer.com/20%20minutes" target="_blank">Запустить таймер на 20 минут</a>
+• <a href="https://musicforprogramming.net/about/" target="_blank">Включить музыку для фокусировки?</a>
+
+
+
+• [[Я не хочу->Совет друга]]
+
+• [[Это эмоциональлно сложная задача?->Совет друга]]
+
+• [[Разобрать следующую задачу->Начало]]
+
+<!--
+----------------- новые ссылки:
+
+Оригинальный текст:
+(print: $yourProject)
+
+
+
+|variableName>[текст, который вы хотите заменить]
+(link: "Текст ссылки 1")[(replace: ?variableName)["Новый текст после замены"]]
+(link: "Текст ссылки 2")[(replace: ?variableName)["Хуита"]]
+-->
+
+
+:: Переделать описание задачи {"position":"2825,1175","size":"100,100"}
+Ты замечаешь, что в твоей задаче написан глагол-прокрастиноген. Ты можешь вернуться и переформулировать задачу, не используя следующие глаголы:
+
+- подумать/придумать/выдумать
+- проанализировать
+- выучить/изучить
+- сделать
+
+Нужно максимально снизить когнитивную нагрузку на будущего тебя. 
+
+//(print: $nextStep)//
+
+[[Переписать->Запиши следующее действие]]
+[[Не переписывать, идем дальше->Определяем приоритет, добавляем контексты и пр]]
+
+
+:: Перенести в Архив {"position":"750,800","size":"100,100"}
+Архив — место, где хранится информация, имеющая потенциальную ценность. Ее можно разделить на две группы:
+
+Справочные материалы — информация, которую вы используете редко, поэтому нет необходимости держать ее под рукой.
+
+Вспомогательные материалы — информация, которую вы используете чаще.
+
+
+:: Переносим в проекты {"position":"1875,800","size":"100,100"}
+
+Ты понимаешь, что задача требует более одного шага. Ты переносишь её в проекты для дальнейшей проработки. 
+
+<!--Возможно в этом месте стоит спросить 
+is it a priority right now?-->
+
+Мне нужно //(print: $yourProject)//
+
+Чтобы что?
+|input>[ (input-box: bind $why) ]
+
+Как назовешь проект?
+
+**Название проекта:**
+- Отражает видимый желаемый результат.
+- Формулируется как условие, которое можно проверить (истинно/ложно).
+- При условии true  — завершается. При условии false — завершаем или пересматриваем. 
+- Предпочтительно включает глагол для конкретности.
+- Начинается с ключевого слова для удобной сортировки (например, "Отпуск – завершить").
+- Можно завершить за 12 месяцев.
+
+- Effective project names motivate you toward the outcome you wish to achieve, and give you clear direction about what you are trying to accomplish.
+
+|input>[ (input-box: bind $whatResultLooksLike) ]
+[[Дальше->Запиши следующее действие]]
+
+P.S. Дополнительные советы:
+
+**Исключение:**
+- Если условие нельзя проверить (истинно/ложно), это не проект, а область интересов. («Правильно питаться»)
+
+**Организация:**
+- Используйте подкатегории для проектов, требующих частого внимания.
+[[Дальше->Запиши следующее действие]]
+
+
+
+:: Предполагает ли задача действия {"position":"375,450","size":"100,100"}
+//(print: $yourProject)//
+
+Is it actionable?
+
+[[Да->Решаема за одно действие]]
+[[Нет->В корзину или список задач]]
+[[Не знаю->Бросить монетку]]
+
+
+[[<Назад->Начало]]
+
+
+
+:: Проверка на прокрастиногены {"position":"2700,1175","size":"100,100"}
+(if: $nextStep contains "думать" or $nextStep contains "учить" or $nextStep contains "анализировать" or $nextStep contains "сделать")[иф(goto:'Переделать описание задачи')](else:)[элсе(goto:'Параграф 6')]
+
+
+:: Решаема за одно действие {"position":"650,350","size":"100,100"}
+//(print: $yourProject)//
+
+
+Можешь ли ты решить эту задачу за одно действие?
+
+[[Да->Требует более 2 минут]]
+[[Нет->Переносим в проекты]]
+
+
+:: Следующая страница [end-of-line] {"position":"2550,2450","size":"100,100"}
+
+<span id="t2" onclick="copyToClipboard('t2')" style="cursor:pointer; color:yellow;">
+    (C) |priorityEmoji>[ ] 🍭 $nextStep +shag |contextPlaceholder>[ ] ➤ (🎯Цель):  $whatResultLooksLike ➤ (💜Мотивация): $why #selfhelp  ] 
+</span>
+
+[[Дальше->нужно ли сделать в конкретный день]]
+
+@internet
+@phone
+@notebook
+
+@home
+@office
+
+
+:: Совет друга {"position":"3200,1300","size":"100,100"}
+Какие чувства у тебя вызывает эта задача?
+
+Когда думаю 
+(print: $nextStep)
+Возникают мысли:
+|input>[ (input-box: bind $whyProjectIsHard) ]
+[[Дальше->что говорит друг]]
+
+[[Советы->Советы]]
+
+
+:: Советы {"position":"3525,825","size":"100,100"}
+Советы по прокрастинации
+
+https://alexvermeer.com/how-we-use-the-procrastination-equation/
+
+[[(Too many different things to do? Keep getting distracted? Keep getting interrupted? Keep getting strong, intense cravings? Can’t decide what to work on next?) How to Decrease Impulsiveness ->Impulsiveness]]
+
+[[Increase Value (The work is too difficult? Don’t actually support the goals/outcome of the project/task? Unclear priorities? The work is boring? Don’t know what you want?) How to Increase Value->Value]]
+
+[[(The work is too difficult? Too many different things to do? Fear of failure? Fear of judgement? Lack of confidence in own abilities? Don’t expect to get any recognition for completing this thing?) - How to Increase Expectancy->Expectancy]]
+
+
+<!--https://alexvermeer.com/how-we-use-the-procrastination-equation/-->
+
+
+:: Тестовая зона {"position":"50,525","size":"100,100"}
+
+
+
+\:: Пример с выделением
+(set: $copyText to "(C) Делай по 20 минут ➤ 🎯Цель: закончить сцену ➤ 💜Мотивация: не сгореть")
+
+<span id="copyTarget"> (text-style:"mark")[$copyText] </span>
+
+(link: "📋 Копировать")[
+  (run: copyToClipboard("copyTarget"))
+]
+
+
+==================
+
+
+
+<span id="copyText1">
+  (C) $nextStep ➤ 🎯Цель: $whatResultLooksLike ➤ 💜Мотивация: $why
+</span>
+
+<span style="cursor: pointer; color: blue; text-decoration: underline;"
+      onclick="copyToClipboard('copyText1')">
+  Кликните, чтобы скопировать
+</span>
+
+=======================
+
+<span id="t3" style="display:none;">
+  (C) $s ➤ 🎯$r ➤ 💜$m +shag #selfhelp
+</span>
+
+<span class="copy-btn" onclick="copyToClipboard('t3')">
+  📋 Скопировать шаг прр
+</span>
+
+=====================
+
+
+
+<span id="t2" onclick="copyToClipboard('t2')" style="cursor:pointer; color:yellow;">
+    (C) $s ➤ 🎯$r ➤ 💜$m +shag #selfhelp
+</span>
+
+
+(set: $b to "Привет, мир!")
+(set: $a to $b)
+(print: $a)
+$a
+
+========================
+
+https://notionbox.ru/metod-gtd/
+
+https://todoist.com/ru/productivity-methods/getting-things-done
+
+https://www.ionos.com/startupguide/productivity/getting-things-done-gtd/
+
+Делегирование будущему себе
+Ключ к личной эффективности - любить себя в будущем и стараться сделать жизнь будущего себя проще, а не подбрасывать ему всякую хрень.
+
+Начните с малого,- сформулируйте задачи. Вчитайтесь в написанный вами список и прислушайтесь к себе. Какие чувства возникают ? Если вам настоящему не хочется делать эту задачу, то с чего вы решили, что будущему вам это захочется ?
+Если основная причина откладывания задачи на будущее это ваше не желание ее делать, то может вообще стоит эту задачу выкинуть или кому то делегировать? Если ее выкидывать жалко, то подумайте над тем, какую выгоду вы хотите получить в результате выполнения этой задачи. Может есть более простой способ получить этот результат ?
+
+Это очень сильная техника,- мысленный диалог с будущим собой и принятие решений, осуществление действий в настоящем в его интересах.
+
+Зачем подкидывать будущему себе всякое говно, если вы в настоящем когда то станете им в настоящем? И это вы в настоящем скажет большое спасибо вам сегодняшнему, который поставил себе простые и понятные задачи, выполнение которых привело к реализации больших целей.
+А что Вы думаете обо всем этом ? Напишите свое мнение к комментарии, поставьте лайк, подпишитесь на канал.
+
+
+
+(dropdown: bind _origin, "Abyssal outer reaches", "Gyre's wake", "The planar interstice")
+
+
+(set: $nextStep to "Прочти книгу")
+(set: $whatResultLooksLike to "Ты станешь умнее")
+(set: $why to "Узнать больше")
+
+<span id="copyText" style="display: none;">
+    C (print: $nextStep) — 🎯РЕЗУЛЬТАТ: (print: $whatResultLooksLike) — 💜ЧТОБЫ : (print: $why) +shag #selfhelp
+</span>
+
+<span style="cursor: pointer; color: blue; text-decoration: underline;"
+      onclick="copyToClipboard('copyText')">
+    Кликните, чтобы скопировать текст 1
+</span>
+
+
+<span id="copyText2" style="display: none;">
+    (C) $nextStep ➤ 🎯Цель: $whatResultLooksLike ➤ 💜Мотивация: $why +shag #selfhelp
+</span>
+
+<span style="cursor: pointer; color: blue; text-decoration: underline;"
+      onclick="copyToClipboard('copyText2')">
+    Кликните, чтобы скопировать текст 2
+</span>
+
+
+1 Стрелки вправо 2 → 3 Черный треугольник с вершиной направо 4 ➔ 5 ➜ 6 ➝ 7 ➞ 8 🠖 9 🠒 10 ☞ 11 ☛ 12 Закрашенная стрелка, указывающая вправо 13 ➟ 14 ➠ 15 ➢ 16 ➣ 17 ➥ 18 ➦ 19 ↛ 20 ↝ 21 ➤ 22 ↠ 23 ↣ 24 ↦ 25 ↬ 26 ⇀ 27 ⇁ 28 ⇒ 29 ⇏ 30 ⇛ 31 ⇝ 32 ⇢ 33 ⇥ 34 ⇨ 35 ⇰ 36 ⇴ 37 ⇉ 38 ⇶ 39 ⇸ 40 ⇻ 41 ⇾ 42 ⟴ 43 ⟶ 44 ⟹ 45 ⟾ 46 ⟼ 47 ⟿ 48 ⤀ 49 ⤁ 50 ⤅ 51 ⤃ 52 ⤇ 53 ⤍ 54 ⤏ 55 ⤐ 56 ⤑ 57 ⤔ 58 ⤕ 59 ⤖ 60 ⤗ 61 ⤘ 62 ⤚ 63 ⤜ 64 ⤞ 65 ⤠ 66 ⤳ 67 ⥇ 68 ⥓ 69 ⥗ 70 ⥟ 71 ⥛ 72 ⥬ 73 ⥭ 74 ⥤ 75 ⥰ 76 ⥅ 77 ⥱ 78 ⥲ 79 ⥴ 80 ⥵ 81 ⥸ 82 ⥹ 83 ➧ 84 ➨ 85 ➩ 86 ➪ 87 ➫ 88 ➬ 89 ➭ 90 ➮ 91 ➯ 92 ➱ 93 ➲ 94 ➳ 95 ➵ 96 ➸ 97 ➺ 98 ➻ 99 ➼ 100 ➽ 101 ➾ 102 ⍄ 103 ⍈ 104 ⍆ 105 ➙ 106 ➛ 107 > 108 ˃ 109 ᐅ 110 ᐉ 111 ᐳ 112 ᗒ +shag
+
+
+:: Требует более 2 минут {"position":"1500,800","size":"100,100"}
+//(print: $yourProject)//
+
+
+Требует ли задача меньше 2 минут на выполнение?
+
+[[Да->Делаем прямо сейчас]]
+[[Нет->Могу сделать только я]]
+
+
+:: Удалить в корзину {"position":"775,675","size":"100,100"}
+Ты решаешь удалить это в корзину. Теперь ты можешь заняться другими делами. 
+
+
+:: Фиксируем в календаре {"position":"1375,1175","size":"100,100"}
+(text-style:"mark")[//(print: $yourProject) +shag <span id="currentDate">Загрузка даты...</span>//]
+
+Ты фиксируешь задачу в календаре на нужную дату. Теперь ты точно не забудешь её выполнить.
+Конец.
+
+<span id="calendarLink">Создание ссылки...</span>
+
+
+
+<script>
+    const today = new Date();
+    const formattedDate = today.getFullYear() + "-" +
+        String(today.getMonth() + 1).padStart(2, '0') + "-" +
+        String(today.getDate()).padStart(2, '0');
+    document.getElementById("currentDate").textContent = "due:" + formattedDate;
+    
+    
+
+    // Форматируем дату для Google Календаря (YYYYMMDD)
+    const googleDate = today.getFullYear() + 
+        String(today.getMonth() + 1).padStart(2, '0') + 
+        String(today.getDate()).padStart(2, '0');
+
+    // Создаем ссылку на событие
+    const googleCalendarLink = `https://calendar.google.com/calendar/r/eventedit?dates=${googleDate}/${googleDate}&text=Новое+Событие&details=Описание+события&location=Онлайн`;
+
+    // Вставляем ссылку в элемент #calendarLink
+    document.getElementById("calendarLink").innerHTML = `<a href="${googleCalendarLink}" target="_blank">Добавить событие в Google Календарь</a>`;
+</script>
+
+
+
+:: Фиксируем в календаре для проектов {"position":"3175,1025","size":"100,100"}
+Текст задачи для todo.txt:
+(text-style:"mark")[(C) 🍭 (print: $nextStep) ➤ (🎯[Цель]:  (print: $whatResultLooksLike) ) ➤ (💜[Мотивация] : $why) +shag <span id="currentDate">Загрузка даты...</span>]
+
+Ты фиксируешь задачу в календаре на нужную дату. Теперь ты точно не забудешь её выполнить.
+
+<span id="calendarLink">Создание ссылки...</span>
+
+
+
+<script>
+    const today = new Date();
+    const formattedDate = today.getFullYear() + "-" +
+        String(today.getMonth() + 1).padStart(2, '0') + "-" +
+        String(today.getDate()).padStart(2, '0');
+    document.getElementById("currentDate").textContent = "due:" + formattedDate;
+    
+    
+
+    // Форматируем дату для Google Календаря (YYYYMMDD)
+    const googleDate = today.getFullYear() + 
+        String(today.getMonth() + 1).padStart(2, '0') + 
+        String(today.getDate()).padStart(2, '0');
+
+    // Создаем ссылку на событие
+    const googleCalendarLink = `https://calendar.google.com/calendar/r/eventedit?dates=${googleDate}/${googleDate}&text=Новое+Событие&details=Описание+события&location=Онлайн`;
+
+    // Вставляем ссылку в элемент #calendarLink
+    document.getElementById("calendarLink").innerHTML = `<a href="${googleCalendarLink}" target="_blank">Добавить событие в Google Календарь</a>`;
+</script>
+
+
+
+:: Чтобы что {"position":"50,650","size":"100,100"}
+1. Что надо сделать? Это и есть ваш проект, опишите его одним-двумя предложениями.
+|input>[ (input-box: bind $xWhatToDo) ]
+
+2. Чтобы что? Какие выгоды вы ожидаете получить в результате выполнения проекта?
+|input>[ (input-box: bind $xChobyChto) ]
+
+3. Что еще? Что еще, помимо вашего проекта, нужно выполнить, какие ресурсы получить или какие ограничения снять, чтобы проект принес ожидаемые результаты?
+|input>[ (input-box: bind $xWhatElse) ]
+
+4. А не то? Что произойдет, если проект не будет выполнен?
+|input>[ (input-box: bind $xOrElse) ]
+
+5. И что? Насколько страшны и суровы последствия невыполнения этого проекта?
+|input>[ (input-box: bind $xAndSoWhat) ]
+
+6. Кому и для чего нужны результаты этого проекта? Кто и как будет их использовать?
+|input>[ (input-box: bind $xForWhomAndForWhat) ]
+
+7. Как еще можно достичь «чтобы что»? Есть ли пути, альтернативные реализации исходного проекта, но дающие те же (а то и лучшие) результаты?
+|input>[ (input-box: bind $xHowElseToDo) ]
+
+[[Начали->Чтобы что Параграф 2]]
+
+
+
+:: Чтобы что Параграф 2 {"position":"50,825","size":"100,100"}
+Что сделать: (print: $xWhatToDo)
+
+Чтобы (print: $xChobyChto)
+
+Ещё: (print: $xWhatElse)
+
+А то (print: $xOrElse)
+
+И (print: $xAndSoWhat)
+
+Нужно (print: $xForWhomAndForWhat)
+
+Как ещё (print: $xHowElseToDo)
+
+
+
+
+
+:: выводим текст задачи {"position":"3500,300","size":"100,100"}
+(C) 🍭  (print: $nextStep) ➤ определить следующий шаг  ➤ (🎯Цель проекта):  (print: $whatResultLooksLike) ).  (💜Дружеский совет):  (print: $whatWouldYouSayToFriend) ) +shag #selfhelp 
+
+
+
+<a href="https://e.ggtimer.com/20%20minutes" target="_blank">Запустить таймер на 20 минут</a>
+
+
+
+:: друг говорит, почему сложно {"position":"2975,300","size":"100,100"}
+Какие чувства у тебя вызывает эта задача?
+
+Когда думаю 
+(print: $yourProject)
+Возникают мысли:
+|input>[ (input-box: bind $whyProjectIsHard) ]
+[[Дальше->друг говорит, что посоветуешь]]
+
+[[Советы->Советы]]
+
+
+:: друг говорит, что посоветуешь {"position":"3125,300","size":"100,100"}
+Друг говорит:
+
+Мне нужно 
+//(print: $yourProject)//
+Но 
+//(print: $whyProjectIsHard) //
+Что скажешь?
+|input>[ (input-box: bind $whatWouldYouSayToFriend) ]
+[[Дальше->друг. описываем результат]]
+
+
+:: друг. описываем результат {"position":"3250,300","size":"100,100"}
+Опиши, как будет выглядеть видимый желаемый результат:
+
+Мне нужно //(print: $yourProject)//
+
+Дружеский совет: //(print: $whatWouldYouSayToFriend) //
+
+|input>[ (input-box: bind $whatResultLooksLike) ]
+[[Дальше->друг. описываем следующее действие]]
+
+
+:: друг. описываем следующее действие {"position":"3375,300","size":"100,100"}
+Запиши ОДНО следующее действие:
+- На один шаг приближает тебя к результату «(print: $whatResultLooksLike)»
+- Можно сделать за 20 минут
+- Сформулировано настолько понятно, что можно даже перепоручить соседскому ребенку
+- Действие должно ощущаться маленьким и легким
+
+
+Совет друга: (print: $whatWouldYouSayToFriend)
+
+Следующий шаг:
+|input>[ (input-box: bind $nextStep) ]
+[[Дальше->выводим текст задачи]]
+
+
+:: друг. что откладываешь? {"position":"2825,300","size":"100,100"}
+Что ты откладываешь?
+|input>[ (input-box: bind $yourProject) ]
+[[Дальше->друг говорит, почему сложно]]
+
+
+
+:: инфа про ПРИОРИТЕТЫ {"position":"400,50","size":"100,100"}
+У вотякова есть вопрос "Сейчас ли? (на этой неделе?)"
+Идет после "Мне?"
+
+
+Все его вопросы:
+1. Что это? (нет ответвлений?)
+2. С этим надо что-то делать?
+3. Мне?
+4. Сейчас ли? (тут задача попадает в Backlog или Когда-нибудь потом) 
+5. Задача мутная?
+6. (если не мутная) Две минуты?
+
+
+Сейчас ли это тоже показатель, важная ли это задача, в плане надо ли её брать на эту неделю.
+
+
+Задача приближает тебя к глобально цели?
+
+
+И в backlog и в когда-нибудь потом задачи тоже можно сортировать.
+
+
+В бэклог вотяков предлагает ставить буквы A🔴, B🟡, C🔵. Самое приоритетное. Менее приоритетное. Самое не приоритетное.
+
+
+
+
+Считай что это раздвоение личности. Планировщик ставит задачи. Исполнитель не должен задумывается, он берет и делает. (как зашоренная лошадь). 
+Планировщик сообщает исполнителю информацию, что у некоторых задач приоритет выше, чем у других.
+
+
+Когда расставлять приоритеты? Можно раз в неделю.
+
+
+Есть разные фреймворки. Важно, важно но не для меня.
+
+
+Приоритезация внутри Когда-нибудь потом:
+
+
+Предлагает категорию Скоро станет актуальной.
+Никогда не сгорит (по работе). Никогда не сгорит (фан).
+
+
+Тебе желательно быть способным из когда-нибудь потом вытаскивать задачи и включать их обратно в бэклог. В когда-нибудь потом может быть дохуя сотен задач.
+
+
+Можно в Когда-нибудь потом не только по срочности, но и по важности.
+
+
+Гиперважная соответствует годовым целям. (но не на этой неделе). Но лучше, чтобы она периодически попадалась. Раз в неделю видеть какие-то важные задачи на ближайший год. Чтобы чуть варилось на подкорке. Выдели Гиперважная задачи которые имеют срок где-то в течение года. Н
+
+
+На этот месяц, но не на эту неделю.
+
+
+Какое-то планирование 25-1 упоминает. Соответствуют ли задача твоим самым глобальным целям и планам.
+Внуиренним ценностям, внутренним целям. Уделяй этой хуйне время.
+
+
+Зачем делать то, что можнл не делать? Зачем отклыдывать то, что можно вообще не делать? Можешь это вообще задвинуть?
+
+
+Говори нет ненужной хуйне. 
+
+
+
+:: нужно ли сделать в конкретный день {"position":"2925,1025","size":"100,100"}
+(if: $nextStep contains "думать" or $nextStep contains "учить" or $nextStep contains "анализировать" or $nextStep contains "сделать")
+[Ой! Обнаружен глагол-прокрастиноген! Попробуй вернуться и переформулировать задачу, не используя следующие глаголы:
+
+- подумать/придумать/выдумать
+- проанализировать
+- выучить/изучить
+- сделать
+//(print: $nextStep)//
+
+]
+Это нужно сделать в конкретный день и/или время в календаре?
+
+[[Да, запланировать на конкретный день в будущем->Фиксируем в календаре для проектов]]
+[[Сегодня->Определяем приоритет, добавляем контексты и пр]]
+[[На этой неделе->Определяем приоритет, добавляем контексты и пр]]
+[[Не на этой неделе->Определяем приоритет, добавляем контексты и пр]]
+
+
+Текст задачи для todo.txt:
+(text-style:"mark")[(C) 🍭 (print: $nextStep) +shag ➤ (🎯Цель проекта:  (print: $whatResultLooksLike)) ➤ (💜Мотивация: $why)  #selfhelp ]
+
+
+
+<!--«Срочность» я называю «грубой», потому что предполагаю всего три возможных варианта ответа на вопрос: «Когда нужно выполнить эту задачу?»:
+
+Сегодня
+На этой неделе
+Не на этой неделе
+
+https://leadmachine.ru/2015/09/03/zamenitel-prioriteta-i-sekret-svezhesti-spiska-del/#hcq=XOy4aVq-->
+
+
+
+
+:: что говорит друг {"position":"3200,1425","size":"100,100"}
+Друг говорит:
+
+Мне нужно 
+(print: $nextStep)
+Но 
+(print: $whyProjectIsHard) 
+Что скажешь?
+|input>[ (input-box: bind $whatWouldYouSayToFriend) ]
+[[Дальше->что отвечает друг]]
+
+
+:: что отвечает друг {"position":"3200,1550","size":"100,100"}
+Друг, вот что я скажу: (print: $whatWouldYouSayToFriend)
+
+Todo.txt:
+(text-style:"mark")[(C) |priorityEmoji>[ ] 🍭 (print: $nextStep) ➤ (🎯[Цель]:  (print: $whatResultLooksLike) ) ➤ (💜[Мотивация] : $why) +shag #selfhelp ]
+
+<span id="t2" onclick="copyToClipboard('t2')" style="cursor:pointer; color:yellow;">
+    (C) |priorityEmoji>[ ] |contextPlaceholder>[ ] $nextStep ⚠️(Совет): $whatWouldYouSayToFriend +shag  ➤ (🎯Цель):  $whatResultLooksLike)  ➤ (💜Мотивация): $why #selfhelp
+</span>
+
+
+
+:: StoryScript [script]
+
+
+window.copyToClipboard = function(elementId) {
+    const el = document.getElementById(elementId);
+
+    // Проверка на существование элемента
+    if (!el) {
+      alert("Ошибка: элемент с id '" + elementId + "' не найден.");
+      return;
+    }
+
+    // Получаем текст (предпочтение innerText, но есть запасной вариант)
+    const text = el.innerText?.trim() || el.textContent?.trim() || '';
+
+    // Проверка на пустой текст
+    if (!text) {
+      alert("Ошибка: элемент найден, но он не содержит текста для копирования.");
+      return;
+    }
+
+    navigator.clipboard.writeText(text).then(() => {
+      alert("Скопировано: " + text);
+    }).catch((err) => {
+      alert("Ошибка копирования: " + err);
+    });
+  };
+
+
+
+:: StoryStylesheet [stylesheet]
+<style>
+  .highlighted {
+    background-color: yellow;
+    padding: 0 2px;
+  }
+.copy-btn {
+  cursor: pointer;
+  color: blue;
+  text-decoration: underline;
+  transition: color 0.2s;
+}
+.copy-btn:hover {
+  color: darkblue;
+}
+</style>
+

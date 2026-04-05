@@ -9,8 +9,9 @@
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
-  
-  
+
+    <div id="filter-bar"></div>
+
     <br />
     <textarea
       class="text-field"
@@ -34,6 +35,9 @@ Your text will be stored in browser memory even after page reload, but it's not 
       placeholder="Which task would bring more value or impact if completed first? (Enter your сustom question here)"
       class="text-field"
     ></textarea>
+
+    <button id="done-button">&#x2705; Отметить выполненной</button>
+    <button id="assign-priorities-btn">&#x1F3C6; Присвоить приоритеты (A)(B)(C)</button>
 
     <!-- Фильтрация (редактирование + разделение) -->
     <button id="filter-button">Filter Tasks</button>
@@ -62,6 +66,7 @@ Your text will be stored in browser memory even after page reload, but it's not 
 
     <script src="app.js"></script>
     <script src="dropbox.js"></script>
+    <script src="todotxt.js"></script>
 
     <footer style="text-align: center; margin-top: 20px">
       <p style="font-size: 14px; color: #888">
