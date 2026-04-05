@@ -85,6 +85,9 @@
       font-family: inherit; font-size: 0.82rem; transition: all 0.08s;
     }
     .chip.sel { border-color: var(--primary); background: rgba(124,111,205,0.15); color: var(--fg); }
+    .ctx-group-label { font-size: 0.68rem; font-weight: 600; letter-spacing: 0.07em;
+      text-transform: uppercase; color: var(--fg-m); margin: 0.8rem 0 0.3rem; }
+    .ctx-group-label:first-child { margin-top: 0; }
     textarea, input[type=text], input[type=date] {
       width: 100%; background: var(--bg-el); border: 1px solid var(--border);
       border-radius: var(--radius); color: var(--fg); padding: 0.65rem 0.9rem;
@@ -295,12 +298,21 @@ const FLOWS = {
       next: 'procgen',
     },
     { id: 'procgen',
-      q: 'Есть глагол-прокрастиноген?',
-      hint: '«подумать», «придумать», «проанализировать», «выучить», «изучить», «сделать»\n\nЕсли да \u2014 вернись и перепиши, убрав этот глагол.',
+      q: '\u26A0\uFE0F \u041e\u0431\u043d\u0430\u0440\u0443\u0436\u0435\u043d \u0433\u043b\u0430\u0433\u043e\u043b-\u043f\u0440\u043e\u043a\u0440\u0430\u0441\u0442\u0438\u043d\u043e\u0433\u0435\u043d',
+      // hintFn called at render time with current S.action
+      hintFn: () => {
+        const m = S.action.match(/\b(\u043f\u043e\u0434\u0443\u043c\u0430\u0442\u044c|\u043f\u0440\u0438\u0434\u0443\u043c\u0430\u0442\u044c|\u043f\u0440\u043e\u0430\u043d\u0430\u043b\u0438\u0437\u0438\u0440\u043e\u0432\u0430\u0442\u044c|\u0432\u044b\u0443\u0447\u0438\u0442\u044c|\u0438\u0437\u0443\u0447\u0438\u0442\u044c|\u0441\u0434\u0435\u043b\u0430\u0442\u044c)\b/i);
+        return m
+          ? '\u0413\u043b\u0430\u0433\u043e\u043b \u00ab' + m[0] + '\u00bb \u043c\u0435\u0448\u0430\u0435\u0442 \u0434\u0435\u0439\u0441\u0442\u0432\u043e\u0432\u0430\u0442\u044c. \u041f\u0435\u0440\u0435\u043f\u0438\u0448\u0438 \u0434\u0435\u0439\u0441\u0442\u0432\u0438\u0435, \u0443\u0431\u0440\u0430\u0432 \u044d\u0442\u043e\u0442 \u0433\u043b\u0430\u0433\u043e\u043b.'
+          : '';
+      },
+      // skipIf: no procgen verb found → go straight to priority
+      skipIf: () => !/\b(\u043f\u043e\u0434\u0443\u043c\u0430\u0442\u044c|\u043f\u0440\u0438\u0434\u0443\u043c\u0430\u0442\u044c|\u043f\u0440\u043e\u0430\u043d\u0430\u043b\u0438\u0437\u0438\u0440\u043e\u0432\u0430\u0442\u044c|\u0432\u044b\u0443\u0447\u0438\u0442\u044c|\u0438\u0437\u0443\u0447\u0438\u0442\u044c|\u0441\u0434\u0435\u043b\u0430\u0442\u044c)\b/i.test(S.action),
+      skipTo: 'priority',
       type: 'choice',
       choices: [
-        { label: '\u2714 Да \u2014 перепишу задачу', style: 'warn', back: 'action_step' },
-        { label: '\u2718 Нет \u2014 глагол хороший', style: 'yes',  next: 'priority'    },
+        { label: '\u21A9 \u041f\u0435\u0440\u0435\u043f\u0438\u0441\u0430\u0442\u044c \u0434\u0435\u0439\u0441\u0442\u0432\u0438\u0435', style: 'warn', back: 'action_step' },
+        { label: '\u2714 \u041e\u0441\u0442\u0430\u0432\u0438\u0442\u044c \u043a\u0430\u043a \u0435\u0441\u0442\u044c', style: 'no', next: 'priority' },
       ],
     },
     { id: 'priority',
@@ -316,7 +328,12 @@ const FLOWS = {
       q: 'В каком контексте выполнять?',
       hint: 'Выбери один или несколько (или пропусти)',
       type: 'contexts',
-      chips: ['@дома','@город','@магазин','@поездка','@ноут','@телефон','@звонок','@мессенджер','@без_интернета','@10минут','@на_улице','@транспорт','@лягушка'],
+      groups: [
+        { label: '\uD83D\uDCCD Место', chips: ['@\u0434\u043e\u043c\u0430','@\u0433\u043e\u0440\u043e\u0434','@\u043c\u0430\u0433\u0430\u0437\u0438\u043d','@\u043f\u043e\u0435\u0437\u0434\u043a\u0430'] },
+        { label: '\uD83D\uDCBB \u0418\u043d\u0441\u0442\u0440\u0443\u043c\u0435\u043d\u0442', chips: ['@\u043d\u043e\u0443\u0442','@\u0442\u0435\u043b\u0435\u0444\u043e\u043d','@\u0437\u0432\u043e\u043d\u043e\u043a','@\u043c\u0435\u0441\u0441\u0435\u043d\u0434\u0436\u0435\u0440','@\u0431\u0435\u0437_\u0438\u043d\u0442\u0435\u0440\u043d\u0435\u0442\u0430'] },
+        { label: '\u23F1 \u0412\u0440\u0435\u043c\u044f / \u043e\u043a\u043d\u043e', chips: ['@10\u043c\u0438\u043d\u0443\u0442','@\u043d\u0430_\u0443\u043b\u0438\u0446\u0435','@\u0442\u0440\u0430\u043d\u0441\u043f\u043e\u0440\u0442'] },
+        { label: '\uD83D\uDC38 \u0422\u0438\u043f \u0437\u0430\u0434\u0430\u0447\u0438', chips: ['@\u043b\u044f\u0433\u0443\u0448\u043a\u0430'] },
+      ],
       next: 'emotional',
     },
     { id: 'emotional',
@@ -364,7 +381,7 @@ const FLOWS = {
 // ==========================================================================
 
 const S = {
-  task:'', mode:null, flow:null, stepIdx:0, history:[],
+  task:'', originalTask:'', mode:null, flow:null, stepIdx:0, history:[],
   outcome:'', action:'', delegate:'', dueDate:'',
   priority:null, contexts:[], feelings:'', advice:'',
 };
@@ -397,6 +414,13 @@ function afterEdit() {
 function renderStep(idx) {
   const step = S.flow[idx];
   if (!step) { finalize(); return; }
+
+  // Auto-skip: check skipIf condition before rendering
+  if (step.skipIf && step.skipIf()) {
+    renderStep(findIdx(step.skipTo));
+    return;
+  }
+
   S.stepIdx = idx;
   hide('out-area');
   const area = el('step-area');
@@ -404,11 +428,13 @@ function renderStep(idx) {
 
   const mlabel = S.mode === 'korz' ? 'РАЗБОР КОРЗИНЫ' : 'МУТНАЯ ЗАДАЧА';
   const total  = S.flow.length;
+  // Support both static hint string and dynamic hintFn
+  const hint = step.hintFn ? step.hintFn() : (step.hint || '');
 
   let h = '<div class="card">';
   h += '<div class="badge">' + mlabel + ' &mdash; шаг ' + (idx+1) + ' / ' + total + '</div>';
   h += '<div class="step-q">' + esc(step.q) + '</div>';
-  if (step.hint) h += '<div class="step-hint">' + esc(step.hint) + '</div>';
+  if (hint) h += '<div class="step-hint">' + esc(hint) + '</div>';
 
   if (step.type === 'choice') {
     h += '<div class="choices">';
@@ -447,12 +473,24 @@ function renderStep(idx) {
     h += '</div>';
 
   } else if (step.type === 'contexts') {
-    h += '<div class="chips">';
-    step.chips.forEach(tag => {
-      const sel = S.contexts.includes(tag) ? ' sel' : '';
-      h += '<button class="chip' + sel + '" onclick="toggleCtx(this,\'' + esc(tag) + '\')">' + esc(tag) + '</button>';
-    });
-    h += '</div>';
+    if (step.groups) {
+      step.groups.forEach(g => {
+        h += '<div class="ctx-group-label">' + esc(g.label) + '</div>';
+        h += '<div class="chips">';
+        g.chips.forEach(tag => {
+          const sel = S.contexts.includes(tag) ? ' sel' : '';
+          h += '<button class="chip' + sel + '" onclick="toggleCtx(this,\'' + esc(tag) + '\')">' + esc(tag) + '</button>';
+        });
+        h += '</div>';
+      });
+    } else {
+      h += '<div class="chips">';
+      (step.chips || []).forEach(tag => {
+        const sel = S.contexts.includes(tag) ? ' sel' : '';
+        h += '<button class="chip' + sel + '" onclick="toggleCtx(this,\'' + esc(tag) + '\')">' + esc(tag) + '</button>';
+      });
+      h += '</div>';
+    }
     const ni = findIdx(step.next);
     h += '<div class="act-row">';
     h += '<button class="btn btn-p" onclick="goNext(' + ni + ',-1)">Дальше &rarr;</button>';
@@ -570,8 +608,9 @@ function showOutput(action) {
     if (S.mode==='korz') show('offer-mutny');
   } else if (action === 'output') {
     title='✅ Разобрано'; line=buildMutnyLine(t);
+    // Show goal and advice separately in the UI (they're also embedded in the line)
     if (S.outcome) goalHtml+='<div><strong>🎯 Цель:</strong> ' + esc(S.outcome) + '</div>';
-    if (S.advice)  goalHtml+='<div><strong>💜 Совет:</strong> ' + esc(S.advice)  + '</div>';
+    if (S.advice)  goalHtml+='<div style="margin-top:0.4rem"><strong>💜 Совет:</strong> ' + esc(S.advice)  + '</div>';
   }
 
   el('out-title').textContent = title;
@@ -593,13 +632,16 @@ function buildNextLine(t) {
 }
 
 function buildMutnyLine(t) {
-  const parts = [];
   const pri = S.priority==='red' ? '(A)' : S.priority==='green' ? '(B)' : null;
+  const parts = [];
   if (pri) parts.push(pri);
   parts.push(t);
-  parts.push(S.action || S.task);
+  parts.push((S.action || S.task).trim());
   S.contexts.forEach(c => parts.push(c));
-  return parts.join(' ');
+  let line = parts.join(' ');
+  // Embed goal inline — renderers split on ➤цель: for visual display
+  if (S.outcome) line += ' \u27A4\u0446\u0435\u043B\u044C:' + S.outcome.trim().replace(/\n/g,' ');
+  return line;
 }
 
 function continueWithMutny() {
@@ -620,15 +662,26 @@ function addToList() {
   if (!line || line.startsWith('# УДАЛЕНО')) {
     el('out-note').textContent='Помечено как удалённое \u2014 в список не добавляется.'; return;
   }
-  let toAdd = line;
-  if (S.outcome) toAdd += '\n# цель: ' + S.outcome;
   const existing = localStorage.getItem('tasks') || '';
-  localStorage.setItem('tasks', toAdd + (existing ? '\n' + existing : ''));
+  const lines = existing ? existing.split('\n') : [];
+  // If came from a specific task, replace it instead of prepending
+  if (S.originalTask) {
+    const idx = lines.findIndex(l => l.trim() === S.originalTask.trim());
+    if (idx !== -1) {
+      lines[idx] = line;
+      localStorage.setItem('tasks', lines.join('\n'));
+      el('out-note').textContent = 'Задача обновлена!';
+      el('out-note').className = 'note ok';
+      return;
+    }
+  }
+  // Otherwise prepend
+  localStorage.setItem('tasks', line + (existing ? '\n' + existing : ''));
   el('out-note').textContent='Добавлено в список!'; el('out-note').className='note ok';
 }
 
 function resetAll() {
-  Object.assign(S, { task:'',mode:null,flow:null,stepIdx:0,history:[],
+  Object.assign(S, { task:'', originalTask:'', mode:null, flow:null, stepIdx:0, history:[],
     outcome:'',action:'',delegate:'',dueDate:'',priority:null,contexts:[],feelings:'',advice:'' });
   hide('step-area','out-area','task-cap','edit-area'); show('mode-sel'); window.scrollTo(0,0);
 }
@@ -644,6 +697,7 @@ window.addEventListener('DOMContentLoaded', () => {
   const tp = new URLSearchParams(window.location.search).get('task');
   if (tp) {
     S.task = decodeURIComponent(tp);
+    S.originalTask = S.task; // remember for replace-in-list on finish
     el('task-cap').textContent = S.task;
     show('task-cap');
     startFlow('korz');

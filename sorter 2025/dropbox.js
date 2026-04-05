@@ -102,6 +102,30 @@ function getToken() {
   return localStorage.getItem('dbx_access_token');
 }
 
+// Try to silently refresh the access token using the stored refresh token.
+// Returns true if a new access token was obtained.
+async function tryRefreshToken() {
+  const refresh = localStorage.getItem('dbx_refresh_token');
+  if (!refresh) return false;
+  try {
+    const resp = await fetch('https://api.dropboxapi.com/oauth2/token', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({
+        grant_type: 'refresh_token',
+        refresh_token: refresh,
+        client_id: DROPBOX_APP_KEY,
+      }),
+    });
+    const data = await resp.json();
+    if (data.access_token) {
+      localStorage.setItem('dbx_access_token', data.access_token);
+      return true;
+    }
+  } catch (_) {}
+  return false;
+}
+
 function dropboxLogout() {
   localStorage.removeItem('dbx_access_token');
   localStorage.removeItem('dbx_refresh_token');
@@ -158,8 +182,14 @@ async function dropboxSave() {
       updateDropboxUI();
       Swal.fire({ title: 'Сохранено в Dropbox!', icon: 'success', timer: 1500, showConfirmButton: false });
     } else if (response.status === 401) {
-      dropboxLogout();
-      Swal.fire('Сессия истекла', 'Токен недействителен. Войдите в Dropbox снова.', 'warning');
+      localStorage.removeItem('dbx_access_token');
+      const refreshed = await tryRefreshToken();
+      if (refreshed) {
+        return dropboxSave();
+      } else {
+        dropboxLogout();
+        dropboxLogin();
+      }
     } else {
       console.error('Upload error HTTP', response.status, responseText);
       let errMsg = responseText;
@@ -217,8 +247,14 @@ async function dropboxLoad() {
       updateDropboxUI();
       Swal.fire({ title: 'Загружено из Dropbox!', icon: 'success', timer: 1500, showConfirmButton: false });
     } else if (response.status === 401) {
-      dropboxLogout();
-      Swal.fire('Сессия истекла', 'Токен недействителен. Войдите в Dropbox снова.', 'warning');
+      localStorage.removeItem('dbx_access_token');
+      const refreshed = await tryRefreshToken();
+      if (refreshed) {
+        return dropboxLoad();
+      } else {
+        dropboxLogout();
+        dropboxLogin();
+      }
     } else if (response.status === 409) {
       Swal.fire('Файл не найден', 'Сначала сохраните задачи в Dropbox с этого устройства', 'info');
     } else {

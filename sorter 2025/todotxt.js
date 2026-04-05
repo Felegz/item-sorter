@@ -274,16 +274,29 @@ function applyFilter() {
   }
   fv.innerHTML = filteredLines.length
     ? filteredLines.map((l, i) => {
+        // Split ➤цель: suffix for visual rendering (it stays on one line in storage)
+        const SEP = '\u27A4\u0446\u0435\u043B\u044C:';
+        const sepIdx = l.indexOf(SEP);
+        const mainPart = sepIdx !== -1 ? l.slice(0, sepIdx).trim() : l;
+        const goalPart = sepIdx !== -1 ? l.slice(sepIdx + SEP.length).trim() : null;
+
         const enc = encodeURIComponent(l.trim());
         const done = parseTodoLine(l).done;
         return '<div class="filter-row">'
-          + '<span class="filter-row-text">' + highlightTodoLine(l) + '</span>'
+          + '<span class="filter-row-text">'
+          + highlightTodoLine(mainPart)
+          + (goalPart ? '<span class="frow-goal">\uD83C\uDFAF ' + escHtml(goalPart) + '</span>' : '')
+          + '</span>'
           + '<span class="filter-row-actions">'
           + '<a href="process.html?task=' + enc + '" class="frow-btn" title="GTD разбор">GTD</a>'
           + '<button class="frow-btn" onclick="filterRowToggleDone(' + i + ')" title="' + (done ? 'Снять отметку' : 'Выполнено') + '">' + (done ? '\u21A9' : '\u2713') + '</button>'
           + '</span></div>';
       }).join('')
     : '<div class="filter-empty">Задач не найдено</div>';
+}
+
+function escHtml(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 }
 
 // Кнопка «✓/↩» в строке фильтра
