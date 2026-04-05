@@ -54,22 +54,20 @@ Your text will be stored in browser memory even after page reload, but it's not 
         </div>
       </div>
 
-      <!-- Экспорт -->
+      <!-- Данные -->
       <div class="btn-group">
-        <span class="btn-group-label">Экспорт</span>
+        <span class="btn-group-label">Данные</span>
         <div class="btn-row">
-          <button id="copy-button" class="btn--ghost">&#x1F4CB; Copy to clipboard</button>
-          <button id="save-button" class="btn--ghost" onclick="saveAsTxt()">Save as .txt file</button>
+          <button id="copy-button" class="btn--ghost">&#x1F4CB; Copy</button>
+          <button id="save-button" class="btn--ghost" onclick="saveAsTxt()">Save .txt</button>
+          <button id="dbx-login-btn" class="btn--dbx-login">&#x1F4E6; Войти в Dropbox</button>
+          <button id="dbx-save-btn" class="btn--dbx-save" hidden>&#x2601; В Dropbox</button>
+          <button id="dbx-load-btn" class="btn--dbx-load" hidden>&#x1F4E5; Из Dropbox</button>
+          <button id="dbx-logout-btn" class="btn--ghost btn--sm" hidden>Выйти из Dropbox</button>
         </div>
+        <div id="dbx-status"></div>
       </div>
 
-    </div>
-
-    <div id="dropbox-section">
-      <button id="dbx-login-btn" class="dbx-btn dbx-btn--login">&#x1F4E6; Войти в Dropbox</button>
-      <button id="dbx-save-btn" class="dbx-btn dbx-btn--save" hidden>&#x2601; Сохранить в Dropbox</button>
-      <button id="dbx-load-btn" class="dbx-btn dbx-btn--load" hidden>&#x1F4E5; Загрузить из Dropbox</button>
-      <button id="dbx-logout-btn" class="dbx-btn dbx-btn--logout" hidden>Выйти из Dropbox</button>
     </div>
 
     <!-- SweetAlert2 -->

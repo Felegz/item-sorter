@@ -232,40 +232,24 @@ footer a:hover {
   color: var(--fg);
 }
 
-/* Dropbox-кнопки */
-#dropbox-section {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem;
-  justify-content: center;
-  margin-top: 0.25rem;
+/* Dropbox-кнопки (встроены в toolbar) */
+.btn--dbx-login { background: #2563eb; color: #fff; border-color: transparent; }
+.btn--dbx-login:hover { background: #1d4ed8; border-color: transparent; }
+
+.btn--dbx-save  { background: #0d9488; color: #fff; border-color: transparent; }
+.btn--dbx-save:hover  { background: #0f766e; border-color: transparent; }
+
+.btn--dbx-load  { background: var(--primary); color: #fff; border-color: transparent; }
+.btn--dbx-load:hover  { background: var(--primary-hover); border-color: transparent; }
+
+.btn--sm { font-size: 0.75rem; padding: 0.3rem 0.65rem; }
+
+#dbx-status {
+  font-size: 0.72rem;
+  color: var(--fg-muted);
+  margin-top: 0.3rem;
+  min-height: 1em;
 }
-
-.dbx-btn {
-  font-family: inherit;
-  font-size: 0.9rem;
-  border: none;
-  padding: 0.55rem 1.2rem;
-  border-radius: 8px;
-  cursor: pointer;
-  transition: background-color 0.3s ease, transform 0.3s ease;
-  color: #fff;
-}
-
-.dbx-btn:hover  { transform: scale(1.05); }
-.dbx-btn:active { transform: scale(0.95); }
-
-.dbx-btn--login { background: #0061FF; }
-.dbx-btn--login:hover { background: #0050d0; }
-
-.dbx-btn--save  { background: #03dac6; color: #000; }
-.dbx-btn--save:hover { background: #02bfad; }
-
-.dbx-btn--load  { background: #bb86fc; }
-.dbx-btn--load:hover { background: #985eff; }
-
-.dbx-btn--logout { background: #444; font-size: 0.8rem; padding: 0.4rem 0.9rem; }
-.dbx-btn--logout:hover { background: #555; }
 
 /* Подзаголовки */
 h2 {
