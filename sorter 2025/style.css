@@ -394,7 +394,24 @@ a:hover {
   white-space: pre-wrap;
 }
 
-.filter-row { margin-bottom: 0.2rem; }
+.filter-row { display: flex; align-items: baseline; justify-content: space-between; gap: 0.5rem; margin-bottom: 0.25rem; }
+.filter-row-text { flex: 1; min-width: 0; word-break: break-word; }
+.filter-row-actions { display: flex; gap: 0.3rem; flex-shrink: 0; }
+.frow-btn {
+  padding: 0.1rem 0.45rem;
+  border-radius: 4px;
+  border: 1px solid #2e2e4a;
+  background: #27273e;
+  color: #8888ab;
+  font-size: 0.74rem;
+  cursor: pointer;
+  font-family: inherit;
+  text-decoration: none;
+  white-space: nowrap;
+  line-height: 1.6;
+  transition: background 0.08s, color 0.08s;
+}
+.frow-btn:hover { background: #2e2e4a; color: #f2f2f2; }
 .filter-empty { color: #555; font-style: italic; }
 
 /* Фильтр-бар кнопки цвета матчат подсветке */

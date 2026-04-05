@@ -235,6 +235,9 @@ function toggleDoneCurrentLine() {
 
 let currentFilter = { project: null, context: null, priority: null };
 
+// Строки видимые в filter-view; используются кнопками действия в строке
+let filteredLines = [];
+
 function applyFilter() {
   const ta = document.getElementById('task-list');
   const hl = document.getElementById('hl-layer');
@@ -245,14 +248,15 @@ function applyFilter() {
     filterActive = false;
     ta.style.display = '';
     document.getElementById('filter-view')?.remove();
+    filteredLines = [];
     return;
   }
 
   filterActive = true;
-  ta.style.display = 'none'; // прячем textarea, показываем фильтр
+  ta.style.display = 'none';
 
   const lines = ta.value.split('\n');
-  const filtered = lines.filter(line => {
+  filteredLines = lines.filter(line => {
     if (!line.trim()) return false;
     const todo = parseTodoLine(line);
     if (project  && !todo.projects.includes(project))   return false;
@@ -268,9 +272,36 @@ function applyFilter() {
     fv.className = 'filter-view';
     ta.parentNode.insertBefore(fv, ta.nextSibling);
   }
-  fv.innerHTML = filtered.length
-    ? filtered.map(l => `<div class="filter-row">${highlightTodoLine(l)}</div>`).join('')
+  fv.innerHTML = filteredLines.length
+    ? filteredLines.map((l, i) => {
+        const enc = encodeURIComponent(l.trim());
+        const done = parseTodoLine(l).done;
+        return '<div class="filter-row">'
+          + '<span class="filter-row-text">' + highlightTodoLine(l) + '</span>'
+          + '<span class="filter-row-actions">'
+          + '<a href="process.html?task=' + enc + '" class="frow-btn" title="GTD разбор">GTD</a>'
+          + '<button class="frow-btn" onclick="filterRowToggleDone(' + i + ')" title="' + (done ? 'Снять отметку' : 'Выполнено') + '">' + (done ? '\u21A9' : '\u2713') + '</button>'
+          + '</span></div>';
+      }).join('')
     : '<div class="filter-empty">Задач не найдено</div>';
+}
+
+// Кнопка «✓/↩» в строке фильтра
+function filterRowToggleDone(idx) {
+  const ta = document.getElementById('task-list');
+  const rawLine = filteredLines[idx];
+  if (rawLine === undefined) return;
+  const lines = ta.value.split('\n');
+  const lineIdx = lines.indexOf(rawLine);
+  if (lineIdx === -1) return;
+  const today = new Date().toISOString().slice(0, 10);
+  const todo = parseTodoLine(rawLine);
+  lines[lineIdx] = todo.done
+    ? rawLine.replace(/^x \d{4}-\d{2}-\d{2} /, '')
+    : 'x ' + today + ' ' + rawLine;
+  ta.value = lines.join('\n');
+  localStorage.setItem('tasks', ta.value);
+  applyFilter();
 }
 
 function clearFilter() {
@@ -353,6 +384,9 @@ document.addEventListener('DOMContentLoaded', () => {
   // Кнопка "Приоритеты" (ручная)
   document.getElementById('assign-priorities-btn')?.addEventListener('click', assignPrioritiesAfterSort);
 
+  // Кнопка "⚡ Быстрый разбор" — КОРЗИНА через SweetAlert2, без смены страницы
+  document.getElementById('quick-triage-btn')?.addEventListener('click', quickTriageCurrentTask);
+
   // Кнопка "Обработать задачу" → открыть GTD-страницу
   document.getElementById('process-btn')?.addEventListener('click', () => {
     const ta = document.getElementById('task-list');
@@ -368,3 +402,81 @@ document.addEventListener('DOMContentLoaded', () => {
     window.location.href = `process.html?task=${encoded}`;
   });
 });
+
+// ==========================================================================
+// Быстрый разбор задачи прямо со страницы (без перехода на process.html).
+// Запускает упрощённый КОРЗИНА-флоу через SweetAlert2.
+// ==========================================================================
+async function quickTriageCurrentTask() {
+  const Swal = window.Swal;
+  if (!Swal) { alert('SweetAlert2 не загружен'); return; }
+
+  const ta = document.getElementById('task-list');
+  const pos = ta.selectionStart;
+  const lines = ta.value.split('\n');
+  let charCount = 0, lineIdx = 0;
+  for (let i = 0; i < lines.length; i++) {
+    if (charCount + lines[i].length >= pos) { lineIdx = i; break; }
+    charCount += lines[i].length + 1;
+  }
+  const task = lines[lineIdx]?.trim();
+  if (!task) {
+    Swal.fire({ title: 'Нет задачи', text: 'Поставь курсор на строку с задачей', icon: 'info', confirmButtonText: 'Ок' });
+    return;
+  }
+
+  // Шаг 1: Действия нужны?
+  const r1 = await Swal.fire({
+    title: task,
+    html: '<div style="font-size:1.05rem;font-weight:600;margin:0.5rem 0">С этим надо что-то делать?</div>',
+    showConfirmButton: true, showDenyButton: true, showCancelButton: true,
+    confirmButtonText: '✔ Да',
+    denyButtonText:    '✘ Нет',
+    cancelButtonText:  '← Отмена',
+  });
+  if (r1.isDismissed) return;
+
+  if (r1.isDenied) {
+    // Не нужны → выбрать судьбу
+    const rna = await Swal.fire({
+      title: 'Что сделать?',
+      showConfirmButton: true, showDenyButton: true, showCancelButton: true,
+      confirmButtonText: '💡 Когда-нибудь',
+      denyButtonText:    '📂 Справочная',
+      cancelButtonText:  '🗑 Удалить',
+    });
+    const today = new Date().toISOString().slice(0, 10);
+    if      (rna.isConfirmed)                                        lines[lineIdx] = task + ' someday:yes';
+    else if (rna.isDenied)                                           lines[lineIdx] = task + ' ref:yes';
+    else if (rna.dismiss === Swal.DismissReason.cancel)              lines.splice(lineIdx, 1);
+    else                                                             return;
+    _updateTaskArea(ta, lines);
+    return;
+  }
+
+  // Шаг 2: < 2 минут?
+  const r2 = await Swal.fire({
+    title: task,
+    html: '<div style="font-size:1.05rem;font-weight:600;margin:0.5rem 0">Займёт меньше 2 минут?</div>',
+    showConfirmButton: true, showDenyButton: true, showCancelButton: true,
+    confirmButtonText: '⚡ Да — сделаю сейчас',
+    denyButtonText:    '📋 Нет — в список',
+    cancelButtonText:  '← Назад',
+  });
+  if (r2.isDismissed) return;
+
+  if (r2.isConfirmed) {
+    const today = new Date().toISOString().slice(0, 10);
+    lines[lineIdx] = 'x ' + today + ' ' + task;
+    _updateTaskArea(ta, lines);
+  } else {
+    // Подробный разбор на странице GTD
+    window.location.href = 'process.html?task=' + encodeURIComponent(task);
+  }
+}
+
+function _updateTaskArea(ta, lines) {
+  ta.value = lines.join('\n');
+  localStorage.setItem('tasks', ta.value);
+  renderFilterBar();
+}

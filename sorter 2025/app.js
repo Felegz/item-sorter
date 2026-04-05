@@ -74,23 +74,33 @@ function getDateParts() {
  
  
  
-function chooseWindow(task) {
+function chooseWindow(task, progress) {
+  const progressBar = progress
+    ? `<div style="margin-bottom:0.5rem">
+        <div style="display:flex;justify-content:space-between;font-size:0.72rem;color:#888;margin-bottom:4px">
+          <span>Filter Tasks</span><span>${progress.current} / ${progress.total}</span>
+        </div>
+        <div style="height:3px;background:#2a2a2a;border-radius:2px;overflow:hidden">
+          <div style="height:100%;width:${Math.round(progress.current/progress.total*100)}%;background:#7c6fcd;border-radius:2px"></div>
+        </div>
+      </div>`
+    : '';
+
   return Swal.fire({
-    title: 'Задача:',
+    title: '\u0417\u0430\u0434\u0430\u0447\u0430:',
+    html: progressBar,
     input: 'textarea',
-    inputValue: task,                 // подставляем старый текст
+    inputValue: task,
     showDenyButton: true,
     showCancelButton: true,
     confirmButtonText: '\u2705 \u0412\u043A\u043B\u044E\u0447\u0438\u0442\u044C',
     denyButtonText:    '\u274C \u0418\u0433\u043D\u043E\u0440\u0438\u0440\u043E\u0432\u0430\u0442\u044C',
     cancelButtonText:  '\uD83D\uDDD1 \u0423\u0434\u0430\u043B\u0438\u0442\u044C',
-    returnInputValueOnDeny: true,     // вот она, магия!
+    returnInputValueOnDeny: true,
     preConfirm: text => ({ action: 'include', text: text.trim() || task }),
     preDeny:    text => ({ action: 'ignore',  text: text.trim() || task }),
     preCancel:  text => ({ action: 'delete',  text: text.trim() || task })
   }).then(res => {
-    // Если по какой-то причине res.value окажется undefined,
-    // возвращаем default {delete, task}
     return res.value || { action: 'delete', text: task };
   });
 }
@@ -394,9 +404,11 @@ async function mergeArraysUI() {
 async function filterTasks(tasks) {
   const tasksToSort  = [];
   const ignoredTasks = [];
+  const total = tasks.length;
 
-  for (const task of tasks) {
-    const { action, text } = await chooseWindow(task);
+  for (let i = 0; i < tasks.length; i++) {
+    const task = tasks[i];
+    const { action, text } = await chooseWindow(task, { current: i + 1, total });
     if (action === 'include')     tasksToSort.push(text);
     else if (action === 'ignore') ignoredTasks.push(text);
     // action === 'delete' — пропускаем
