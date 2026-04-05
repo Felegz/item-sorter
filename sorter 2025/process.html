@@ -1,0 +1,560 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Process Task &mdash; GTD</title>
+  <link rel="icon" type="image/x-icon" href="data:image/x-icon;base64,AAABAAEAEBAQAAEABAAoAQAAFgAAACgAAAAQAAAAIAAAAAEABAAAAAAAgAAAAAAAAAAAAAAAEAAAAAAAAAAAAAAA/4QAAADZ/wAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAERERERERERESAAAAAAAAARIAAAAAAAABEgAAABEgAAESAAABESAAARIAABEREgABEgABESESAAESABESAREgARIBESAAESABEhESAAARIAESESAAABEQARIAAAAAARABEgAAAAABEAESAAAAAAAAARIiIiIiIiIhEREREREREREAAAAAP/4AAD/+AAA/HgAAPh4AADwOAAA4DgAAMIYAACHGAAADxgAAB8YAAD/mAAA/5gAAP/4AAAAAAAAAAAAA" />
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap');
+
+    :root {
+      --color-bg: #121212;
+      --color-text: #e0e0e0;
+      --color-primary: #bb86fc;
+      --color-secondary: #03dac6;
+      --color-surface: #1f1f1f;
+      --color-border: #333;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Inter', sans-serif;
+      background: var(--color-bg);
+      color: var(--color-text);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 2rem 1rem 4rem;
+    }
+
+    h1 { color: var(--color-primary); margin-bottom: 0.25rem; font-size: 1.6rem; }
+    .subtitle { color: #666; font-size: 0.85rem; margin-bottom: 2rem; }
+
+    .wizard { width: 100%; max-width: 580px; }
+
+    /* Progress */
+    .progress-wrap { margin-bottom: 2rem; }
+    .progress-track {
+      height: 4px; background: #2a2a2a; border-radius: 2px; overflow: hidden;
+    }
+    .progress-fill {
+      height: 100%; background: var(--color-primary);
+      border-radius: 2px; transition: width 0.35s ease;
+    }
+    .progress-label {
+      font-size: 0.72rem; color: #555; margin-top: 0.4rem; text-align: right;
+    }
+
+    /* Steps */
+    .step { display: none; }
+    .step.active { display: block; }
+
+    .step-tag {
+      font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.1em;
+      color: #555; margin-bottom: 0.4rem;
+    }
+    .step-q {
+      font-size: 1.25rem; font-weight: 700;
+      color: var(--color-text); margin-bottom: 0.5rem; line-height: 1.3;
+    }
+    .step-hint {
+      font-size: 0.82rem; color: #666; line-height: 1.6; margin-bottom: 1.5rem;
+    }
+
+    /* Inputs */
+    textarea, input[type="text"], input[type="date"] {
+      width: 100%;
+      background: var(--color-surface);
+      border: 1px solid var(--color-border);
+      color: var(--color-text);
+      border-radius: 8px;
+      padding: 0.75rem 1rem;
+      font-family: inherit;
+      font-size: 1rem;
+      line-height: 1.5;
+      margin-bottom: 1rem;
+    }
+    textarea { min-height: 90px; resize: vertical; }
+    input[type="text"]:focus, textarea:focus, input[type="date"]:focus {
+      outline: none; border-color: var(--color-primary);
+    }
+    label.field-label {
+      display: block; font-size: 0.8rem; color: #666; margin-bottom: 0.3rem;
+    }
+
+    /* Buttons */
+    .btn-row {
+      display: flex; flex-wrap: wrap; gap: 0.6rem; margin-bottom: 0.75rem;
+    }
+    button {
+      font-family: inherit; font-size: 0.95rem;
+      padding: 0.65rem 1.25rem; border-radius: 8px; border: none;
+      cursor: pointer; transition: background 0.2s, transform 0.1s;
+      line-height: 1.2;
+    }
+    button:active { transform: scale(0.97); }
+
+    .btn-primary { background: var(--color-primary); color: #000; font-weight: 600; }
+    .btn-primary:hover { background: #985eff; color: #fff; }
+    .btn-ghost {
+      background: transparent; color: #aaa;
+      border: 1px solid #444; font-size: 0.8rem; padding: 0.45rem 0.9rem;
+    }
+    .btn-ghost:hover { color: var(--color-text); border-color: #888; }
+    .btn-yes { background: #2d5a2e; color: #86efac; border: 1px solid #4ade80; }
+    .btn-yes:hover { background: #3a7040; }
+    .btn-no { background: #2a2a2a; color: #aaa; border: 1px solid #444; }
+    .btn-no:hover { background: #333; color: var(--color-text); }
+    .btn-danger { background: #5c2020; color: #fca5a5; border: 1px solid #f87171; }
+    .btn-danger:hover { background: #7a2828; }
+    .btn-warn { background: #3d2e00; color: #fcd34d; border: 1px solid #f59e0b; }
+    .btn-warn:hover { background: #4e3a00; }
+    .btn-muted { background: #252525; color: #888; border: 1px solid #383838; }
+    .btn-muted:hover { background: #2f2f2f; color: #aaa; }
+    .btn-success { background: var(--color-secondary); color: #000; font-weight: 600; }
+    .btn-success:hover { background: #02bfad; }
+
+    /* Priority buttons */
+    .pri-btn { min-width: 3.2rem; text-align: center; }
+    .pri-a { background: #3d1515; color: #ff5555; border: 1px solid #ff5555; }
+    .pri-a:hover, .pri-a.sel { background: #ff5555; color: #fff; }
+    .pri-b { background: #3a2500; color: #ffb86c; border: 1px solid #ffb86c; }
+    .pri-b:hover, .pri-b.sel { background: #ffb86c; color: #000; }
+    .pri-c { background: #2d2900; color: #f1fa8c; border: 1px solid #f1fa8c; }
+    .pri-c:hover, .pri-c.sel { background: #f1fa8c; color: #000; }
+    .pri-x { background: #222; color: #666; border: 1px solid #444; }
+    .pri-x:hover, .pri-x.sel { background: #333; color: #aaa; }
+
+    /* Output */
+    .output-box {
+      background: var(--color-surface);
+      border: 1px solid var(--color-primary);
+      border-radius: 8px;
+      padding: 1rem 1.25rem;
+      font-family: 'Courier New', monospace;
+      font-size: 0.95rem;
+      word-break: break-all;
+      margin-bottom: 1rem;
+      line-height: 1.6;
+      color: var(--color-text);
+    }
+
+    .note {
+      font-size: 0.82rem; color: #666; margin-top: 0.5rem; min-height: 1.2em;
+    }
+    .note.ok { color: var(--color-secondary); }
+
+    /* Separator */
+    .sep { border: none; border-top: 1px solid #2a2a2a; margin: 1.2rem 0; }
+
+    /* Back link */
+    .back-link {
+      display: block; text-align: center; margin-top: 3rem;
+      color: #444; font-size: 0.82rem; text-decoration: none;
+    }
+    .back-link:hover { color: var(--color-primary); }
+
+    /* Editable task preview */
+    .task-preview {
+      background: #1a1a1a; border: 1px solid #2a2a2a; border-radius: 6px;
+      padding: 0.5rem 0.75rem; font-size: 0.85rem; color: #888;
+      margin-bottom: 1.2rem; word-break: break-word;
+    }
+    .task-preview strong { color: var(--color-text); }
+  </style>
+</head>
+<body>
+
+  <h1>&#x2699; Process Task</h1>
+  <p class="subtitle">GTD-обработка &mdash; от идеи к задаче в формате todo.txt</p>
+
+  <div class="wizard">
+
+    <div class="progress-wrap">
+      <div class="progress-track">
+        <div class="progress-fill" id="pfill" style="width:8%"></div>
+      </div>
+      <div class="progress-label" id="plabel">Шаг 1</div>
+    </div>
+
+    <!-- ─── STEP 0: Ввод задачи ─── -->
+    <div class="step active" id="s0">
+      <div class="step-tag">Шаг 1</div>
+      <div class="step-q">Что нужно сделать?</div>
+      <div class="step-hint">
+        Опиши задачу или вставь любую идею, сообщение, ссылку &mdash; дальше разберём вместе.
+        Можно также нажать кнопку <strong>Обработать задачу (GTD)</strong> на главной странице,
+        чтобы поставить курсор на нужную строку и открыть эту страницу с её текстом.
+      </div>
+      <textarea id="task-input" placeholder="Например: Спросить у Лёши насчёт встречи"></textarea>
+      <div class="btn-row">
+        <button class="btn-primary" onclick="next(1)">Продолжить &#x2192;</button>
+      </div>
+    </div>
+
+    <!-- ─── STEP 1: Actionable? ─── -->
+    <div class="step" id="s1">
+      <div class="step-tag">Шаг 2 из 6</div>
+      <div class="step-q">Это вообще требует действий?</div>
+      <div class="step-hint">
+        Есть ли конкретное действие, которое ты или кто-то другой может предпринять прямо сейчас или в обозримом будущем?
+      </div>
+      <div id="task-preview-1" class="task-preview"></div>
+      <div class="btn-row">
+        <button class="btn-yes" onclick="next(2)">&#x2714; Да &mdash; требует действий</button>
+        <button class="btn-no" onclick="next('na')">&#x2718; Нет &mdash; нельзя ничего сделать</button>
+      </div>
+      <button class="btn-ghost" onclick="next(0)">&#x2190; Назад</button>
+    </div>
+
+    <!-- ─── STEP na: Не требует действий ─── -->
+    <div class="step" id="sna">
+      <div class="step-tag">Не требует действий</div>
+      <div class="step-q">Что сделать с этим?</div>
+      <div class="step-hint">
+        Раз действия нет &mdash; выбери, что дальше делать с этим материалом.
+      </div>
+      <div class="btn-row">
+        <button class="btn-danger" onclick="finish('trash')">&#x1F5D1; Удалить (не нужно)</button>
+        <button class="btn-muted" onclick="finish('someday')">&#x1F4AD; Когда-нибудь / Может быть</button>
+        <button class="btn-muted" onclick="finish('ref')">&#x1F4C2; Справочная информация</button>
+      </div>
+      <button class="btn-ghost" onclick="next(1)">&#x2190; Назад</button>
+    </div>
+
+    <!-- ─── STEP 2: Одно действие или проект? ─── -->
+    <div class="step" id="s2">
+      <div class="step-tag">Шаг 3 из 6</div>
+      <div class="step-q">Одно действие или проект?</div>
+      <div class="step-hint">
+        <strong>Одно действие</strong> &mdash; один конкретный физический шаг: позвонить, написать, открыть, скачать.<br>
+        <strong>Проект</strong> &mdash; всё, что требует двух и более шагов. Даже «организовать встречу» &mdash; уже проект.
+      </div>
+      <div class="btn-row">
+        <button class="btn-yes" onclick="next(3)">&#x26A1; Одно действие</button>
+        <button class="btn-warn" onclick="next('proj')">&#x1F4C1; Это проект</button>
+      </div>
+      <button class="btn-ghost" onclick="next(1)">&#x2190; Назад</button>
+    </div>
+
+    <!-- ─── STEP proj: Определить проект ─── -->
+    <div class="step" id="sproj">
+      <div class="step-tag">Проект</div>
+      <div class="step-q">Определи проект и первый шаг</div>
+      <div class="step-hint">
+        Запиши желаемый результат &mdash; как выглядит «сделано». Затем сформулируй <em>первое физическое действие</em>.
+        Именно оно станет задачей в todo.txt.
+      </div>
+      <label class="field-label">Название проекта (станет тегом +project)</label>
+      <input type="text" id="proj-name" placeholder="встреча_с_командой" />
+      <label class="field-label">Желаемый результат</label>
+      <textarea id="proj-outcome" placeholder="Результат выглядит как..." style="min-height:60px"></textarea>
+      <label class="field-label">Первый физический шаг (это станет задачей)</label>
+      <textarea id="proj-action" placeholder="Написать / Позвонить / Открыть / Найти..."></textarea>
+      <div class="btn-row">
+        <button class="btn-primary" onclick="applyProject()">Далее &#x2192;</button>
+      </div>
+      <button class="btn-ghost" onclick="next(2)">&#x2190; Назад</button>
+    </div>
+
+    <!-- ─── STEP 3: До 2 минут? ─── -->
+    <div class="step" id="s3">
+      <div class="step-tag">Шаг 4 из 6</div>
+      <div class="step-q">Займёт меньше 2 минут?</div>
+      <div class="step-hint">
+        Если да &mdash; сделай прямо сейчас и отметь выполненным.
+        Записывать такие задачи стоит дороже, чем просто выполнить.
+      </div>
+      <div class="btn-row">
+        <button class="btn-warn" onclick="finish('now')">&#x26A1; Да &mdash; сделаю сейчас</button>
+        <button class="btn-no" onclick="next(4)">&#x1F558; Нет &mdash; больше 2 минут</button>
+      </div>
+      <button class="btn-ghost" onclick="next(2)">&#x2190; Назад</button>
+    </div>
+
+    <!-- ─── STEP 4: Делегировать? ─── -->
+    <div class="step" id="s4">
+      <div class="step-tag">Шаг 5 из 6</div>
+      <div class="step-q">Может сделать кто-то другой?</div>
+      <div class="step-hint">
+        Если да &mdash; делегируй и поставь в лист ожидания. Задача уйдёт с тегом @ожидание.
+      </div>
+      <div class="btn-row">
+        <button class="btn-warn" onclick="next('del')">&#x1F446; Делегировать</button>
+        <button class="btn-no" onclick="next(5)">&#x1F64B; Сделаю сам</button>
+      </div>
+      <button class="btn-ghost" onclick="next(3)">&#x2190; Назад</button>
+    </div>
+
+    <!-- ─── STEP del: Кому? ─── -->
+    <div class="step" id="sdel">
+      <div class="step-tag">Делегирование</div>
+      <div class="step-q">Кому делегируешь?</div>
+      <div class="step-hint">Имя попадёт в тег @имя. Задача будет помечена как ожидание.</div>
+      <input type="text" id="del-person" placeholder="Имя или никнейм" />
+      <div class="btn-row">
+        <button class="btn-primary" onclick="finish('delegate')">Добавить в лист ожидания</button>
+      </div>
+      <button class="btn-ghost" onclick="next(4)">&#x2190; Назад</button>
+    </div>
+
+    <!-- ─── STEP 5: Когда? ─── -->
+    <div class="step" id="s5">
+      <div class="step-tag">Шаг 6 из 6</div>
+      <div class="step-q">Когда это нужно сделать?</div>
+      <div class="step-hint">Выбери, к какому списку относится задача.</div>
+      <div class="btn-row">
+        <button class="btn-primary" onclick="next('date')">&#x1F4C5; Конкретная дата</button>
+        <button class="btn-no" onclick="next('tags')">&#x26A1; При первой возможности</button>
+        <button class="btn-muted" onclick="finish('someday')">&#x1F4AD; Когда-нибудь</button>
+      </div>
+      <button class="btn-ghost" onclick="next(4)">&#x2190; Назад</button>
+    </div>
+
+    <!-- ─── STEP date: Выбери дату ─── -->
+    <div class="step" id="sdate">
+      <div class="step-tag">Дата</div>
+      <div class="step-q">Выбери дату выполнения</div>
+      <input type="date" id="due-date" />
+      <div class="btn-row">
+        <button class="btn-primary" onclick="applyDate()">Далее &#x2192;</button>
+      </div>
+      <button class="btn-ghost" onclick="next(5)">&#x2190; Назад</button>
+    </div>
+
+    <!-- ─── STEP tags: Теги ─── -->
+    <div class="step" id="stags">
+      <div class="step-tag">Теги и приоритет</div>
+      <div class="step-q">Добавь детали (необязательно)</div>
+      <div class="step-hint">Всё это можно пропустить и добавить позже прямо в списке.</div>
+
+      <label class="field-label">Приоритет</label>
+      <div class="btn-row" style="margin-bottom:1rem">
+        <button class="pri-btn pri-a" id="pb-a" onclick="setPri('A')">(A)</button>
+        <button class="pri-btn pri-b" id="pb-b" onclick="setPri('B')">(B)</button>
+        <button class="pri-btn pri-c" id="pb-c" onclick="setPri('C')">(C)</button>
+        <button class="pri-btn pri-x sel" id="pb-x" onclick="setPri(null)">нет</button>
+      </div>
+
+      <label class="field-label">+Проект</label>
+      <input type="text" id="tag-proj" placeholder="название_проекта" />
+
+      <label class="field-label">@Контекст</label>
+      <input type="text" id="tag-ctx" placeholder="дом / пк / телефон / город" />
+
+      <div class="btn-row">
+        <button class="btn-primary" onclick="finish('next')">Готово &#x2192;</button>
+      </div>
+      <button class="btn-ghost" onclick="next(5)">&#x2190; Назад</button>
+    </div>
+
+    <!-- ─── STEP output ─── -->
+    <div class="step" id="sout">
+      <div class="step-tag">Готово</div>
+      <div class="step-q">Задача в формате todo.txt</div>
+      <div class="output-box" id="out-line"></div>
+      <div class="btn-row">
+        <button class="btn-primary" onclick="copyOut()">&#x1F4CB; Копировать</button>
+        <button class="btn-success" onclick="addToList()">&#x2795; Добавить в список</button>
+        <button class="btn-muted" onclick="reset()">&#x1F504; Обработать ещё одну</button>
+      </div>
+      <div class="note" id="out-note"></div>
+    </div>
+
+  </div><!-- /wizard -->
+
+  <a href="index.html" class="back-link">&#x2190; Вернуться к списку задач</a>
+
+<script>
+// ─── Состояние ───────────────────────────────────────────────────
+const S = {
+  text: '',
+  priority: null,
+  project: null,
+  context: null,
+  dueDate: null,
+  delegatePerson: null,
+  type: null,        // 'next' | 'someday' | 'trash' | 'ref' | 'now' | 'delegate'
+};
+
+const PROGRESS = {
+  s0: 8, s1: 20, sna: 35, s2: 35, sproj: 50,
+  s3: 52, s4: 68, sdel: 75, s5: 82, sdate: 88,
+  stags: 92, sout: 100,
+};
+
+// ─── Навигация ───────────────────────────────────────────────────
+function next(key) {
+  const id = typeof key === 'number' ? `s${key}` : `s${key}`;
+  show(id);
+}
+
+function show(id) {
+  document.querySelectorAll('.step').forEach(el => el.classList.remove('active'));
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.classList.add('active');
+
+  // Обновить превью задачи если есть
+  const preview = el.querySelector('[id^="task-preview"]');
+  if (preview) {
+    const t = document.getElementById('task-input').value.trim();
+    preview.innerHTML = t ? `<strong>${escHtml(t)}</strong>` : '';
+  }
+
+  // Прогресс-бар
+  const pct = PROGRESS[id] || 50;
+  document.getElementById('pfill').style.width = pct + '%';
+  document.getElementById('plabel').textContent =
+    pct < 100 ? `Шаг ~${Math.round(pct / 100 * 6)} из 6` : 'Готово!';
+
+  window.scrollTo(0, 0);
+}
+
+function escHtml(s) {
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+// ─── Проект ──────────────────────────────────────────────────────
+function applyProject() {
+  const action = document.getElementById('proj-action').value.trim();
+  if (!action) { alert('Сформулируй первый физический шаг'); return; }
+
+  const projRaw = document.getElementById('proj-name').value.trim()
+    .replace(/\s+/g, '_').replace(/[^a-zA-Z0-9\u0430-\u044F\u0410-\u042F\u0451\u0401_-]/g, '');
+
+  // Заменяем текст задачи на первый шаг
+  document.getElementById('task-input').value = action;
+  if (projRaw) S.project = projRaw;
+  show('s3');
+}
+
+// ─── Дата ────────────────────────────────────────────────────────
+function applyDate() {
+  const d = document.getElementById('due-date').value;
+  if (d) S.dueDate = d;
+  show('stags');
+}
+
+// ─── Приоритет ───────────────────────────────────────────────────
+function setPri(p) {
+  S.priority = p;
+  ['a','b','c','x'].forEach(k => document.getElementById(`pb-${k}`)?.classList.remove('sel'));
+  const id = p ? `pb-${p.toLowerCase()}` : 'pb-x';
+  document.getElementById(id)?.classList.add('sel');
+}
+
+// ─── Финализация ─────────────────────────────────────────────────
+function finish(type) {
+  S.type = type;
+
+  // Собрать теги из поля если пришли со step tags
+  const tagProj = document.getElementById('tag-proj')?.value.trim()
+    .replace(/\s+/g, '_').replace(/[^a-zA-Z0-9\u0430-\u044F\u0410-\u042F\u0451\u0401_-]/g, '') || '';
+  const tagCtx  = document.getElementById('tag-ctx')?.value.trim()
+    .replace(/\s+/g, '_').replace(/[^a-zA-Z0-9\u0430-\u044F\u0410-\u042F\u0451\u0401_-]/g, '') || '';
+  if (tagProj && !S.project) S.project = tagProj;
+  if (tagCtx  && !S.context) S.context = tagCtx;
+
+  if (type === 'delegate') {
+    S.delegatePerson = document.getElementById('del-person')?.value.trim() || null;
+  }
+
+  const line = buildLine();
+  document.getElementById('out-line').textContent = line;
+  document.getElementById('out-note').textContent = '';
+  document.getElementById('out-note').className = 'note';
+  show('sout');
+}
+
+function buildLine() {
+  const text  = document.getElementById('task-input').value.trim();
+  const today = new Date().toISOString().slice(0, 10);
+  const { priority, project, context, dueDate, delegatePerson, type } = S;
+
+  if (type === 'trash')  return `# УДАЛЕНО: ${text}`;
+  if (type === 'now')    return `x ${today} ${text}`;
+  if (type === 'ref')    return `${text} ref:yes`;
+  if (type === 'someday') {
+    const parts = [text, 'someday:yes'];
+    if (project) parts.push(`+${project}`);
+    return parts.join(' ');
+  }
+  if (type === 'delegate') {
+    const who = delegatePerson ? ` @${delegatePerson.replace(/\s+/g,'_')}` : '';
+    const proj = project ? ` +${project}` : '';
+    return `${text} @ожидание${who}${proj} due:${today}`;
+  }
+
+  // Normal next action
+  const parts = [];
+  if (priority) parts.push(`(${priority})`);
+  parts.push(today);
+  parts.push(text);
+  if (project) parts.push(`+${project}`);
+  if (context) parts.push(`@${context}`);
+  if (dueDate) parts.push(`due:${dueDate}`);
+  return parts.join(' ');
+}
+
+// ─── Output actions ───────────────────────────────────────────────
+function copyOut() {
+  const text = document.getElementById('out-line').textContent;
+  navigator.clipboard.writeText(text).then(() => {
+    const note = document.getElementById('out-note');
+    note.textContent = 'Скопировано!';
+    note.className = 'note ok';
+  });
+}
+
+function addToList() {
+  const line = document.getElementById('out-line').textContent;
+  if (!line || line.startsWith('# УДАЛЕНО')) {
+    const note = document.getElementById('out-note');
+    note.textContent = 'Эта запись помечена как удалённая — в список не добавляется.';
+    note.className = 'note';
+    return;
+  }
+  const existing = localStorage.getItem('tasks') || '';
+  // Добавляем наверх списка
+  localStorage.setItem('tasks', line + (existing ? '\n' + existing : ''));
+  const note = document.getElementById('out-note');
+  note.textContent = 'Добавлено в список! Нажми "Вернуться к списку задач" ниже.';
+  note.className = 'note ok';
+}
+
+function reset() {
+  Object.assign(S, { text:'', priority:null, project:null, context:null,
+    dueDate:null, delegatePerson:null, type:null });
+  setPri(null);
+  ['task-input','tag-proj','tag-ctx','del-person',
+   'proj-name','proj-outcome','proj-action'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.value = '';
+  });
+  document.getElementById('due-date').value = today();
+  show('s0');
+}
+
+function today() { return new Date().toISOString().slice(0, 10); }
+
+// ─── Init ─────────────────────────────────────────────────────────
+window.addEventListener('DOMContentLoaded', () => {
+  // Установить дефолтную дату
+  document.getElementById('due-date').value = today();
+
+  // Взять задачу из URL ?task=...
+  const params = new URLSearchParams(window.location.search);
+  const taskFromUrl = params.get('task');
+  if (taskFromUrl) {
+    document.getElementById('task-input').value = decodeURIComponent(taskFromUrl);
+  }
+
+  setPri(null);
+});
+</script>
+</body>
+</html>

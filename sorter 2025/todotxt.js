@@ -149,12 +149,7 @@ function buildHighlightLayer(text) {
 }
 
 function syncHighlight() {
-  const ta = document.getElementById('task-list');
-  const hl = document.getElementById('hl-layer');
-  if (!hl || !highlightEnabled) return;
-  hl.innerHTML = buildHighlightLayer(ta.value);
-  // синхронизируем скролл
-  hl.scrollTop = ta.scrollTop;
+  renderFilterBar();
 }
 
 // ─── Инициализация подсветки ─────────────────────────────────────
@@ -162,22 +157,7 @@ function syncHighlight() {
 function initHighlight() {
   const ta = document.getElementById('task-list');
   if (!ta) return;
-
-  // Обёртка
-  const wrapper = document.createElement('div');
-  wrapper.className = 'hl-wrapper';
-  ta.parentNode.insertBefore(wrapper, ta);
-  wrapper.appendChild(ta);
-
-  const hl = document.createElement('div');
-  hl.id = 'hl-layer';
-  hl.className = 'hl-layer';
-  hl.setAttribute('aria-hidden', 'true');
-  wrapper.insertBefore(hl, ta);
-
-  ta.addEventListener('input', syncHighlight);
-  ta.addEventListener('scroll', () => { hl.scrollTop = ta.scrollTop; });
-  syncHighlight();
+  ta.addEventListener('input', renderFilterBar);
 }
 
 // ─── Авто-приоритеты ─────────────────────────────────────────────
@@ -367,14 +347,24 @@ document.addEventListener('DOMContentLoaded', () => {
   initHighlight();
   renderFilterBar();
 
-  // Перерисовываем filter bar при любом изменении textarea
-  document.getElementById('task-list')?.addEventListener('input', () => {
-    renderFilterBar();
-  });
-
   // Кнопка "Отметить выполненным"
   document.getElementById('done-button')?.addEventListener('click', toggleDoneCurrentLine);
 
   // Кнопка "Приоритеты" (ручная)
   document.getElementById('assign-priorities-btn')?.addEventListener('click', assignPrioritiesAfterSort);
+
+  // Кнопка "Обработать задачу" → открыть GTD-страницу
+  document.getElementById('process-btn')?.addEventListener('click', () => {
+    const ta = document.getElementById('task-list');
+    const pos = ta.selectionStart;
+    const lines = ta.value.split('\n');
+    let charCount = 0, lineIdx = 0;
+    for (let i = 0; i < lines.length; i++) {
+      if (charCount + lines[i].length >= pos) { lineIdx = i; break; }
+      charCount += lines[i].length + 1;
+    }
+    const taskText = lines[lineIdx].trim();
+    const encoded = encodeURIComponent(taskText);
+    window.location.href = `process.html?task=${encoded}`;
+  });
 });
