@@ -115,6 +115,9 @@
     }
     .out-goal { font-size: 0.85rem; color: var(--fg-m); line-height: 1.6; }
     .out-goal strong { color: var(--fg); }
+    .task-cap { transition: border-color 0.1s; }
+    .task-cap:hover { border-color: var(--primary); }
+    .task-cap::after { content: ' ✏'; font-size: 0.75rem; color: var(--fg-m); }
     .note { font-size: 0.8rem; color: var(--fg-m); margin-top: 0.5rem; }
     .note.ok { color: #86efac; }
     .hidden { display: none !important; }
@@ -127,7 +130,7 @@
     <a href="index.html" class="back">&#x2190; Список задач</a>
   </header>
 
-  <div id="task-cap" class="task-cap hidden"></div>
+  <div id="task-cap" class="task-cap hidden" onclick="returnToEdit()" title="Нажми, чтобы отредактировать задачу" style="cursor:pointer"></div>
 
   <div id="mode-sel" class="mode-sel">
     <button class="mode-btn" onclick="startFlow('korz')">
@@ -384,6 +387,8 @@ function afterEdit() {
   if (!v) { el('task-input').focus(); return; }
   S.task = v;
   el('task-cap').textContent = v;
+  // Reset history so going back from step 0 returns to edit-area
+  S.history = [];
   show('task-cap');
   hide('edit-area');
   renderStep(0);
@@ -411,8 +416,8 @@ function renderStep(idx) {
       const cls = c.style ? ' ' + c.style : '';
       let fn;
       if      (c.back)   fn = 'goTo(' + findIdx(c.back) + ')';
-      else if (c.switch) fn = 'switchFlow("' + c.switch + '",' + ci + ')';
-      else if (c.action) fn = 'doAction("' + c.action + '",' + ci + ')';
+      else if (c.switch) fn = "switchFlow('" + c.switch + "'," + ci + ')';
+      else if (c.action) fn = "doAction('"  + c.action + "'," + ci + ')';
       else               fn = 'goNext(' + findIdx(c.next) + ',' + ci + ')';
       h += '<button class="c-btn' + cls + '" onclick="' + fn + '">' + esc(c.label) + '</button>';
     });
@@ -455,8 +460,11 @@ function renderStep(idx) {
     h += '</div>';
   }
 
+  h += '<div style="margin-top:0.75rem;display:flex;gap:0.5rem;flex-wrap:wrap">';
   if (S.history.length > 0)
-    h += '<div style="margin-top:0.75rem"><button class="btn btn-g" onclick="goBack()">&larr; Назад</button></div>';
+    h += '<button class="btn btn-g" onclick="goBack()">&larr; Назад</button>';
+  h += '<button class="btn btn-g" onclick="returnToEdit()" title="Изменить исходный текст задачи">&#x270F; Задача</button>';
+  h += '</div>';
 
   h += '</div>';
   area.innerHTML = h;
@@ -482,7 +490,29 @@ function goNext(idx, ci) {
   renderStep(idx);
 }
 function goTo(idx) { renderStep(idx); }
-function goBack() { if (S.history.length) renderStep(S.history.pop()); }
+function goBack() {
+  if (!S.history.length) return;
+  // Save any text/date currently in the input before going back
+  const sf = el('sf');
+  if (sf) {
+    const step = S.flow[S.stepIdx];
+    if (step && step.field) S[step.field] = sf.value;
+  }
+  renderStep(S.history.pop());
+}
+function returnToEdit() {
+  // Save current field value if applicable
+  const sf = el('sf');
+  if (sf) {
+    const step = S.flow[S.stepIdx];
+    if (step && step.field) S[step.field] = sf.value;
+  }
+  hide('step-area', 'out-area');
+  el('task-input').value = S.task;
+  show('edit-area');
+  el('task-input').focus();
+  window.scrollTo(0, 0);
+}
 function switchFlow(mode, ci) {
   S.mode = mode; S.flow = FLOWS[mode]; S.history = []; S.stepIdx = 0;
   renderStep(0);
