@@ -1,15 +1,29 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
 
 /* Основные значения CSS-переменных для темной темы */
 :root {
-  --color-bg: #121212;
-  --color-text-main: #e0e0e0;
-  --color-primary: #bb86fc;
-  --color-secondary: #03dac6;
-  --wrapper-height: 87vh;
-  --image-max-width: 300px;
-  --image-margin: 3rem;
-  --font-family: 'Inter', sans-serif;
+  /* Editorial-dark inspired palette */
+  --bg:            #1c1c2e;
+  --bg-card:       #252539;
+  --bg-elevated:   #27273e;
+  --fg:            #f2f2f2;
+  --fg-muted:      #8888ab;
+  --primary:       #7c6fcd;
+  --primary-hover: #6959b8;
+  --border:        #2e2e4a;
+  --border-hover:  #3a3a5c;
+  --success:       hsl(142, 70%, 50%);
+  --warning:       hsl(38, 92%, 56%);
+  --radius:        0.5rem;
+  /* Legacy vars kept for SweetAlert2 / misc */
+  --color-bg:           #1c1c2e;
+  --color-text-main:    #f2f2f2;
+  --color-primary:      #7c6fcd;
+  --color-secondary:    #50fa7b;
+  --wrapper-height:     87vh;
+  --image-max-width:    300px;
+  --image-margin:       3rem;
+  --font-family:        'Inter', sans-serif;
   --font-family-header: 'Inter', sans-serif;
 }
 
@@ -39,9 +53,23 @@
 
 /* Тема */
 body {
+  margin: 0;
+  padding: 0;
   font-family: 'Inter', sans-serif;
-  background-color: var(--color-bg);
-  color: var(--color-text-main);
+  background-color: var(--bg);
+  color: var(--fg);
+  min-height: 100vh;
+}
+
+/* App container */
+.app {
+  width: 100%;
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 1.25rem 1.5rem 3rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
 }
 
 /* Структура страницы */
@@ -60,14 +88,32 @@ body {
 
 /* Поле ввода текста */
 .text-field {
-  background-color: #1f1f1f;
-  color: var(--color-text-main);
-  border: 1px solid #333333;
+  background-color: var(--bg-card);
+  color: var(--fg);
+  border: 1px solid var(--border);
   line-height: 1.5;
-  padding: 1rem;
-  border-radius: 4px;
+  padding: 0.75rem 1rem;
+  border-radius: var(--radius);
   resize: none;
   width: 100%;
+  font-family: inherit;
+  box-sizing: border-box;
+  transition: border-color 0.15s ease;
+}
+
+.text-field:focus {
+  outline: none;
+  border-color: var(--primary);
+}
+
+#user-question {
+  font-size: 0.9rem;
+  color: var(--fg-muted);
+  resize: none;
+}
+
+#user-question:focus {
+  color: var(--fg);
 }
 
 /* Заголовок */
@@ -86,28 +132,104 @@ body {
   margin: 1rem auto 0;
 }
 
-/* Стили кнопок */
+/* Toolbar / button groups */
+.toolbar {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.btn-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.btn-group-label {
+  font-size: 0.68rem;
+  color: var(--fg-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  font-weight: 600;
+}
+
+.btn-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+/* Base button */
 button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
   font-family: inherit;
-  font-size: 1rem;
-  background: var(--color-primary);
-  border: none;
-  color: var(--color-text-main);
-  padding: 0.75rem 1.5rem;
-  border-radius: 8px;
+  font-size: 0.85rem;
+  font-weight: 500;
+  padding: 0.45rem 1rem;
+  border-radius: 6px;
+  border: 1px solid var(--border);
   cursor: pointer;
-  transition:
-    background-color 0.3s ease,
-    transform 0.3s ease;
+  white-space: nowrap;
+  transition: background 0.15s ease, border-color 0.15s ease, transform 0.1s ease;
+  background: var(--bg-elevated);
+  color: var(--fg);
+  line-height: 1.4;
 }
 
 button:hover {
-  background-color: #985eff;
-  transform: scale(1.05);
+  background: var(--border-hover);
+  border-color: var(--border-hover);
+  transform: translateY(-1px);
 }
 
 button:active {
-  transform: scale(0.95);
+  transform: translateY(0);
+}
+
+/* Accent (primary) variant */
+.btn--accent {
+  background: var(--primary);
+  border-color: transparent;
+  color: #fff;
+}
+
+.btn--accent:hover {
+  background: var(--primary-hover);
+  border-color: transparent;
+}
+
+/* Ghost (outline) variant */
+.btn--ghost {
+  background: transparent;
+  border-color: var(--border);
+  color: var(--fg-muted);
+}
+
+.btn--ghost:hover {
+  background: var(--bg-elevated);
+  color: var(--fg);
+  border-color: var(--border-hover);
+}
+
+/* Footer */
+footer {
+  text-align: center;
+  margin-top: 0.5rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--border);
+  color: var(--fg-muted);
+  font-size: 0.85rem;
+}
+
+footer a {
+  color: var(--fg-muted);
+  text-decoration: none;
+}
+
+footer a:hover {
+  color: var(--fg);
 }
 
 /* Dropbox-кнопки */
@@ -116,14 +238,14 @@ button:active {
   flex-wrap: wrap;
   gap: 0.5rem;
   justify-content: center;
-  margin-top: 0.5rem;
+  margin-top: 0.25rem;
 }
 
 .dbx-btn {
   font-family: inherit;
-  font-size: 1rem;
+  font-size: 0.9rem;
   border: none;
-  padding: 0.75rem 1.5rem;
+  padding: 0.55rem 1.2rem;
   border-radius: 8px;
   cursor: pointer;
   transition: background-color 0.3s ease, transform 0.3s ease;
@@ -215,11 +337,12 @@ a:hover {
   transform: translateY(5px);
 }
 #task-list {
-  display: block;
-  margin: 0 auto;
-  width: 80%;
-  height: calc(50vh - 50px);
-  resize: none;
+  width: 100%;
+  height: 52vh;
+  resize: vertical;
+  font-family: 'JetBrains Mono', 'Courier New', monospace;
+  font-size: 0.875rem;
+  line-height: 1.6;
 }
 
 /* HL-wrapper: не используется (overlay удалён) */
@@ -244,10 +367,9 @@ a:hover {
   display: flex;
   flex-wrap: wrap;
   gap: 0.4rem;
-  justify-content: center;
-  width: 80%;
-  margin: 0.5rem auto 0;
-  min-height: 1.5rem;
+  justify-content: flex-start;
+  width: 100%;
+  min-height: 1rem;
 }
 
 .filter-chip {
@@ -275,9 +397,8 @@ a:hover {
 /* Фильтр-вью */
 .filter-view {
   display: block;
-  width: 80%;
-  margin: 0 auto;
-  height: calc(50vh - 50px);
+  width: 100%;
+  height: 52vh;
   overflow-y: auto;
   background: #1f1f1f;
   border: 1px solid #333;
@@ -299,26 +420,3 @@ a:hover {
 #filter-bar .todo-priority-other { color: #bd93f9; }
 #filter-bar .todo-project      { color: #50fa7b; }
 #filter-bar .todo-context      { color: #8be9fd; }
-  display: block;
-  margin: 0 auto;
-  width: 80%;
-  resize: none;
-}
-
-/* Button style */
-button {
-  display: block;
-  margin: 20px auto;
-  padding: 10px 20px;
-  font-size: 18px;
-  border-radius: 5px;
-  border: none;
-  background-color: #4caf50; /* You can change this color if needed */
-  color: #fff;
-  cursor: pointer;
-  transition: background-color 0.3s ease;
-}
-
-button:hover {
-  background-color: #45a049;
-}

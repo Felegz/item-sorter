@@ -9,10 +9,10 @@
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
+  <div class="app">
 
     <div id="filter-bar"></div>
 
-    <br />
     <textarea
       class="text-field"
       id="task-list"
@@ -24,36 +24,46 @@ Output will appear in the same area as input.
 Your text will be stored in browser memory even after page reload, but it's not reliable! Better save it somewhere else too!"
     ></textarea>
 
-    <br />
-
-    <!-- Add this input field for the user's question -->
-    <!-- <label for="user-question">Enter your question:</label> -->
     <textarea
       id="user-question"
-      rows="1"
-      cols="50"
-      placeholder="Which task would bring more value or impact if completed first? (Enter your сustom question here)"
+      rows="2"
+      placeholder="Which task would bring more value or impact if completed first? (Enter your custom question here)"
       class="text-field"
     ></textarea>
 
-    <button id="done-button">&#x2705; Отметить выполненной</button>
-    <button id="assign-priorities-btn">&#x1F3C6; Присвоить приоритеты (A)(B)(C)</button>
-    <button id="process-btn">&#x2699; Обработать задачу (GTD)</button>
+    <div class="toolbar">
 
-    <!-- Фильтрация (редактирование + разделение) -->
-    <button id="filter-button">Filter Tasks</button>
+      <!-- Задача -->
+      <div class="btn-group">
+        <span class="btn-group-label">Задача</span>
+        <div class="btn-row">
+          <button id="done-button" class="btn--accent">&#x2705; Отметить выполненной</button>
+          <button id="assign-priorities-btn" class="btn--accent">&#x1F3C6; Присвоить приоритеты</button>
+          <button id="process-btn" class="btn--accent">&#x2699; Обработать (GTD)</button>
+        </div>
+      </div>
 
-    <!-- Чистая сортировка уже отфильтрованных -->
-    <button id="sort-button">Sort Tasks</button>
-    <button id="insert-button">Insert Unsorted Tasks</button>
+      <!-- Сортировка -->
+      <div class="btn-group">
+        <span class="btn-group-label">Сортировка</span>
+        <div class="btn-row">
+          <button id="filter-button">Filter Tasks</button>
+          <button id="sort-button">Sort Tasks</button>
+          <button id="insert-button">Insert Unsorted Tasks</button>
+          <button id="merge-button">Merge Arrays</button>
+        </div>
+      </div>
 
-    <button id="merge-button">Merge Arrays</button>
-    
-   <button id="copy-button">&#x1F4CB; Copy to clipboard</button>
+      <!-- Экспорт -->
+      <div class="btn-group">
+        <span class="btn-group-label">Экспорт</span>
+        <div class="btn-row">
+          <button id="copy-button" class="btn--ghost">&#x1F4CB; Copy to clipboard</button>
+          <button id="save-button" class="btn--ghost" onclick="saveAsTxt()">Save as .txt file</button>
+        </div>
+      </div>
 
-
-
-    <button id="save-button" onclick="saveAsTxt()">Save as .txt file</button>
+    </div>
 
     <div id="dropbox-section">
       <button id="dbx-login-btn" class="dbx-btn dbx-btn--login">&#x1F4E6; Войти в Dropbox</button>
@@ -69,14 +79,14 @@ Your text will be stored in browser memory even after page reload, but it's not 
     <script src="dropbox.js"></script>
     <script src="todotxt.js"></script>
 
-    <footer style="text-align: center; margin-top: 20px">
-      <p style="font-size: 14px; color: #888">
+    <footer>
+      <p>
         Created by
-        <a href="https://linktr.ee/kostya.kushko" style="color: #888"
-          >Kostya Kushko</a
-        >
+        <a href="https://linktr.ee/kostya.kushko">Kostya Kushko</a>
         with &#x1F5A4;
       </p>
     </footer>
+
+  </div>
 </body>
 </html>
