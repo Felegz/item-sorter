@@ -6,6 +6,8 @@
   <title>Задачи — Помогатор</title>
   <!-- jsTodoTxt 0.10.0 — MIT license, github.com/jmhobbs/jsTodoTxt -->
   <script src="https://cdn.jsdelivr.net/npm/jstodotxt@0.10.0/jsTodoTxt.min.js"></script>
+  <!-- vanilla-context-menu 1.6.0 — MIT license, github.com/GeorgianStan/vanilla-context-menu -->
+  <script src="https://unpkg.com/vanilla-context-menu@1.6.0/dist/vanilla-context-menu.js"></script>
   <style>
     :root {
       --bg: #1c1c2e;
@@ -280,6 +282,54 @@
 
     .empty { text-align: center; color: var(--fg-m); padding: 2.5rem; font-style: italic; }
     .kbd { font-size: 0.68rem; color: var(--fg-m); background: var(--bg-el); border: 1px solid var(--border); border-radius: 4px; padding: 0 4px; line-height: 1.6; }
+
+    /* Ignored tasks */
+    .ignored-row { opacity: 0.38; border-style: dashed; }
+    .ignored-row .task-text { font-style: italic; }
+    #ignored-toggle {
+      display: none;
+      width: 100%;
+      text-align: center;
+      background: transparent;
+      border: 1px dashed var(--border);
+      color: var(--fg-m);
+      border-radius: 8px;
+      padding: 6px;
+      font-size: 0.78rem;
+      cursor: pointer;
+      font-family: inherit;
+      margin-top: 0.35rem;
+    }
+    #ignored-toggle:hover { color: var(--fg); border-color: var(--fg-m); }
+
+    /* Search hint */
+    .search-hint { font-size: 0.68rem; color: var(--fg-m); margin-bottom: 0.4rem; }
+    .search-hint code { background: var(--bg-el); border-radius: 3px; padding: 0 4px; font-size: 0.66rem; }
+
+    /* vanilla-context-menu dark theme override */
+    .vanilla-context-menu {
+      --menu-bg: #252539 !important;
+      --menu-border: #2e2e4a !important;
+      background: #252539 !important;
+      border: 1px solid #2e2e4a !important;
+      border-radius: 8px !important;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.5) !important;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif !important;
+      font-size: 0.85rem !important;
+      padding: 4px !important;
+    }
+    .vanilla-context-menu > li {
+      color: #f2f2f2 !important;
+      border-radius: 5px !important;
+      padding: 6px 14px !important;
+    }
+    .vanilla-context-menu > li:hover { background: #2e2e4a !important; }
+    .vanilla-context-menu > li.separator {
+      background: #2e2e4a !important;
+      height: 1px !important;
+      margin: 3px 6px !important;
+      padding: 0 !important;
+    }
   </style>
 </head>
 <body>
@@ -298,10 +348,11 @@
   <!-- Search -->
   <div class="search-bar">
     <span class="search-icon">🔍</span>
-    <input id="search" type="search" placeholder="Поиск…">
+    <input id="search" type="search" placeholder="Поиск… word -исключить &quot;точная фраза&quot; A OR B">
     <button class="search-clear" id="search-clear" style="display:none" title="Очистить">✕</button>
     <span class="kbd" title="Нажми / чтобы сфокусироваться">/</span>
   </div>
+  <div class="search-hint">Операторы: <code>-слово</code> исключить &nbsp; <code>OR</code> или <code>||</code> &nbsp; <code>AND</code> или <code>&&</code> &nbsp; <code>"точная фраза"</code></div>
 
   <!-- Tabs -->
   <div class="tabs">
@@ -341,6 +392,7 @@
   </div>
 
   <div class="tasklist" id="list"></div>
+  <button id="ignored-toggle"></button>
 
   <script>
     // ➤цель: separator (U+27A4 + "цель:")
@@ -352,6 +404,45 @@
     let items = [];
     let tab = 'active', priF = null, ctxF = null, projF = null;
     let sortMode = 'pri', searchQ = '';
+    let showIgnored = false, rightClickedIdx = -1;
+
+    // --- Boolean search ---
+
+    function searchMatches(rawText, q) {
+      if (!q.trim()) return true;
+      const text = rawText.toLowerCase();
+      const tokens = [];
+      const re = /"([^"]+)"|(OR|\|\||AND|&&)|(-[\w\u0400-\u04FF]+)|([\w\u0400-\u04FF]+)/gi;
+      let m;
+      while ((m = re.exec(q)) !== null) {
+        if (m[1] !== undefined) tokens.push({ type: 'phrase', val: m[1].toLowerCase() });
+        else if (m[2] !== undefined) tokens.push({ type: /^(OR|\|\|)$/i.test(m[2]) ? 'OR' : 'AND' });
+        else if (m[3] !== undefined) tokens.push({ type: 'NOT', val: m[3].slice(1).toLowerCase() });
+        else tokens.push({ type: 'word', val: m[4].toLowerCase() });
+      }
+      // Split by OR into groups; each group is implicitly ANDed
+      const orGroups = [[]];
+      for (const tok of tokens) {
+        if (tok.type === 'OR') orGroups.push([]);
+        else if (tok.type !== 'AND') orGroups[orGroups.length - 1].push(tok);
+      }
+      return orGroups.some(group =>
+        group.every(tok => tok.type === 'NOT' ? !text.includes(tok.val) : text.includes(tok.val))
+      );
+    }
+
+    function queryTerms(q) {
+      if (!q.trim()) return [];
+      const terms = [];
+      const re = /"([^"]+)"|(OR|\|\||AND|&&)|(-[\w\u0400-\u04FF]+)|([\w\u0400-\u04FF]+)/gi;
+      let m;
+      while ((m = re.exec(q)) !== null) {
+        if (m[1] !== undefined) terms.push(m[1].toLowerCase());       // quoted phrase
+        else if (m[4] !== undefined) terms.push(m[4].toLowerCase());  // plain word
+        // operators (m[2]) and NOT (m[3]) are skipped
+      }
+      return terms;
+    }
 
     // --- Parsing ---
 
@@ -367,20 +458,33 @@
       }
       // Parse due: extension manually (jstodotxt 0.10 doesn't auto-parse extensions)
       const dueM = mainLine.match(/\bdue:(\d{4}-\d{2}-\d{2})\b/);
-      item._due  = dueM ? dueM[1] : null;
-      item._goal = goal;
-      item._raw  = line;
+      item._due     = dueM ? dueM[1] : null;
+      item._goal    = goal;
+      item._raw     = line;
+      item._ignored = false;
       return item;
     }
 
     function loadItems() {
-      const raw = (localStorage.getItem('tasks') || '').split('\n').filter(l => l.trim());
-      items = raw.map(parseLine);
+      const raw = (localStorage.getItem('tasks') || '').split('\n');
+      items = [];
+      let inIgnored = false;
+      for (const line of raw) {
+        if (!line.trim()) continue;
+        if (/^#?\s*ИГНОРИРУЕМЫЕ\s+ЗАДАЧИ\s*$/i.test(line.trim())) { inIgnored = true; continue; }
+        const item = parseLine(line);
+        item._ignored = inIgnored;
+        items.push(item);
+      }
       render();
     }
 
     function saveItems() {
-      localStorage.setItem('tasks', items.map(it => it._raw).join('\n'));
+      const active  = items.filter(t => !t._ignored).map(t => t._raw);
+      const ignored = items.filter(t =>  t._ignored).map(t => t._raw);
+      let result = active.join('\n');
+      if (ignored.length) result += '\n# ИГНОРИРУЕМЫЕ ЗАДАЧИ\n' + ignored.join('\n');
+      localStorage.setItem('tasks', result);
     }
 
     // --- Quick add ---
@@ -388,7 +492,9 @@
     function addTask(text) {
       text = text.trim();
       if (!text) return;
-      items.push(parseLine(text));
+      const item = parseLine(text);
+      item._ignored = false;
+      items.push(item);
       saveItems();
       render();
     }
@@ -396,16 +502,13 @@
     // --- Filter & sort ---
 
     function getFiltered() {
-      let list = items;
+      let list = items.filter(t => !t._ignored || showIgnored);
       if (tab === 'active') list = list.filter(t => !t.complete);
       if (tab === 'done')   list = list.filter(t =>  t.complete);
       if (priF)  list = list.filter(t => t.priority === priF);
       if (ctxF)  list = list.filter(t => t.contexts && t.contexts.includes(ctxF));
       if (projF) list = list.filter(t => t.projects && t.projects.includes(projF));
-      if (searchQ) {
-        const q = searchQ.toLowerCase();
-        list = list.filter(t => t._raw.toLowerCase().includes(q));
-      }
+      if (searchQ) list = list.filter(t => searchMatches(t._raw, searchQ));
       return list;
     }
 
@@ -430,24 +533,27 @@
     const esc   = s => String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
     const escRe = s => s.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
 
-    // Apply search highlight to already-HTML-escaped text
-    function applyHL(html, q) {
-      if (!q) return html;
-      // escape q for use in regex (after escaping q as plain text, not HTML)
-      return html.replace(new RegExp('(' + escRe(esc(q)) + ')', 'gi'), '<mark>$1</mark>');
+    // Apply search highlight to already-HTML-escaped text; terms is an array of strings
+    function applyHL(html, terms) {
+      if (!terms || !terms.length) return html;
+      let result = html;
+      for (const t of terms) {
+        result = result.replace(new RegExp('(' + escRe(esc(t)) + ')', 'gi'), '<mark>$1</mark>');
+      }
+      return result;
     }
 
-    // Linkify URLs + apply search highlight; input is plain text
-    function renderText(plain, query) {
+    // Linkify URLs + apply search highlight; input is plain text, terms is an array
+    function renderText(plain, terms) {
       const URL_RE = /https?:\/\/[^\s<>"]+/g;
       let out = '', last = 0, m;
       while ((m = URL_RE.exec(plain)) !== null) {
-        out += applyHL(esc(plain.slice(last, m.index)), query);
+        out += applyHL(esc(plain.slice(last, m.index)), terms);
         const url = m[0];
-        out += `<a class="task-link" href="${esc(url)}" target="_blank" rel="noopener noreferrer">${applyHL(esc(url), query)}</a>`;
+        out += `<a class="task-link" href="${esc(url)}" target="_blank" rel="noopener noreferrer">${applyHL(esc(url), terms)}</a>`;
         last = m.index + url.length;
       }
-      out += applyHL(esc(plain.slice(last)), query);
+      out += applyHL(esc(plain.slice(last)), terms);
       return out;
     }
 
@@ -465,22 +571,32 @@
       const today = new Date(); today.setHours(0, 0, 0, 0);
       const diff = Math.round((due - today) / 86400000);
       let cls, label;
-      if (diff < 0)      { cls = 'due-overdue'; label = `просрочено ${-diff}д`; }
-      else if (diff === 0) { cls = 'due-today'; label = 'сегодня'; }
-      else if (diff <= 3)  { cls = 'due-soon';  label = `через ${diff}д`; }
-      else                 { cls = 'due-ok';    label = dueStr; }
+      if (diff < 0)        { cls = 'due-overdue'; label = `просрочено ${-diff}д`; }
+      else if (diff === 0) { cls = 'due-today';   label = 'сегодня'; }
+      else if (diff <= 3)  { cls = 'due-soon';    label = `через ${diff}д`; }
+      else                 { cls = 'due-ok';      label = dueStr; }
       return `<span class="t t-due ${cls}">📅 ${esc(label)}</span>`;
     }
 
     // --- Render ---
 
     function render() {
-      const show = getSorted(getFiltered());
-      document.getElementById('count').textContent = show.length;
+      const terms = queryTerms(searchQ);
+      const show  = getSorted(getFiltered());
+      document.getElementById('count').textContent = show.filter(t => !t._ignored).length;
 
-      // Chip source: base tab (chips don't narrow themselves)
+      // Ignored toggle button
+      const ignoredCount = items.filter(t => t._ignored).length;
+      const toggleBtn = document.getElementById('ignored-toggle');
+      toggleBtn.style.display = ignoredCount ? '' : 'none';
+      toggleBtn.textContent = showIgnored
+        ? `🙈 Скрыть игнорируемые (${ignoredCount})`
+        : `👁 Показать игнорируемые (${ignoredCount})`;
+
+      // Chip source: base tab, excluding ignored unless shown
       const base = items.filter(t =>
-        tab === 'active' ? !t.complete : tab === 'done' ? t.complete : true
+        (tab === 'active' ? !t.complete : tab === 'done' ? t.complete : true) &&
+        (!t._ignored || showIgnored)
       );
       const pris  = [...new Set(base.map(t => t.priority).filter(Boolean))].sort();
       const ctxs  = [...new Set(base.flatMap(t => t.contexts || []))].sort();
@@ -542,11 +658,11 @@
         // Strip due: token from displayed text (it's shown as a badge)
         const displayText = (t.text || t._raw).replace(/\bdue:\d{4}-\d{2}-\d{2}\b/g, '').trim();
 
-        return `<div class="task-row${t.complete ? ' done' : ''}">
+        return `<div class="task-row${t.complete ? ' done' : ''}${t._ignored ? ' ignored-row' : ''}" data-idx="${idx}">
   <input type="checkbox" ${t.complete ? 'checked' : ''} onchange="toggleDone(${idx})">
   <div class="task-body">
-    <span class="task-text">${renderText(displayText, searchQ)}</span>
-    ${t._goal ? `<span class="task-goal">🎯 ${renderText(t._goal, searchQ)}</span>` : ''}
+    <span class="task-text">${renderText(displayText, terms)}</span>
+    ${t._goal ? `<span class="task-goal">🎯 ${renderText(t._goal, terms)}</span>` : ''}
     ${tags.length ? `<div class="task-tags">${tags.join('')}</div>` : ''}
   </div>
   <button class="proc-btn" title="Обработать в Помогаторе" onclick="openProcess(${idx})">⚙</button>
@@ -570,7 +686,19 @@
     }
 
     function openProcess(idx) {
-      window.location.href = '/process?task=' + encodeURIComponent(items[idx]._raw);
+      window.location.href = '/process?task=' + encodeURIComponent(items[idx]._raw) + '&from=tasks';
+    }
+
+    function moveToIgnored(idx) {
+      items[idx]._ignored = true;
+      saveItems();
+      render();
+    }
+
+    function restoreIgnored(idx) {
+      items[idx]._ignored = false;
+      saveItems();
+      render();
     }
 
     function setPri(p) { priF = priF === p ? null : p; render(); }
@@ -584,6 +712,33 @@
       si.value = '';
       document.getElementById('search-clear').style.display = 'none';
       render();
+    }
+
+    // --- Context menu ---
+
+    function initContextMenu() {
+      const listEl = document.getElementById('list');
+      if (!listEl || typeof VanillaContextMenu === 'undefined') return;
+      // Capture the right-clicked row index before the menu opens
+      listEl.addEventListener('contextmenu', e => {
+        const row = e.target.closest('.task-row[data-idx]');
+        rightClickedIdx = row ? parseInt(row.dataset.idx, 10) : -1;
+      }, true);
+      new VanillaContextMenu({
+        scope: listEl,
+        theme: 'black',
+        transitionDuration: 100,
+        normalizePosition: true,
+        menuItems: [
+          { label: '⚙ Обработать (GTD)', callback: () => { if (rightClickedIdx >= 0) openProcess(rightClickedIdx); } },
+          { label: '✓ Отметить выполненной', callback: () => { if (rightClickedIdx >= 0) toggleDone(rightClickedIdx); } },
+          'hr',
+          { label: '🚫 В игнорируемые', callback: () => { if (rightClickedIdx >= 0 && !items[rightClickedIdx]._ignored) moveToIgnored(rightClickedIdx); } },
+          { label: '↩ Вернуть из игнорируемых', callback: () => { if (rightClickedIdx >= 0 && items[rightClickedIdx]._ignored) restoreIgnored(rightClickedIdx); } },
+          'hr',
+          { label: '📋 Копировать текст', callback: () => { if (rightClickedIdx >= 0) navigator.clipboard?.writeText(items[rightClickedIdx]._raw); } },
+        ],
+      });
     }
 
     // --- Event listeners ---
@@ -603,6 +758,9 @@
 
     // Clear filters
     document.getElementById('clear-filters').onclick = clearAllFilters;
+
+    // Ignored toggle
+    document.getElementById('ignored-toggle').onclick = () => { showIgnored = !showIgnored; render(); };
 
     // Search
     const searchInput = document.getElementById('search');
@@ -645,6 +803,7 @@
     });
 
     loadItems();
+    initContextMenu();
   </script>
 </body>
 </html>
