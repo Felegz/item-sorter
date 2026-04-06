@@ -14,6 +14,7 @@
       --fg: #f2f2f2;
       --fg-m: #8888ab;
       --primary: #7c6fcd;
+      --primary-h: #6a5fc0;
       --border: #2e2e4a;
       --radius: 10px;
     }
@@ -34,7 +35,7 @@
       display: flex;
       align-items: center;
       gap: 0.7rem;
-      margin-bottom: 1.2rem;
+      margin-bottom: 1rem;
     }
     h1 { flex: 1; font-size: 1.25rem; font-weight: 600; }
     .badge {
@@ -45,8 +46,77 @@
       border-radius: 12px;
     }
 
+    /* Quick-add */
+    .add-bar {
+      display: flex;
+      gap: 0.4rem;
+      margin-bottom: 0.65rem;
+    }
+    .add-bar input {
+      flex: 1;
+      background: var(--bg-card);
+      color: var(--fg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 0.45rem 0.8rem;
+      font-size: 0.88rem;
+      font-family: inherit;
+      outline: none;
+      transition: border-color 0.15s;
+    }
+    .add-bar input:focus { border-color: var(--primary); }
+    .add-bar input::placeholder { color: var(--fg-m); }
+    .add-bar button {
+      background: var(--primary);
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      padding: 0 1rem;
+      font-size: 1.1rem;
+      cursor: pointer;
+      font-family: inherit;
+      transition: background 0.15s;
+    }
+    .add-bar button:hover { background: var(--primary-h); }
+
+    /* Search */
+    .search-bar {
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 0.3rem 0.7rem;
+      margin-bottom: 0.75rem;
+      transition: border-color 0.15s;
+    }
+    .search-bar:focus-within { border-color: var(--primary); }
+    .search-icon { color: var(--fg-m); font-size: 0.85rem; flex-shrink: 0; }
+    .search-bar input {
+      flex: 1;
+      background: transparent;
+      border: none;
+      outline: none;
+      color: var(--fg);
+      font-size: 0.88rem;
+      font-family: inherit;
+    }
+    .search-bar input::placeholder { color: var(--fg-m); }
+    .search-clear {
+      background: transparent;
+      border: none;
+      color: var(--fg-m);
+      cursor: pointer;
+      padding: 0 2px;
+      font-size: 0.8rem;
+      line-height: 1;
+      flex-shrink: 0;
+    }
+    .search-clear:hover { color: var(--fg); }
+
     /* Tabs */
-    .tabs { display: flex; gap: 0.35rem; margin-bottom: 0.8rem; }
+    .tabs { display: flex; gap: 0.35rem; margin-bottom: 0.75rem; }
     .tab {
       padding: 4px 15px;
       border-radius: 20px;
@@ -61,9 +131,9 @@
     .tab.on { background: var(--primary); color: #fff; border-color: var(--primary); }
 
     /* Chips */
-    .chip-section { margin-bottom: 0.6rem; }
+    .chip-section { margin-bottom: 0.55rem; }
     .chip-label {
-      font-size: 0.62rem;
+      font-size: 0.61rem;
       text-transform: uppercase;
       letter-spacing: 0.07em;
       color: var(--fg-m);
@@ -83,12 +153,22 @@
     }
     .chip.on { background: var(--primary); color: #fff; border-color: var(--primary); }
 
-    /* Controls row */
+    /* Priority chip colours */
+    .chip.pri-a { border-color: #c05050; color: #f08080; }
+    .chip.pri-a.on { background: #f08080; color: #1c1c2e; border-color: #f08080; }
+    .chip.pri-b { border-color: #b08030; color: #f0c070; }
+    .chip.pri-b.on { background: #f0c070; color: #1c1c2e; border-color: #f0c070; }
+    .chip.pri-c { border-color: #3070a0; color: #7cb8f0; }
+    .chip.pri-c.on { background: #7cb8f0; color: #1c1c2e; border-color: #7cb8f0; }
+    .chip.pri-d { border-color: #6040a0; color: #bd93f9; }
+    .chip.pri-d.on { background: #bd93f9; color: #1c1c2e; border-color: #bd93f9; }
+
+    /* Controls */
     .controls {
       display: flex;
       align-items: center;
       gap: 0.5rem;
-      margin-bottom: 0.9rem;
+      margin-bottom: 0.85rem;
       font-size: 0.78rem;
       color: var(--fg-m);
     }
@@ -102,6 +182,18 @@
       cursor: pointer;
       font-family: inherit;
     }
+    #clear-filters {
+      margin-left: auto;
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--fg-m);
+      border-radius: 14px;
+      padding: 2px 10px;
+      font-size: 0.75rem;
+      cursor: pointer;
+      font-family: inherit;
+    }
+    #clear-filters:hover { color: var(--fg); border-color: var(--fg-m); }
 
     /* Task list */
     .tasklist { display: flex; flex-direction: column; gap: 0.35rem; }
@@ -129,10 +221,7 @@
       line-height: 1.45;
       word-break: break-word;
     }
-    .task-row.done .task-text {
-      text-decoration: line-through;
-      color: var(--fg-m);
-    }
+    .task-row.done .task-text { text-decoration: line-through; color: var(--fg-m); }
     .task-goal {
       display: block;
       font-size: 0.74rem;
@@ -147,14 +236,33 @@
       margin-top: 0.3rem;
     }
     .t { font-size: 0.68rem; padding: 1px 6px; border-radius: 10px; }
-    .t-ctx { background: #1b2a3a; color: #7cb8f0; }
+    .t-ctx  { background: #1b2a3a; color: #7cb8f0; }
     .t-proj { background: #1a2b1a; color: #7fc97f; }
-    .t-pri { font-weight: 700; border-radius: 4px; padding: 1px 6px; }
+    .t-pri  { font-weight: 700; border-radius: 4px; padding: 1px 6px; }
     .t-pri-A { background: #3a1e1e; color: #f08080; }
     .t-pri-B { background: #3a2b1a; color: #f0c070; }
     .t-pri-C { background: #1a2a3a; color: #7cb8f0; }
     .t-pri-D { background: var(--bg-el); color: var(--fg-m); }
-    .t-date { font-size: 0.66rem; color: #55556a; }
+    .t-date  { font-size: 0.66rem; color: #55556a; }
+
+    /* Due date badges */
+    .t-due { font-weight: 500; }
+    .due-overdue { background: #3a1e1e; color: #f08080; }
+    .due-today   { background: #3a2b1a; color: #f0c070; }
+    .due-soon    { background: #1a2b1a; color: #7fc97f; }
+    .due-ok      { background: var(--bg-el); color: var(--fg-m); }
+
+    /* Links inside task text */
+    .task-link { color: #7cb8f0; text-decoration: underline; word-break: break-all; }
+    .task-link:hover { color: #a8d0ff; }
+
+    /* Search highlight */
+    mark {
+      background: rgba(124, 111, 205, 0.4);
+      color: inherit;
+      border-radius: 2px;
+      padding: 0 1px;
+    }
 
     /* Process button */
     .proc-btn {
@@ -165,12 +273,13 @@
       cursor: pointer;
       font-size: 1rem;
       padding: 2px 4px;
-      opacity: 0.4;
+      opacity: 0.35;
       margin-top: 1px;
     }
     .proc-btn:hover { opacity: 1; color: var(--primary); }
 
     .empty { text-align: center; color: var(--fg-m); padding: 2.5rem; font-style: italic; }
+    .kbd { font-size: 0.68rem; color: var(--fg-m); background: var(--bg-el); border: 1px solid var(--border); border-radius: 4px; padding: 0 4px; line-height: 1.6; }
   </style>
 </head>
 <body>
@@ -180,28 +289,55 @@
     <span class="badge" id="count">0</span>
   </header>
 
+  <!-- Quick add -->
+  <div class="add-bar">
+    <input id="add-input" type="text" placeholder="Новая задача… (A) +проект @контекст due:2026-04-10">
+    <button id="add-btn" title="Добавить (Enter)">+</button>
+  </div>
+
+  <!-- Search -->
+  <div class="search-bar">
+    <span class="search-icon">🔍</span>
+    <input id="search" type="search" placeholder="Поиск…">
+    <button class="search-clear" id="search-clear" style="display:none" title="Очистить">✕</button>
+    <span class="kbd" title="Нажми / чтобы сфокусироваться">/</span>
+  </div>
+
+  <!-- Tabs -->
   <div class="tabs">
     <button class="tab on" data-t="active">Активные</button>
     <button class="tab" data-t="all">Все</button>
     <button class="tab" data-t="done">Выполненные</button>
   </div>
 
+  <!-- Priority filter -->
+  <div id="pri-sec" class="chip-section" style="display:none">
+    <div class="chip-label">Приоритет</div>
+    <div class="chip-row" id="pri-row"></div>
+  </div>
+
+  <!-- Context filter -->
   <div id="ctx-sec" class="chip-section" style="display:none">
     <div class="chip-label">Контекст</div>
     <div class="chip-row" id="ctx-row"></div>
   </div>
+
+  <!-- Project filter -->
   <div id="proj-sec" class="chip-section" style="display:none">
     <div class="chip-label">Проект</div>
     <div class="chip-row" id="proj-row"></div>
   </div>
 
+  <!-- Sort + clear -->
   <div class="controls">
     Сортировка:
     <select id="sort">
       <option value="pri">По приоритету</option>
-      <option value="date">По дате</option>
+      <option value="due">По сроку (due:)</option>
+      <option value="date">По дате создания</option>
       <option value="text">По алфавиту</option>
     </select>
+    <button id="clear-filters" style="display:none">✕ Сбросить фильтры</button>
   </div>
 
   <div class="tasklist" id="list"></div>
@@ -209,34 +345,37 @@
   <script>
     // ➤цель: separator (U+27A4 + "цель:")
     const GOAL_SEP = '\u27A4\u0446\u0435\u043b\u044c:';
-    const PRI_ORDER = { A:1, B:2, C:3, D:4, E:5, F:6 };
+    const PRI_CHIP_CLS = { A:'pri-a', B:'pri-b', C:'pri-c' };
+    const PRI_TAG_CLS  = { A:'t-pri-A', B:'t-pri-B', C:'t-pri-C' };
+    const priOrd = p => p ? (p.charCodeAt(0) - 64) : 27; // A=1..Z=26, none=27
 
     let items = [];
-    let tab = 'active', ctxF = null, projF = null, sortMode = 'pri';
+    let tab = 'active', priF = null, ctxF = null, projF = null;
+    let sortMode = 'pri', searchQ = '';
 
-    // --- Data ---
+    // --- Parsing ---
+
+    function parseLine(line) {
+      const si = line.indexOf(GOAL_SEP);
+      const mainLine = si !== -1 ? line.slice(0, si).trim() : line;
+      const goal = si !== -1 ? line.slice(si + GOAL_SEP.length).trim() : null;
+      let item;
+      try { item = TodoTxt.parseLine(mainLine); }
+      catch (_) {
+        item = { text: mainLine, complete: false, priority: null,
+          contexts: null, projects: null, date: null, dateString: () => null };
+      }
+      // Parse due: extension manually (jstodotxt 0.10 doesn't auto-parse extensions)
+      const dueM = mainLine.match(/\bdue:(\d{4}-\d{2}-\d{2})\b/);
+      item._due  = dueM ? dueM[1] : null;
+      item._goal = goal;
+      item._raw  = line;
+      return item;
+    }
 
     function loadItems() {
       const raw = (localStorage.getItem('tasks') || '').split('\n').filter(l => l.trim());
-      items = raw.map(line => {
-        const si = line.indexOf(GOAL_SEP);
-        const mainLine = si !== -1 ? line.slice(0, si).trim() : line;
-        const goal = si !== -1 ? line.slice(si + GOAL_SEP.length).trim() : null;
-        let item;
-        try {
-          item = TodoTxt.parseLine(mainLine);
-        } catch (_) {
-          // Fallback for lines that fail to parse (shouldn't happen, but defensive)
-          item = {
-            text: mainLine, complete: false, priority: null,
-            contexts: null, projects: null, date: null, dateString: () => null,
-            toString: () => mainLine,
-          };
-        }
-        item._goal = goal;
-        item._raw = line;
-        return item;
-      });
+      items = raw.map(parseLine);
       render();
     }
 
@@ -244,23 +383,38 @@
       localStorage.setItem('tasks', items.map(it => it._raw).join('\n'));
     }
 
+    // --- Quick add ---
+
+    function addTask(text) {
+      text = text.trim();
+      if (!text) return;
+      items.push(parseLine(text));
+      saveItems();
+      render();
+    }
+
     // --- Filter & sort ---
 
     function getFiltered() {
       let list = items;
       if (tab === 'active') list = list.filter(t => !t.complete);
-      if (tab === 'done')   list = list.filter(t => t.complete);
+      if (tab === 'done')   list = list.filter(t =>  t.complete);
+      if (priF)  list = list.filter(t => t.priority === priF);
       if (ctxF)  list = list.filter(t => t.contexts && t.contexts.includes(ctxF));
       if (projF) list = list.filter(t => t.projects && t.projects.includes(projF));
+      if (searchQ) {
+        const q = searchQ.toLowerCase();
+        list = list.filter(t => t._raw.toLowerCase().includes(q));
+      }
       return list;
     }
 
     function getSorted(list) {
       return list.slice().sort((a, b) => {
-        if (sortMode === 'pri') {
-          const pa = a.priority ? (PRI_ORDER[a.priority] ?? 8) : 9;
-          const pb = b.priority ? (PRI_ORDER[b.priority] ?? 8) : 9;
-          return pa - pb;
+        if (sortMode === 'pri') return priOrd(a.priority) - priOrd(b.priority);
+        if (sortMode === 'due') {
+          const da = a._due || '9999-99-99', db = b._due || '9999-99-99';
+          return da < db ? -1 : da > db ? 1 : 0;
         }
         if (sortMode === 'date') {
           const da = a.date ? a.date.getTime() : 0;
@@ -271,15 +425,51 @@
       });
     }
 
-    // --- Helpers ---
+    // --- Text helpers ---
 
-    const esc = s => String(s)
-      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    const esc   = s => String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    const escRe = s => s.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
+
+    // Apply search highlight to already-HTML-escaped text
+    function applyHL(html, q) {
+      if (!q) return html;
+      // escape q for use in regex (after escaping q as plain text, not HTML)
+      return html.replace(new RegExp('(' + escRe(esc(q)) + ')', 'gi'), '<mark>$1</mark>');
+    }
+
+    // Linkify URLs + apply search highlight; input is plain text
+    function renderText(plain, query) {
+      const URL_RE = /https?:\/\/[^\s<>"]+/g;
+      let out = '', last = 0, m;
+      while ((m = URL_RE.exec(plain)) !== null) {
+        out += applyHL(esc(plain.slice(last, m.index)), query);
+        const url = m[0];
+        out += `<a class="task-link" href="${esc(url)}" target="_blank" rel="noopener noreferrer">${applyHL(esc(url), query)}</a>`;
+        last = m.index + url.length;
+      }
+      out += applyHL(esc(plain.slice(last)), query);
+      return out;
+    }
+
+    // --- Badge helpers ---
 
     function priTag(p) {
       if (!p) return '';
-      const cls = { A: 't-pri-A', B: 't-pri-B', C: 't-pri-C' }[p] || 't-pri-D';
+      const cls = PRI_TAG_CLS[p] || 't-pri-D';
       return `<span class="t t-pri ${cls}">${esc(p)}</span>`;
+    }
+
+    function dueTag(dueStr) {
+      if (!dueStr) return '';
+      const due = new Date(dueStr + 'T00:00:00');
+      const today = new Date(); today.setHours(0, 0, 0, 0);
+      const diff = Math.round((due - today) / 86400000);
+      let cls, label;
+      if (diff < 0)      { cls = 'due-overdue'; label = `просрочено ${-diff}д`; }
+      else if (diff === 0) { cls = 'due-today'; label = 'сегодня'; }
+      else if (diff <= 3)  { cls = 'due-soon';  label = `через ${diff}д`; }
+      else                 { cls = 'due-ok';    label = dueStr; }
+      return `<span class="t t-due ${cls}">📅 ${esc(label)}</span>`;
     }
 
     // --- Render ---
@@ -288,37 +478,49 @@
       const show = getSorted(getFiltered());
       document.getElementById('count').textContent = show.length;
 
-      // Chips — build from base tab set (ignore active ctx/proj filter for chip list)
+      // Chip source: base tab (chips don't narrow themselves)
       const base = items.filter(t =>
         tab === 'active' ? !t.complete : tab === 'done' ? t.complete : true
       );
-      const ctxs = [...new Set(base.flatMap(t => t.contexts || []))].sort();
+      const pris  = [...new Set(base.map(t => t.priority).filter(Boolean))].sort();
+      const ctxs  = [...new Set(base.flatMap(t => t.contexts || []))].sort();
       const projs = [...new Set(base.flatMap(t => t.projects || []))].sort();
 
+      // Priority chips
+      const priSec = document.getElementById('pri-sec');
+      if (pris.length) {
+        priSec.style.display = '';
+        document.getElementById('pri-row').innerHTML = pris.map(p => {
+          const cc = PRI_CHIP_CLS[p] || 'pri-d';
+          return `<button class="chip ${cc}${priF===p?' on':''}" onclick="setPri('${esc(p)}')">(${esc(p)})</button>`;
+        }).join('');
+      } else { priSec.style.display = 'none'; }
+
+      // Context chips
       const ctxSec = document.getElementById('ctx-sec');
-      const ctxRow = document.getElementById('ctx-row');
       if (ctxs.length) {
         ctxSec.style.display = '';
-        ctxRow.innerHTML = ctxs.map(c => {
-          const safeC = c.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
-          return `<button class="chip${ctxF === c ? ' on' : ''}" onclick="setCtx('${safeC}')">@${esc(c)}</button>`;
+        document.getElementById('ctx-row').innerHTML = ctxs.map(c => {
+          const safe = c.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+          return `<button class="chip${ctxF===c?' on':''}" onclick="setCtx('${safe}')">@${esc(c)}</button>`;
         }).join('');
-      } else {
-        ctxSec.style.display = 'none';
-      }
+      } else { ctxSec.style.display = 'none'; }
 
+      // Project chips
       const projSec = document.getElementById('proj-sec');
-      const projRow = document.getElementById('proj-row');
       if (projs.length) {
         projSec.style.display = '';
-        projRow.innerHTML = projs.map(p => {
-          const safeP = p.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
-          return `<button class="chip${projF === p ? ' on' : ''}" onclick="setProj('${safeP}')">+${esc(p)}</button>`;
+        document.getElementById('proj-row').innerHTML = projs.map(p => {
+          const safe = p.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+          return `<button class="chip${projF===p?' on':''}" onclick="setProj('${safe}')">+${esc(p)}</button>`;
         }).join('');
-      } else {
-        projSec.style.display = 'none';
-      }
+      } else { projSec.style.display = 'none'; }
 
+      // Clear-filters button
+      const hasFilter = !!(priF || ctxF || projF || searchQ);
+      document.getElementById('clear-filters').style.display = hasFilter ? '' : 'none';
+
+      // Task rows
       const listEl = document.getElementById('list');
       if (!show.length) {
         listEl.innerHTML = '<div class="empty">Нет задач</div>';
@@ -329,17 +531,22 @@
         const idx = items.indexOf(t);
         const tags = [];
         if (t.priority) tags.push(priTag(t.priority));
+        if (t._due)     tags.push(dueTag(t._due));
         (t.contexts || []).forEach(c => tags.push(`<span class="t t-ctx">@${esc(c)}</span>`));
         (t.projects || []).forEach(p => tags.push(`<span class="t t-proj">+${esc(p)}</span>`));
         if (t.date && typeof t.dateString === 'function') {
           const ds = t.dateString();
           if (ds) tags.push(`<span class="t t-date">${esc(ds)}</span>`);
         }
+
+        // Strip due: token from displayed text (it's shown as a badge)
+        const displayText = (t.text || t._raw).replace(/\bdue:\d{4}-\d{2}-\d{2}\b/g, '').trim();
+
         return `<div class="task-row${t.complete ? ' done' : ''}">
   <input type="checkbox" ${t.complete ? 'checked' : ''} onchange="toggleDone(${idx})">
   <div class="task-body">
-    <span class="task-text">${esc(t.text || t._raw)}</span>
-    ${t._goal ? `<span class="task-goal">🎯 ${esc(t._goal)}</span>` : ''}
+    <span class="task-text">${renderText(displayText, searchQ)}</span>
+    ${t._goal ? `<span class="task-goal">🎯 ${renderText(t._goal, searchQ)}</span>` : ''}
     ${tags.length ? `<div class="task-tags">${tags.join('')}</div>` : ''}
   </div>
   <button class="proc-btn" title="Обработать в Помогаторе" onclick="openProcess(${idx})">⚙</button>
@@ -366,25 +573,76 @@
       window.location.href = '/process?task=' + encodeURIComponent(items[idx]._raw);
     }
 
+    function setPri(p) { priF = priF === p ? null : p; render(); }
     function setCtx(c) { ctxF = ctxF === c ? null : c; render(); }
     function setProj(p) { projF = projF === p ? null : p; render(); }
 
+    function clearAllFilters() {
+      priF = ctxF = projF = null;
+      searchQ = '';
+      const si = document.getElementById('search');
+      si.value = '';
+      document.getElementById('search-clear').style.display = 'none';
+      render();
+    }
+
     // --- Event listeners ---
 
+    // Tabs
     document.querySelectorAll('.tab').forEach(btn => {
       btn.onclick = () => {
         tab = btn.dataset.t;
-        ctxF = null;
-        projF = null;
+        priF = ctxF = projF = null;
         document.querySelectorAll('.tab').forEach(b => b.classList.toggle('on', b === btn));
         render();
       };
     });
 
-    document.getElementById('sort').onchange = e => {
-      sortMode = e.target.value;
+    // Sort
+    document.getElementById('sort').onchange = e => { sortMode = e.target.value; render(); };
+
+    // Clear filters
+    document.getElementById('clear-filters').onclick = clearAllFilters;
+
+    // Search
+    const searchInput = document.getElementById('search');
+    const searchClear = document.getElementById('search-clear');
+    searchInput.oninput = () => {
+      searchQ = searchInput.value;
+      searchClear.style.display = searchQ ? '' : 'none';
       render();
     };
+    searchClear.onclick = () => {
+      searchInput.value = ''; searchQ = '';
+      searchClear.style.display = 'none';
+      render();
+    };
+
+    // Quick-add
+    const addInput = document.getElementById('add-input');
+    document.getElementById('add-btn').onclick = () => { addTask(addInput.value); addInput.value = ''; };
+    addInput.onkeydown = e => {
+      if (e.key === 'Enter') { addTask(addInput.value); addInput.value = ''; }
+    };
+
+    // Keyboard shortcuts
+    document.addEventListener('keydown', e => {
+      const active = document.activeElement;
+      const typing = active === searchInput || active === addInput || active.tagName === 'TEXTAREA' || active.tagName === 'INPUT';
+      if (e.key === '/' && !e.ctrlKey && !e.metaKey && !typing) {
+        e.preventDefault();
+        searchInput.focus();
+      }
+      if ((e.ctrlKey || e.metaKey) && e.key === 'f') {
+        e.preventDefault();
+        searchInput.focus();
+        searchInput.select();
+      }
+      if (e.key === 'Escape' && active === searchInput) {
+        searchInput.blur();
+        if (searchQ) { searchInput.value = ''; searchQ = ''; searchClear.style.display = 'none'; render(); }
+      }
+    });
 
     loadItems();
   </script>
