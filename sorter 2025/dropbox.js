@@ -106,7 +106,7 @@ function getToken() {
 // Returns true if a new access token was obtained.
 async function tryRefreshToken() {
   const refresh = localStorage.getItem('dbx_refresh_token');
-  if (!refresh) return false;
+  if (!refresh) return { ok: false, reason: 'Нет сохранённого refresh-токена' };
   try {
     const resp = await fetch('https://api.dropboxapi.com/oauth2/token', {
       method: 'POST',
@@ -120,10 +120,12 @@ async function tryRefreshToken() {
     const data = await resp.json();
     if (data.access_token) {
       localStorage.setItem('dbx_access_token', data.access_token);
-      return true;
+      return { ok: true };
     }
-  } catch (_) {}
-  return false;
+    return { ok: false, reason: data.error_description || data.error || 'Dropbox отклонил обновление токена' };
+  } catch (err) {
+    return { ok: false, reason: 'Сетевая ошибка: ' + String(err) };
+  }
 }
 
 function dropboxLogout() {
@@ -184,10 +186,11 @@ async function dropboxSave() {
     } else if (response.status === 401) {
       localStorage.removeItem('dbx_access_token');
       const refreshed = await tryRefreshToken();
-      if (refreshed) {
+      if (refreshed.ok) {
         return dropboxSave();
       } else {
         dropboxLogout();
+        await Swal.fire('Сессия Dropbox истекла', 'Не удалось обновить токен автоматически.\n\nПричина: ' + refreshed.reason + '\n\nСейчас откроется страница авторизации.', 'warning');
         dropboxLogin();
       }
     } else {
@@ -249,10 +252,11 @@ async function dropboxLoad() {
     } else if (response.status === 401) {
       localStorage.removeItem('dbx_access_token');
       const refreshed = await tryRefreshToken();
-      if (refreshed) {
+      if (refreshed.ok) {
         return dropboxLoad();
       } else {
         dropboxLogout();
+        await Swal.fire('Сессия Dropbox истекла', 'Не удалось обновить токен автоматически.\n\nПричина: ' + refreshed.reason + '\n\nСейчас откроется страница авторизации.', 'warning');
         dropboxLogin();
       }
     } else if (response.status === 409) {

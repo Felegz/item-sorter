@@ -1,0 +1,392 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Задачи — Помогатор</title>
+  <!-- jsTodoTxt 0.10.0 — MIT license, github.com/jmhobbs/jsTodoTxt -->
+  <script src="https://cdn.jsdelivr.net/npm/jstodotxt@0.10.0/jsTodoTxt.min.js"></script>
+  <style>
+    :root {
+      --bg: #1c1c2e;
+      --bg-card: #252539;
+      --bg-el: #27273e;
+      --fg: #f2f2f2;
+      --fg-m: #8888ab;
+      --primary: #7c6fcd;
+      --border: #2e2e4a;
+      --radius: 10px;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: var(--bg);
+      color: var(--fg);
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      min-height: 100vh;
+      max-width: 720px;
+      margin: 0 auto;
+      padding: 1rem;
+    }
+    a { color: var(--primary); text-decoration: none; }
+
+    /* Header */
+    header {
+      display: flex;
+      align-items: center;
+      gap: 0.7rem;
+      margin-bottom: 1.2rem;
+    }
+    h1 { flex: 1; font-size: 1.25rem; font-weight: 600; }
+    .badge {
+      font-size: 0.72rem;
+      background: var(--bg-el);
+      color: var(--fg-m);
+      padding: 2px 9px;
+      border-radius: 12px;
+    }
+
+    /* Tabs */
+    .tabs { display: flex; gap: 0.35rem; margin-bottom: 0.8rem; }
+    .tab {
+      padding: 4px 15px;
+      border-radius: 20px;
+      border: 1px solid var(--border);
+      background: var(--bg-el);
+      color: var(--fg-m);
+      cursor: pointer;
+      font-size: 0.8rem;
+      font-family: inherit;
+      transition: background 0.1s, color 0.1s;
+    }
+    .tab.on { background: var(--primary); color: #fff; border-color: var(--primary); }
+
+    /* Chips */
+    .chip-section { margin-bottom: 0.6rem; }
+    .chip-label {
+      font-size: 0.62rem;
+      text-transform: uppercase;
+      letter-spacing: 0.07em;
+      color: var(--fg-m);
+      margin-bottom: 0.26rem;
+    }
+    .chip-row { display: flex; flex-wrap: wrap; gap: 0.25rem; }
+    .chip {
+      padding: 2px 10px;
+      border-radius: 14px;
+      border: 1px solid var(--border);
+      background: var(--bg-el);
+      color: var(--fg-m);
+      font-size: 0.76rem;
+      cursor: pointer;
+      font-family: inherit;
+      transition: background 0.1s;
+    }
+    .chip.on { background: var(--primary); color: #fff; border-color: var(--primary); }
+
+    /* Controls row */
+    .controls {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      margin-bottom: 0.9rem;
+      font-size: 0.78rem;
+      color: var(--fg-m);
+    }
+    .controls select {
+      background: var(--bg-el);
+      color: var(--fg);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 3px 8px;
+      font-size: 0.78rem;
+      cursor: pointer;
+      font-family: inherit;
+    }
+
+    /* Task list */
+    .tasklist { display: flex; flex-direction: column; gap: 0.35rem; }
+    .task-row {
+      display: flex;
+      align-items: flex-start;
+      gap: 0.6rem;
+      padding: 0.55rem 0.75rem;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+    }
+    .task-row.done { opacity: 0.45; }
+    .task-row input[type="checkbox"] {
+      flex-shrink: 0;
+      margin-top: 3px;
+      width: 15px;
+      height: 15px;
+      accent-color: var(--primary);
+      cursor: pointer;
+    }
+    .task-body { flex: 1; min-width: 0; }
+    .task-text {
+      font-size: 0.88rem;
+      line-height: 1.45;
+      word-break: break-word;
+    }
+    .task-row.done .task-text {
+      text-decoration: line-through;
+      color: var(--fg-m);
+    }
+    .task-goal {
+      display: block;
+      font-size: 0.74rem;
+      color: var(--fg-m);
+      margin-top: 0.1rem;
+      font-style: italic;
+    }
+    .task-tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.25rem;
+      margin-top: 0.3rem;
+    }
+    .t { font-size: 0.68rem; padding: 1px 6px; border-radius: 10px; }
+    .t-ctx { background: #1b2a3a; color: #7cb8f0; }
+    .t-proj { background: #1a2b1a; color: #7fc97f; }
+    .t-pri { font-weight: 700; border-radius: 4px; padding: 1px 6px; }
+    .t-pri-A { background: #3a1e1e; color: #f08080; }
+    .t-pri-B { background: #3a2b1a; color: #f0c070; }
+    .t-pri-C { background: #1a2a3a; color: #7cb8f0; }
+    .t-pri-D { background: var(--bg-el); color: var(--fg-m); }
+    .t-date { font-size: 0.66rem; color: #55556a; }
+
+    /* Process button */
+    .proc-btn {
+      flex-shrink: 0;
+      background: transparent;
+      border: none;
+      color: var(--fg-m);
+      cursor: pointer;
+      font-size: 1rem;
+      padding: 2px 4px;
+      opacity: 0.4;
+      margin-top: 1px;
+    }
+    .proc-btn:hover { opacity: 1; color: var(--primary); }
+
+    .empty { text-align: center; color: var(--fg-m); padding: 2.5rem; font-style: italic; }
+  </style>
+</head>
+<body>
+  <header>
+    <a href="/">← Назад</a>
+    <h1>Задачи</h1>
+    <span class="badge" id="count">0</span>
+  </header>
+
+  <div class="tabs">
+    <button class="tab on" data-t="active">Активные</button>
+    <button class="tab" data-t="all">Все</button>
+    <button class="tab" data-t="done">Выполненные</button>
+  </div>
+
+  <div id="ctx-sec" class="chip-section" style="display:none">
+    <div class="chip-label">Контекст</div>
+    <div class="chip-row" id="ctx-row"></div>
+  </div>
+  <div id="proj-sec" class="chip-section" style="display:none">
+    <div class="chip-label">Проект</div>
+    <div class="chip-row" id="proj-row"></div>
+  </div>
+
+  <div class="controls">
+    Сортировка:
+    <select id="sort">
+      <option value="pri">По приоритету</option>
+      <option value="date">По дате</option>
+      <option value="text">По алфавиту</option>
+    </select>
+  </div>
+
+  <div class="tasklist" id="list"></div>
+
+  <script>
+    // ➤цель: separator (U+27A4 + "цель:")
+    const GOAL_SEP = '\u27A4\u0446\u0435\u043b\u044c:';
+    const PRI_ORDER = { A:1, B:2, C:3, D:4, E:5, F:6 };
+
+    let items = [];
+    let tab = 'active', ctxF = null, projF = null, sortMode = 'pri';
+
+    // --- Data ---
+
+    function loadItems() {
+      const raw = (localStorage.getItem('tasks') || '').split('\n').filter(l => l.trim());
+      items = raw.map(line => {
+        const si = line.indexOf(GOAL_SEP);
+        const mainLine = si !== -1 ? line.slice(0, si).trim() : line;
+        const goal = si !== -1 ? line.slice(si + GOAL_SEP.length).trim() : null;
+        let item;
+        try {
+          item = TodoTxt.parseLine(mainLine);
+        } catch (_) {
+          // Fallback for lines that fail to parse (shouldn't happen, but defensive)
+          item = {
+            text: mainLine, complete: false, priority: null,
+            contexts: null, projects: null, date: null, dateString: () => null,
+            toString: () => mainLine,
+          };
+        }
+        item._goal = goal;
+        item._raw = line;
+        return item;
+      });
+      render();
+    }
+
+    function saveItems() {
+      localStorage.setItem('tasks', items.map(it => it._raw).join('\n'));
+    }
+
+    // --- Filter & sort ---
+
+    function getFiltered() {
+      let list = items;
+      if (tab === 'active') list = list.filter(t => !t.complete);
+      if (tab === 'done')   list = list.filter(t => t.complete);
+      if (ctxF)  list = list.filter(t => t.contexts && t.contexts.includes(ctxF));
+      if (projF) list = list.filter(t => t.projects && t.projects.includes(projF));
+      return list;
+    }
+
+    function getSorted(list) {
+      return list.slice().sort((a, b) => {
+        if (sortMode === 'pri') {
+          const pa = a.priority ? (PRI_ORDER[a.priority] ?? 8) : 9;
+          const pb = b.priority ? (PRI_ORDER[b.priority] ?? 8) : 9;
+          return pa - pb;
+        }
+        if (sortMode === 'date') {
+          const da = a.date ? a.date.getTime() : 0;
+          const db = b.date ? b.date.getTime() : 0;
+          return db - da;
+        }
+        return (a.text || '').localeCompare(b.text || '', 'ru');
+      });
+    }
+
+    // --- Helpers ---
+
+    const esc = s => String(s)
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+
+    function priTag(p) {
+      if (!p) return '';
+      const cls = { A: 't-pri-A', B: 't-pri-B', C: 't-pri-C' }[p] || 't-pri-D';
+      return `<span class="t t-pri ${cls}">${esc(p)}</span>`;
+    }
+
+    // --- Render ---
+
+    function render() {
+      const show = getSorted(getFiltered());
+      document.getElementById('count').textContent = show.length;
+
+      // Chips — build from base tab set (ignore active ctx/proj filter for chip list)
+      const base = items.filter(t =>
+        tab === 'active' ? !t.complete : tab === 'done' ? t.complete : true
+      );
+      const ctxs = [...new Set(base.flatMap(t => t.contexts || []))].sort();
+      const projs = [...new Set(base.flatMap(t => t.projects || []))].sort();
+
+      const ctxSec = document.getElementById('ctx-sec');
+      const ctxRow = document.getElementById('ctx-row');
+      if (ctxs.length) {
+        ctxSec.style.display = '';
+        ctxRow.innerHTML = ctxs.map(c => {
+          const safeC = c.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+          return `<button class="chip${ctxF === c ? ' on' : ''}" onclick="setCtx('${safeC}')">@${esc(c)}</button>`;
+        }).join('');
+      } else {
+        ctxSec.style.display = 'none';
+      }
+
+      const projSec = document.getElementById('proj-sec');
+      const projRow = document.getElementById('proj-row');
+      if (projs.length) {
+        projSec.style.display = '';
+        projRow.innerHTML = projs.map(p => {
+          const safeP = p.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+          return `<button class="chip${projF === p ? ' on' : ''}" onclick="setProj('${safeP}')">+${esc(p)}</button>`;
+        }).join('');
+      } else {
+        projSec.style.display = 'none';
+      }
+
+      const listEl = document.getElementById('list');
+      if (!show.length) {
+        listEl.innerHTML = '<div class="empty">Нет задач</div>';
+        return;
+      }
+
+      listEl.innerHTML = show.map(t => {
+        const idx = items.indexOf(t);
+        const tags = [];
+        if (t.priority) tags.push(priTag(t.priority));
+        (t.contexts || []).forEach(c => tags.push(`<span class="t t-ctx">@${esc(c)}</span>`));
+        (t.projects || []).forEach(p => tags.push(`<span class="t t-proj">+${esc(p)}</span>`));
+        if (t.date && typeof t.dateString === 'function') {
+          const ds = t.dateString();
+          if (ds) tags.push(`<span class="t t-date">${esc(ds)}</span>`);
+        }
+        return `<div class="task-row${t.complete ? ' done' : ''}">
+  <input type="checkbox" ${t.complete ? 'checked' : ''} onchange="toggleDone(${idx})">
+  <div class="task-body">
+    <span class="task-text">${esc(t.text || t._raw)}</span>
+    ${t._goal ? `<span class="task-goal">🎯 ${esc(t._goal)}</span>` : ''}
+    ${tags.length ? `<div class="task-tags">${tags.join('')}</div>` : ''}
+  </div>
+  <button class="proc-btn" title="Обработать в Помогаторе" onclick="openProcess(${idx})">⚙</button>
+</div>`;
+      }).join('');
+    }
+
+    // --- Actions ---
+
+    function toggleDone(idx) {
+      const t = items[idx];
+      t.complete = !t.complete;
+      if (t.complete) {
+        const today = new Date().toISOString().slice(0, 10);
+        t._raw = 'x ' + today + ' ' + t._raw;
+      } else {
+        t._raw = t._raw.replace(/^x\s+\d{4}-\d{2}-\d{2}\s+/, '');
+      }
+      saveItems();
+      render();
+    }
+
+    function openProcess(idx) {
+      window.location.href = '/process?task=' + encodeURIComponent(items[idx]._raw);
+    }
+
+    function setCtx(c) { ctxF = ctxF === c ? null : c; render(); }
+    function setProj(p) { projF = projF === p ? null : p; render(); }
+
+    // --- Event listeners ---
+
+    document.querySelectorAll('.tab').forEach(btn => {
+      btn.onclick = () => {
+        tab = btn.dataset.t;
+        ctxF = null;
+        projF = null;
+        document.querySelectorAll('.tab').forEach(b => b.classList.toggle('on', b === btn));
+        render();
+      };
+    });
+
+    document.getElementById('sort').onchange = e => {
+      sortMode = e.target.value;
+      render();
+    };
+
+    loadItems();
+  </script>
+</body>
+</html>
