@@ -120,7 +120,15 @@
     .out-goal strong { color: var(--fg); }
     .task-cap { transition: border-color 0.1s; }
     .task-cap:hover { border-color: var(--primary); }
-    .task-cap::after { content: ' ✏'; font-size: 0.75rem; color: var(--fg-m); }
+    .task-cap::after { content: ' ✒'; font-size: 0.75rem; color: var(--fg-m); }
+    .friend-quote {
+      background: rgba(124,111,205,0.08); border-left: 3px solid var(--primary);
+      border-radius: 0 var(--radius) var(--radius) 0;
+      padding: 0.75rem 1rem; margin-bottom: 1rem;
+      font-size: 0.9rem; line-height: 1.6; color: var(--fg);
+    }
+    .friend-label { display: block; font-size: 0.65rem; font-weight: 700;
+      letter-spacing: 0.08em; text-transform: uppercase; color: var(--fg-m); margin-bottom: 0.35rem; }
     .note { font-size: 0.8rem; color: var(--fg-m); margin-top: 0.5rem; }
     .note.ok { color: #86efac; }
     .hidden { display: none !important; }
@@ -294,7 +302,7 @@ const FLOWS = {
     },
     { id: 'action_step',
       q: 'Запиши ОДНО следующее действие',
-      hint: '\u2022 Один шаг приближает тебя к результату\n\u2022 Можно сделать за 20 минут без перерыва\n\u2022 Понятно настолько, что можно поручить соседскому ребёнку\n\u2022 Начинается с глагола в неопределённой форме\n\u2022 Максимально снизь нагрузку на будущего себя',
+      hint: 'Формулируй как для труслового льва или для глупого дворецкого. Или как для глупого ребёнка.\n\u2022 На один шаг приближает тебя к результату\n\u2022 Можно сделать за 20 минут без перерыва\n\u2022 Действие должно ощущаться маленьким и лёгким\n\u2022 Сформулировано понятно, что можно перепоручить соседскому ребёнку\n\u2022 Начинается с глагола в неопределённой форме',
       type: 'text',
       placeholder: 'Написать / Позвонить / Открыть / Найти\u2026',
       multiline: true,
@@ -302,12 +310,12 @@ const FLOWS = {
       next: 'procgen',
     },
     { id: 'procgen',
-      q: '\u26A0\uFE0F \u041e\u0431\u043d\u0430\u0440\u0443\u0436\u0435\u043d \u0433\u043b\u0430\u0433\u043e\u043b-\u043f\u0440\u043e\u043a\u0440\u0430\u0441\u0442\u0438\u043d\u043e\u0433\u0435\u043d',
+      q: 'Ты замечаешь глагол-прокрастиноген',
       // hintFn called at render time with current S.action
       hintFn: () => {
-        const m = S.action.match(/\b(\u043f\u043e\u0434\u0443\u043c\u0430\u0442\u044c|\u043f\u0440\u0438\u0434\u0443\u043c\u0430\u0442\u044c|\u043f\u0440\u043e\u0430\u043d\u0430\u043b\u0438\u0437\u0438\u0440\u043e\u0432\u0430\u0442\u044c|\u0432\u044b\u0443\u0447\u0438\u0442\u044c|\u0438\u0437\u0443\u0447\u0438\u0442\u044c|\u0441\u0434\u0435\u043b\u0430\u0442\u044c)\b/i);
+        const m = S.action.match(/\b(подумать|придумать|проанализировать|выучить|изучить|сделать)\b/i);
         return m
-          ? '\u0413\u043b\u0430\u0433\u043e\u043b \u00ab' + m[0] + '\u00bb \u043c\u0435\u0448\u0430\u0435\u0442 \u0434\u0435\u0439\u0441\u0442\u0432\u043e\u0432\u0430\u0442\u044c. \u041f\u0435\u0440\u0435\u043f\u0438\u0448\u0438 \u0434\u0435\u0439\u0441\u0442\u0432\u0438\u0435, \u0443\u0431\u0440\u0430\u0432 \u044d\u0442\u043e\u0442 \u0433\u043b\u0430\u0433\u043e\u043b.'
+          ? 'Нужно максимально снизить когнитивную нагрузку на будущего тебя.\n\nГлагол «' + m[0] + '» — прокрастиноген. Переформулируй задачу, не используя: подумать / придумать / проанализировать / выучить / изучить / сделать'
           : '';
       },
       // skipIf: no procgen verb found → go straight to priority
@@ -315,8 +323,8 @@ const FLOWS = {
       skipTo: 'priority',
       type: 'choice',
       choices: [
-        { label: '\u21A9 \u041f\u0435\u0440\u0435\u043f\u0438\u0441\u0430\u0442\u044c \u0434\u0435\u0439\u0441\u0442\u0432\u0438\u0435', style: 'warn', back: 'action_step' },
-        { label: '\u2714 \u041e\u0441\u0442\u0430\u0432\u0438\u0442\u044c \u043a\u0430\u043a \u0435\u0441\u0442\u044c', style: 'no', next: 'priority' },
+        { label: '↩ Переписать', style: 'warn', back: 'action_step' },
+        { label: 'Не переписывать, идём дальше', style: 'no', next: 'priority' },
       ],
     },
     { id: 'priority',
@@ -324,8 +332,8 @@ const FLOWS = {
       hint: '',
       type: 'choice',
       choices: [
-        { label: '\u2764\uFE0F Красный \u2014 если не сделать, станет хуже',      style: 'danger', pri: 'red',   next: 'context' },
-        { label: '\uD83D\uDC9A Зелёный \u2014 если сделать, стану ближе к цели', style: 'yes',    pri: 'green', next: 'context' },
+        { label: '❤️ Красный — если не выполнить, случится что-то плохое',    style: 'danger', pri: 'red',   next: 'context' },
+        { label: '💚 Зелёный — если выполнить, стану ближе к своим целям',      style: 'yes',    pri: 'green', next: 'context' },
       ],
     },
     { id: 'context',
@@ -350,19 +358,23 @@ const FLOWS = {
       ],
     },
     { id: 'feelings',
-      q: 'Что чувствуешь по поводу этой задачи?',
-      hint: 'Запиши всё что приходит в голову \u2014 без цензуры',
+      q: 'Какие чувства у тебя вызывает эта задача?',
+      hintFn: () => 'Когда думаю: «' + (S.action || S.task) + '»\nВозникают мысли…',
       type: 'text',
-      placeholder: 'Когда думаю об этой задаче\u2026',
+      placeholder: 'Возникают мысли…',
       multiline: true,
       field: 'feelings',
       next: 'friend_advice',
     },
     { id: 'friend_advice',
-      q: 'Что бы ты сказал другу в такой ситуации?',
-      hint: 'Представь: друг пришёл к тебе с этой же проблемой. Что посоветуешь?',
+      q: 'Что скажешь другу?',
+      hintHtmlFn: () => {
+        const task     = esc(S.task || '\u2026');
+        const feelings = esc(S.feelings || '\u2026');
+        return '<div class="friend-quote"><span class="friend-label">Друг говорит:</span>Мне нужно <strong>' + task + '</strong>. Но ' + feelings + '. Что скажешь?</div>';
+      },
       type: 'text',
-      placeholder: 'Ты бы сказал\u2026',
+      placeholder: 'Ты бы сказал…',
       multiline: true,
       field: 'advice',
       next: 'parallel',
@@ -434,11 +446,13 @@ function renderStep(idx) {
   const total  = S.flow.length;
   // Support both static hint string and dynamic hintFn
   const hint = step.hintFn ? step.hintFn() : (step.hint || '');
+  const hintHtml = step.hintHtmlFn ? step.hintHtmlFn() : (step.hintHtml || '');
 
   let h = '<div class="card">';
   h += '<div class="badge">' + mlabel + ' &mdash; шаг ' + (idx+1) + ' / ' + total + '</div>';
   h += '<div class="step-q">' + esc(step.q) + '</div>';
   if (hint) h += '<div class="step-hint">' + esc(hint) + '</div>';
+  if (hintHtml) h += hintHtml;
 
   if (step.type === 'choice') {
     h += '<div class="choices">';
@@ -505,7 +519,7 @@ function renderStep(idx) {
   h += '<div style="margin-top:0.75rem;display:flex;gap:0.5rem;flex-wrap:wrap">';
   if (S.history.length > 0)
     h += '<button class="btn btn-g" onclick="goBack()">&larr; Назад</button>';
-  h += '<button class="btn btn-g" onclick="returnToEdit()" title="Изменить исходный текст задачи">&#x270F; Задача</button>';
+  h += '<button class="btn btn-g" onclick="returnToEdit()" title="Изменить исходный текст задачи"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="13" height="13" style="vertical-align:-1px;margin-right:4px"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg>Задача</button>';
   h += '</div>';
 
   h += '</div>';
