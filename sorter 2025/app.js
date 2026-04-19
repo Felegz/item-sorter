@@ -1,4 +1,5 @@
 
+// Описание проекта: см. /Project Structure.md
 console.log('app.js loaded');
 
 
@@ -221,14 +222,37 @@ function compareTasks(task1, task2) {
  * @param {string} task2 — текст второй задачи (кнопка «НЕТ»)
  * @returns {Promise<-1|1>}   – -1 если выбрали task1, иначе 1
  */
-async function compareTasks(task1, task2) {
+async function compareTasks(task1, task2, progress = null) {
   counter += 1;
   const question = userQuestion.value;
+
+  if (progress) progress.done++;
+  const _pct       = progress ? Math.min(100, Math.round(progress.done / progress.expected * 100)) : 0;
+  const _remaining  = progress ? Math.max(0, progress.expected - progress.done) : 0;
+  const _statusText = progress
+    ? (progress.tasksDone === 0
+        ? 'Подготовка…'
+        : `✓ Выбрано ${progress.tasksDone} из ${progress.tasksTotal}`)
+    : '';
+  const progressHtml = progress ? `
+    <div style="margin-bottom:0.75rem">
+      <div style="display:flex;justify-content:space-between;align-items:baseline;font-size:0.75rem;margin-bottom:4px">
+        <span style="color:#c0b8f0;font-weight:500">${_statusText}</span>
+        <span style="color:#8880bb">${_pct}%</span>
+      </div>
+      <div style="height:5px;background:#2e2e4a;border-radius:3px;overflow:hidden;margin-bottom:5px">
+        <div style="height:100%;width:${_pct}%;background:linear-gradient(90deg,#7c6fcd,#b8aff5);border-radius:3px;transition:width 0.15s ease"></div>
+      </div>
+      <div style="font-size:0.7rem;color:#6a6488;text-align:right">
+        ещё ~${_remaining} сравнений
+      </div>
+    </div>` : '';
 
   return new Promise(resolve => {
     Swal.fire({
       title: `${counter}. ${question}`,
       html: `
+        ${progressHtml}
         <div style="text-align:left; word-wrap:break-word; margin-bottom:1rem;">
           <p>Выберите более важную задачу:</p>
         </div>
@@ -686,53 +710,122 @@ async function filterTasksUI() {
 }
 
 /**
- * Асинхронная сортировка:
- * 1) сохраняет в localStorage,
- * 2) разбивает на строки,
- * 3) находит заголовок «ИГНОРИРУЕМЫЕ ЗАДАЧИ…»,
- * 4) сортирует всё ДО заголовка с помощью mergeSort,
- * 5) приклеивает заголовок и игнорируемые задачи,
- * 6) сохраняет обратно и в localStorage.
+ * Восстанавливает max-heap для узла i (итеративно).
+ * compareTasks(a, b) === -1 означает что a важнее b → корень = самая важная задача.
+ */
+async function heapifyDown(arr, heapSize, i, progress) {
+  while (true) {
+    let largest = i;
+    const left  = 2 * i + 1;
+    const right = 2 * i + 2;
+
+    if (left < heapSize) {
+      const cmp = await compareTasks(arr[left], arr[largest], progress);
+      if (cmp === -1) largest = left;
+    }
+    if (right < heapSize) {
+      const cmp = await compareTasks(arr[right], arr[largest], progress);
+      if (cmp === -1) largest = right;
+    }
+
+    if (largest === i) break;
+    [arr[i], arr[largest]] = [arr[largest], arr[i]];
+    i = largest;
+  }
+}
+
+/**
+ * Частичная сортировка: извлекает top-n самых важных задач из массива.
+ * Алгоритм: построение max-heap + N извлечений.
+ * Число сравнений ≈ 2·|tasks| + 2·N·log₂(|tasks|) — существенно меньше полного mergeSort.
+ *
+ * @param {string[]} tasks  — входной массив задач
+ * @param {number}   n      — сколько задач извлечь
+ * @returns {Promise<{sorted: string[], remaining: string[]}>}
+ */
+async function partialSortTasks(tasks, n) {
+  const arr    = [...tasks];
+  const totalN = Math.min(n, arr.length);
+  const expectedCmps = Math.round(
+    2 * arr.length + 2 * totalN * Math.log2(arr.length + 1)
+  );
+
+  const progress = {
+    done:       0,
+    expected:   expectedCmps,
+    tasksDone:  0,
+    tasksTotal: totalN,
+  };
+
+  // Построить max-heap (heapify снизу вверх)
+  for (let i = Math.floor(arr.length / 2) - 1; i >= 0; i--) {
+    await heapifyDown(arr, arr.length, i, progress);
+  }
+
+  // Извлечь top-n
+  const sorted = [];
+  let heapSize = arr.length;
+  for (let k = 0; k < totalN; k++) {
+    sorted.push(arr[0]);
+    progress.tasksDone = k + 1;
+    arr[0] = arr[heapSize - 1];
+    heapSize--;
+    if (heapSize > 1) {
+      await heapifyDown(arr, heapSize, 0, progress);
+    }
+  }
+
+  return { sorted, remaining: arr.slice(0, heapSize) };
+}
+
+/**
+ * Частичная сортировка: находит top-N (20% от списка, макс. 50) самых важных задач.
+ * Остаток помещает в секцию PARTIALLY SORTED (дата).
+ * Уже имеющиеся секции PARTIALLY SORTED и ИГНОРИРУЕМЫЕ ЗАДАЧИ сохраняются в хвост.
  */
 async function sortTasks() {
   saveDataToLocalStorage();
 
   try {
-    // 1) разбиваем текст на строки
     const lines = taskList.value.split(/[\r\n]+/);
 
-    // 2) ищем индекс строки, где начинается заголовок
-    const splitIndex = lines.findIndex(l => l.startsWith("ИГНОРИРУЕМЫЕ ЗАДАЧИ"));
+    // Найти существующие маркеры секций
+    const splitIgnored = lines.findIndex(l => l.startsWith('ИГНОРИРУЕМЫЕ ЗАДАЧИ'));
+    const splitPartial  = lines.findIndex(l => l.startsWith('PARTIALLY SORTED'));
 
-    // 3) разделяем на то, что надо сортировать, и на остальное
-    const toSort = splitIndex > -1 ? lines.slice(0, splitIndex) : lines;
-    const rest   = splitIndex > -1 ? lines.slice(splitIndex) : [];
+    // Граница «сортируемого» блока — выше любого маркера
+    let endIdx = lines.length;
+    if (splitIgnored > -1) endIdx = Math.min(endIdx, splitIgnored);
+    if (splitPartial  > -1) endIdx = Math.min(endIdx, splitPartial);
 
-    // 4) убираем пустые строки
-    const cleaned = toSort.filter(l => l.trim() !== "");
+    const toSort = lines.slice(0, endIdx).filter(l => l.trim() !== '');
+    const rest   = lines.slice(endIdx).filter(l => l.trim() !== '');
 
-    // 5) сортируем массив (ВАЖНО: await)
-    const sortedTasks = await mergeSort(cleaned);
+    if (toSort.length === 0) return;
 
-    // 6) собираем вместе с остальными строками
+    // N = 20% от длины списка, не больше 50
+    const n = Math.min(50, Math.max(1, Math.ceil(toSort.length * 0.2)));
+
+    const { sorted, remaining } = await partialSortTasks(toSort, n);
+
+    const { year, month, day } = getDateParts();
+    const partialHeader = `PARTIALLY SORTED (${year}.${month}.${day})`;
+
     const result = [
-      ...sortedTasks,
-      ...rest
+      ...sorted,
+      ...(remaining.length > 0 ? ['', partialHeader, ...remaining] : []),
+      ...(rest.length > 0      ? ['', ...rest]                     : []),
     ];
 
-    // 7) обновляем textarea
-    taskList.value = result.join("\n\n");
-
+    taskList.value = result.join('\n');
     saveDataToLocalStorage();
 
-    // 8) авто-приоритеты и перерисовка подсветки
     if (typeof assignPrioritiesAfterSort === 'function') assignPrioritiesAfterSort();
-    if (typeof syncHighlight === 'function') syncHighlight();
+    if (typeof syncHighlight   === 'function') syncHighlight();
     if (typeof renderFilterBar === 'function') renderFilterBar();
-    console.log('sortTasks: done, sortedTasks count =', sortedTasks.length);
+    console.log('sortTasks (partial): sorted =', sorted.length, ', remaining =', remaining.length);
   } catch (err) {
     console.error('sortTasks error:', err);
-    // аккуратно уведомим, чтобы не ломать UX
     if (typeof Swal !== 'undefined') {
       Swal.fire('Ошибка', 'Сортировка упала — см. консоль', 'error');
     } else {

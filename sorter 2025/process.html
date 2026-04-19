@@ -130,7 +130,11 @@
 <div class="page">
   <header>
     <h1>&#x2699; Помогатор</h1>
-    <a href="index.html" class="back">&#x2190; Список задач</a>
+    <a id="back-link" href="/" class="back">&#x2190; Назад</a>
+    <script>(function(){
+      var f = new URLSearchParams(window.location.search).get('from');
+      if (f === 'tasks') document.getElementById('back-link').href = '/tasks';
+    })();</script>
   </header>
 
   <div id="task-cap" class="task-cap hidden" onclick="returnToEdit()" title="Нажми, чтобы отредактировать задачу" style="cursor:pointer"></div>

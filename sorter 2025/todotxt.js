@@ -94,7 +94,7 @@ function highlightTodoLine(line) {
   if (!line.trim()) return '&nbsp;';
 
   // Комментарии-разделители (типа "ИГНОРИРУЕМЫЕ ЗАДАЧИ..." и "NEW ARRAY")
-  if (/^(ИГНОРИРУЕМЫЕ ЗАДАЧИ|NEW ARRAY|НЕУПОРЯДОЧЕННЫЕ ЗАДАЧИ)/i.test(line.trim())) {
+  if (/^(ИГНОРИРУЕМЫЕ ЗАДАЧИ|NEW ARRAY|НЕУПОРЯДОЧЕННЫЕ ЗАДАЧИ|PARTIALLY SORTED)/i.test(line.trim())) {
     return `<span class="todo-section">${escHtml(line)}</span>`;
   }
 
@@ -170,7 +170,7 @@ function initHighlight() {
 function assignPrioritiesAfterSort() {
   const ta = document.getElementById('task-list');
   const lines = ta.value.split('\n');
-  const splitIdx = lines.findIndex(l => l.startsWith('ИГНОРИРУЕМЫЕ ЗАДАЧИ'));
+  const splitIdx = lines.findIndex(l => l.startsWith('ИГНОРИРУЕМЫЕ ЗАДАЧИ') || l.startsWith('PARTIALLY SORTED'));
 
   const toProcess = splitIdx > -1 ? lines.slice(0, splitIdx) : lines.slice();
   const rest      = splitIdx > -1 ? lines.slice(splitIdx) : [];
@@ -178,7 +178,7 @@ function assignPrioritiesAfterSort() {
   let letterCode = 65; // 'A'
   const result = toProcess.map(line => {
     const trimmed = line.trim();
-    if (!trimmed || /^(ИГНОРИРУЕМЫЕ ЗАДАЧИ|NEW ARRAY|НЕУПОРЯДОЧЕННЫЕ ЗАДАЧИ)/i.test(trimmed)) {
+    if (!trimmed || /^(ИГНОРИРУЕМЫЕ ЗАДАЧИ|NEW ARRAY|НЕУПОРЯДОЧЕННЫЕ ЗАДАЧИ|PARTIALLY SORTED)/i.test(trimmed)) {
       return line;
     }
     // Пропускаем выполненные
