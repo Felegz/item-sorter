@@ -296,8 +296,8 @@ async function compareTasks(task1, task2, progress = null) {
  */
 function parseArrays(text) {
   const lines = text.split(/\r?\n/);
-  const idxNew   = lines.indexOf('NEW ARRAY');
-  const idxTail  = lines.indexOf('НЕУПОРЯДОЧЕННЫЕ ЗАДАЧИ');
+  const idxNew   = lines.findIndex(l => MARKERS.isNewArray(l));
+  const idxTail  = lines.findIndex(l => MARKERS.isUnordered(l));
 
   const first  = idxNew   > -1 ? lines.slice(0, idxNew)                    : lines.slice();
   const second = idxNew   > -1 && idxTail > -1
@@ -386,8 +386,8 @@ async function mergeArraysUI() {
   saveDataToLocalStorage();
   const text = taskList.value;
   const { first, second, tail } = parseArrays(text);
-  const a = first.filter(l => l.trim());
-  const b = second.filter(l => l.trim());
+  const a = first.filter(l => l.trim() && !MARKERS.isAnyMarker(l));
+  const b = second.filter(l => l.trim() && !MARKERS.isAnyMarker(l));
   const merged = await mergeGalloping(a, b);
   const newText = [
     ...merged,
@@ -534,11 +534,12 @@ async function insertUnsortedTasksUI(unsortedTasks) {
 
     // Разбираем текущее содержимое textarea на сортируемую часть и хвост
     const lines = taskList.value.split(/[\r\n]+/);
-    const splitIndex = lines.findIndex(l => l.startsWith("ИГНОРИРУЕМЫЕ ЗАДАЧИ"));
+    const splitIndex = lines.findIndex(l => MARKERS.isIgnored(l));
 
-    const sorted = splitIndex > -1
-      ? lines.slice(0, splitIndex).filter(l => l.trim() !== "")
-      : lines.filter(l => l.trim() !== "");
+    const upperLines = splitIndex > -1 ? lines.slice(0, splitIndex) : lines.slice();
+    // Сохраняем маркеры (SORTED / PARTIALLY SORTED) отдельно, чтобы не сравнивать с задачами
+    const markerLines = upperLines.filter(l => MARKERS.isAnyMarker(l));
+    const sorted = upperLines.filter(l => l.trim() !== "" && !MARKERS.isAnyMarker(l));
     const tail = splitIndex > -1
       ? lines.slice(splitIndex)
       : [];
@@ -568,6 +569,7 @@ async function insertUnsortedTasksUI(unsortedTasks) {
 
     // Собираем назад и записываем в textarea
     const resultLines = [
+      ...markerLines,
       ...sorted,
       "",
       ...tail
@@ -583,63 +585,6 @@ async function insertUnsortedTasksUI(unsortedTasks) {
 }
 
 
-
-
-//SORT TASKS
-async function sortTasks001() {
-  saveDataToLocalStorage();
-  
-  const input = taskList.value;
-  //var tasks = input.split("\n");
-  var tasks = input.split(/[\r\n\t]+/);
-  
-  // Define an array of regular expressions to ignore
-  const ignoreRegexes = [
-    /^\([A-Z]\)$/gm,
-    /^added .* ago$/gm,
-    /^added yesterday/gm,
-    /^ИГНОРИРУЕМЫЕ ЗАДАЧИ:.*/,
-    /^Due[\d\w\s]*$/gm
-    // Add more regexes as needed
-  ];
-  
-  // Filter out tasks that match any of the ignore regexes
-  tasks = tasks.filter(task => {
-    for (const regex of ignoreRegexes) {
-      if (regex.test(task)) {
-        return false; // Ignore task
-      }
-    }
-    return true; // Include task
-  });
-
-  tasks = tasks.filter(task => task.trim() !== "");
-
-  var uniqueTasks = Array.from(new Set(tasks));
-
-  // Filter tasks based on user confirmation
-  const { tasksToSort, ignoredTasks } = await filterTasks(uniqueTasks);
-  
-  // Sort the tasks to include
-  const sortedTasks = await mergeSort(cleaned);
-
-  // Combine sorted tasks and ignored tasks
-  const { year, month, day } = getDateParts();
-  const dateHeader = `ИГНОРИРУЕМЫЕ ЗАДАЧИ ${year}.${month}.${day}`;
-
-  const result = [
-  ...sortedTasks,
-  "",
-  dateHeader,
-  ...ignoredTasks
-];
-
-
-
-  taskList.value = result.join("\n\n");
-  
-  saveDataToLocalStorage();
-} 
 
 
 /**
@@ -662,24 +607,21 @@ async function filterTasksUI() {
   // 2) Разбиваем на строки (по переводу строки или табу)
   var tasks = input.split(/[\r\n\t]+/);
 
-  // 3) Регулярки, которые надо игнорировать целиком
-  const ignoreRegexes = [
+  // 3) Убираем маркеры секций и устаревшие форматные строки
+  const formatRegexes = [
     /^\([A-Z]\)$/gm,
     /^added .* ago$/gm,
     /^added yesterday/gm,
-    /^ИГНОРИРУЕМЫЕ ЗАДАЧИ:.*/,
     /^Due[\d\w\s]*$/gm
-    // Add more regexes as needed
   ];
 
-  // 4) Игорируем строки, подходящие под любой regex
+  // 4) Игорируем строки, подходящие под MARKERS или форматные регулярки
   tasks = tasks.filter(task => {
-    for (const regex of ignoreRegexes) {
-      if (regex.test(task)) {
-        return false; // убираем
-      }
+    if (MARKERS.isAnyMarker(task)) return false;
+    for (const regex of formatRegexes) {
+      if (regex.test(task)) return false;
     }
-    return true; // оставляем
+    return true;
   });
 
   // 5) Убираем полностью пустые строки

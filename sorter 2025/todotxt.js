@@ -172,18 +172,21 @@ function assignPrioritiesAfterSort() {
   const lines = ta.value.split('\n');
 
   // Приоритеты назначаем только секции SORTED (между маркером SORTED и следующим маркером).
-  // Если маркера SORTED нет — старое поведение (всё выше первого маркера).
-  const iSorted = lines.findIndex(l => /^SORTED\s*\(/i.test(l.trim()));
-  const iEnd    = lines.findIndex(l => /^(PARTIALLY SORTED|ИГНОРИРУЕМЫЕ ЗАДАЧИ)/i.test(l.trim()));
+  // Если маркера SORTED нет — ничего не делаем, чтобы случайно не затронуть PARTIALLY SORTED
+  // и ИГНОРИРУЕМЫЕ ЗАДАЧИ секции.
+  const iSorted = lines.findIndex(l => MARKERS.isSorted(l));
+  const iEnd    = lines.findIndex(l => MARKERS.isSortedEnd(l));
 
-  const start = iSorted > -1 ? iSorted + 1 : 0;
-  const end   = iEnd    > -1 ? iEnd         : lines.length;
+  if (iSorted === -1) return; // нет SORTED-маркера — не трогаем ничего
+
+  const start = iSorted + 1;
+  const end   = iEnd > -1 ? iEnd : lines.length;
 
   let letterCode = 65; // 'A'
   const result = lines.map((line, idx) => {
     if (idx < start || idx >= end) return line;
     const trimmed = line.trim();
-    if (!trimmed || /^(ИГНОРИРУЕМЫЕ ЗАДАЧИ|NEW ARRAY|НЕУПОРЯДОЧЕННЫЕ ЗАДАЧИ|PARTIALLY SORTED|SORTED\s*\()/i.test(trimmed)) {
+    if (!trimmed || MARKERS.isAnyMarker(trimmed)) {
       return line;
     }
     if (/^x /.test(trimmed)) return line;
