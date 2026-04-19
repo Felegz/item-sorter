@@ -285,6 +285,9 @@
 
     /* Section headers */
     .section-header {
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
       font-size: 0.72rem;
       text-transform: uppercase;
       letter-spacing: 0.09em;
@@ -293,6 +296,21 @@
       border-bottom: 1px solid var(--border);
       margin-top: 0.4rem;
       margin-bottom: 0.1rem;
+      cursor: pointer;
+      user-select: none;
+    }
+    .section-header:hover { color: var(--fg); }
+    .section-toggle {
+      font-size: 0.62rem;
+      flex-shrink: 0;
+      transition: transform 0.15s;
+    }
+    .section-toggle.collapsed { transform: rotate(-90deg); }
+    .section-count {
+      margin-left: auto;
+      font-size: 0.64rem;
+      color: var(--fg-m);
+      opacity: 0.6;
     }
 
     /* Ignored tasks */
@@ -418,6 +436,13 @@
     let tab = 'active', priF = null, ctxF = null, projF = null;
     let sortMode = 'order', searchQ = '';
     let showIgnored = false, rightClickedIdx = -1;
+    const collapsedSections = new Set(); // хранит _raw маркеров свёрнутых секций
+
+    function toggleSection(raw) {
+      if (collapsedSections.has(raw)) collapsedSections.delete(raw);
+      else collapsedSections.add(raw);
+      render();
+    }
 
     // --- Boolean search ---
 
@@ -682,9 +707,34 @@
         return;
       }
 
-      listEl.innerHTML = show.map(t => {
+      // В режиме 'order' скрываем задачи свёрнутых секций
+      const hiddenBySection = new Set();
+      if (sortMode === 'order') {
+        let currentHeader = null;
+        for (const t of show) {
+          if (t._sectionHeader) { currentHeader = t; continue; }
+          if (currentHeader && collapsedSections.has(currentHeader._raw)) hiddenBySection.add(t);
+        }
+      }
+
+      listEl.innerHTML = show.filter(t => !hiddenBySection.has(t)).map(t => {
         if (t._sectionHeader) {
-          return `<div class="section-header">${esc(t._label)}</div>`;
+          // Считаем задачи этой секции в show (до фильтра по collapsed)
+          let count = 0, found = false;
+          for (const s of show) {
+            if (s === t) { found = true; continue; }
+            if (found) {
+              if (s._sectionHeader) break;
+              count++;
+            }
+          }
+          const collapsed = collapsedSections.has(t._raw);
+          const safeRaw = t._raw.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+          return `<div class="section-header" onclick="toggleSection('${safeRaw}')">
+  <span class="section-toggle${collapsed?' collapsed':''}">▾</span>
+  ${esc(t._label)}
+  <span class="section-count">${count}</span>
+</div>`;
         }
         const idx = items.indexOf(t);
         const tags = [];
