@@ -94,7 +94,7 @@ function highlightTodoLine(line) {
   if (!line.trim()) return '&nbsp;';
 
   // Комментарии-разделители (типа "ИГНОРИРУЕМЫЕ ЗАДАЧИ..." и "NEW ARRAY")
-  if (/^(ИГНОРИРУЕМЫЕ ЗАДАЧИ|NEW ARRAY|НЕУПОРЯДОЧЕННЫЕ ЗАДАЧИ)/i.test(line.trim())) {
+  if (/^(ИГНОРИРУЕМЫЕ ЗАДАЧИ|NEW ARRAY|НЕУПОРЯДОЧЕННЫЕ ЗАДАЧИ|PARTIALLY SORTED|SORTED\s*\()/i.test(line.trim())) {
     return `<span class="todo-section">${escHtml(line)}</span>`;
   }
 
@@ -170,31 +170,32 @@ function initHighlight() {
 function assignPrioritiesAfterSort() {
   const ta = document.getElementById('task-list');
   const lines = ta.value.split('\n');
-  const splitIdx = lines.findIndex(l => l.startsWith('ИГНОРИРУЕМЫЕ ЗАДАЧИ'));
 
-  const toProcess = splitIdx > -1 ? lines.slice(0, splitIdx) : lines.slice();
-  const rest      = splitIdx > -1 ? lines.slice(splitIdx) : [];
+  // Приоритеты назначаем только секции SORTED (между маркером SORTED и следующим маркером).
+  // Если маркера SORTED нет — старое поведение (всё выше первого маркера).
+  const iSorted = lines.findIndex(l => /^SORTED\s*\(/i.test(l.trim()));
+  const iEnd    = lines.findIndex(l => /^(PARTIALLY SORTED|ИГНОРИРУЕМЫЕ ЗАДАЧИ)/i.test(l.trim()));
+
+  const start = iSorted > -1 ? iSorted + 1 : 0;
+  const end   = iEnd    > -1 ? iEnd         : lines.length;
 
   let letterCode = 65; // 'A'
-  const result = toProcess.map(line => {
+  const result = lines.map((line, idx) => {
+    if (idx < start || idx >= end) return line;
     const trimmed = line.trim();
-    if (!trimmed || /^(ИГНОРИРУЕМЫЕ ЗАДАЧИ|NEW ARRAY|НЕУПОРЯДОЧЕННЫЕ ЗАДАЧИ)/i.test(trimmed)) {
+    if (!trimmed || /^(ИГНОРИРУЕМЫЕ ЗАДАЧИ|NEW ARRAY|НЕУПОРЯДОЧЕННЫЕ ЗАДАЧИ|PARTIALLY SORTED|SORTED\s*\()/i.test(trimmed)) {
       return line;
     }
-    // Пропускаем выполненные
     if (/^x /.test(trimmed)) return line;
-
-    // Удаляем старый приоритет если есть
     const withoutPriority = trimmed.replace(/^\([A-Z]\) /, '');
-
     let prefix = '';
-    if (letterCode <= 90) { // до Z
+    if (letterCode <= 90) {
       prefix = `(${String.fromCharCode(letterCode++)}) `;
     }
     return prefix + withoutPriority;
   });
 
-  ta.value = [...result, ...rest].join('\n');
+  ta.value = result.join('\n');
   syncHighlight();
   localStorage.setItem('tasks', ta.value);
 }

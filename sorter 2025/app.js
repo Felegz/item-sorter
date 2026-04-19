@@ -1,4 +1,5 @@
 
+// Описание проекта: см. /Project Structure.md
 console.log('app.js loaded');
 
 
@@ -221,14 +222,37 @@ function compareTasks(task1, task2) {
  * @param {string} task2 — текст второй задачи (кнопка «НЕТ»)
  * @returns {Promise<-1|1>}   – -1 если выбрали task1, иначе 1
  */
-async function compareTasks(task1, task2) {
+async function compareTasks(task1, task2, progress = null) {
   counter += 1;
   const question = userQuestion.value;
+
+  if (progress) progress.done++;
+  const _pct       = progress ? Math.min(100, Math.round(progress.done / progress.expected * 100)) : 0;
+  const _remaining  = progress ? Math.max(0, progress.expected - progress.done) : 0;
+  const _statusText = progress
+    ? (progress.tasksDone === 0
+        ? 'Подготовка…'
+        : `✓ Выбрано ${progress.tasksDone} из ${progress.tasksTotal}`)
+    : '';
+  const progressHtml = progress ? `
+    <div style="margin-bottom:0.75rem">
+      <div style="display:flex;justify-content:space-between;align-items:baseline;font-size:0.75rem;margin-bottom:4px">
+        <span style="color:#c0b8f0;font-weight:500">${_statusText}</span>
+        <span style="color:#8880bb">${_pct}%</span>
+      </div>
+      <div style="height:5px;background:#2e2e4a;border-radius:3px;overflow:hidden;margin-bottom:5px">
+        <div style="height:100%;width:${_pct}%;background:linear-gradient(90deg,#7c6fcd,#b8aff5);border-radius:3px;transition:width 0.15s ease"></div>
+      </div>
+      <div style="font-size:0.7rem;color:#6a6488;text-align:right">
+        ещё ~${_remaining} сравнений
+      </div>
+    </div>` : '';
 
   return new Promise(resolve => {
     Swal.fire({
       title: `${counter}. ${question}`,
       html: `
+        ${progressHtml}
         <div style="text-align:left; word-wrap:break-word; margin-bottom:1rem;">
           <p>Выберите более важную задачу:</p>
         </div>
@@ -686,53 +710,255 @@ async function filterTasksUI() {
 }
 
 /**
- * Асинхронная сортировка:
- * 1) сохраняет в localStorage,
- * 2) разбивает на строки,
- * 3) находит заголовок «ИГНОРИРУЕМЫЕ ЗАДАЧИ…»,
- * 4) сортирует всё ДО заголовка с помощью mergeSort,
- * 5) приклеивает заголовок и игнорируемые задачи,
- * 6) сохраняет обратно и в localStorage.
+ * Восстанавливает max-heap для узла i (итеративно).
+ * compareTasks(a, b) === -1 означает что a важнее b → корень = самая важная задача.
+ */
+async function heapifyDown(arr, heapSize, i, progress) {
+  while (true) {
+    let largest = i;
+    const left  = 2 * i + 1;
+    const right = 2 * i + 2;
+
+    if (left < heapSize) {
+      const cmp = await compareTasks(arr[left], arr[largest], progress);
+      if (cmp === -1) largest = left;
+    }
+    if (right < heapSize) {
+      const cmp = await compareTasks(arr[right], arr[largest], progress);
+      if (cmp === -1) largest = right;
+    }
+
+    if (largest === i) break;
+    [arr[i], arr[largest]] = [arr[largest], arr[i]];
+    i = largest;
+  }
+}
+
+/**
+ * Частичная сортировка: извлекает top-n самых важных задач из массива.
+ * Алгоритм: построение max-heap + N извлечений.
+ * Число сравнений ≈ 2·|tasks| + 2·N·log₂(|tasks|) — существенно меньше полного mergeSort.
+ *
+ * @param {string[]} tasks  — входной массив задач
+ * @param {number}   n      — сколько задач извлечь
+ * @returns {Promise<{sorted: string[], remaining: string[]}>}
+ */
+async function partialSortTasks(tasks, n) {
+  const arr    = [...tasks];
+  const totalN = Math.min(n, arr.length);
+  const expectedCmps = Math.round(
+    2 * arr.length + 2 * totalN * Math.log2(arr.length + 1)
+  );
+
+  const progress = {
+    done:       0,
+    expected:   expectedCmps,
+    tasksDone:  0,
+    tasksTotal: totalN,
+  };
+
+  // Построить max-heap (heapify снизу вверх)
+  for (let i = Math.floor(arr.length / 2) - 1; i >= 0; i--) {
+    await heapifyDown(arr, arr.length, i, progress);
+  }
+
+  // Извлечь top-n
+  const sorted = [];
+  let heapSize = arr.length;
+  for (let k = 0; k < totalN; k++) {
+    sorted.push(arr[0]);
+    progress.tasksDone = k + 1;
+    arr[0] = arr[heapSize - 1];
+    heapSize--;
+    if (heapSize > 1) {
+      await heapifyDown(arr, heapSize, 0, progress);
+    }
+  }
+
+  return { sorted, remaining: arr.slice(0, heapSize) };
+}
+
+/**
+ * Разбивает текст на 4 секции:
+ *   newTasks        — строки ВЫШЕ маркера "SORTED (…)"
+ *   sortedTasks     — строки между "SORTED (…)" и "PARTIALLY SORTED (…)"
+ *   partiallySorted — строки между "PARTIALLY SORTED (…)" и "ИГНОРИРУЕМЫЕ ЗАДАЧИ"
+ *   tail            — всё от "ИГНОРИРУЕМЫЕ ЗАДАЧИ" до конца
+ */
+function parseAllSections(text) {
+  const lines    = text.split(/\r?\n/);
+  const iSorted  = lines.findIndex(l => /^SORTED\s*\(/i.test(l.trim()));
+  const iPartial = lines.findIndex(l => /^PARTIALLY SORTED/i.test(l.trim()));
+  const iIgnored = lines.findIndex(l => /^ИГНОРИРУЕМЫЕ ЗАДАЧИ/i.test(l.trim()));
+
+  const endSorted  = iPartial > -1 ? iPartial : (iIgnored > -1 ? iIgnored : lines.length);
+  const endPartial = iIgnored > -1 ? iIgnored : lines.length;
+
+  const newTasks = (iSorted > -1
+    ? lines.slice(0, iSorted)
+    : lines.slice(0, endSorted)
+  ).filter(l => l.trim());
+
+  const sortedTasks = iSorted > -1
+    ? lines.slice(iSorted + 1, endSorted).filter(l => l.trim())
+    : [];
+
+  const partiallySorted = iPartial > -1
+    ? lines.slice(iPartial + 1, endPartial).filter(l => l.trim())
+    : [];
+
+  const tail = iIgnored > -1 ? lines.slice(iIgnored) : [];
+
+  return { newTasks, sortedTasks, partiallySorted, tail };
+}
+
+/**
+ * Адаптивный зонд хвоста.
+ *
+ * Идея: PARTIALLY SORTED отсортирован сверху вниз (важнее → менее важные).
+ * Значит, если partiallySorted[0] не важнее sortedTasks[last] — дальше тоже
+ * не важнее, и список в порядке. Иначе — находим точную позицию вставки
+ * бинарным поиском и переходим к partiallySorted[1].
+ *
+ * Стоимость: 1 вопрос если хвост в порядке; K + K·log₂N если K задач повышаются.
+ *
+ * @param {string[]} sortedTasks     — текущий список SORTED (важнейший первый)
+ * @param {string[]} partiallySorted — текущий список PARTIALLY SORTED
+ * @returns {{ sortedTasks, partiallySorted, promoted: number }}
+ */
+async function promoteTailCandidates(sortedTasks, partiallySorted) {
+  if (sortedTasks.length === 0 || partiallySorted.length === 0) {
+    return { sortedTasks: [...sortedTasks], partiallySorted: [...partiallySorted], promoted: 0 };
+  }
+
+  const merged = [...sortedTasks];
+  let i = 0;
+
+  while (i < partiallySorted.length) {
+    const candidate = partiallySorted[i];
+
+    // Воротный вопрос: важнее ли кандидат наихудшей задачи в SORTED?
+    const cmpGate = await compareTasks(candidate, merged[merged.length - 1]);
+    if (cmpGate !== -1) break; // Не победил → стоп; следующие тоже не победят
+
+    // Победил — бинарный поиск точной позиции вставки
+    // Инвариант: merged[last] уже побеждён, ищем среди [0 .. last-1]
+    let lo = 0, hi = merged.length - 1;
+    while (lo < hi) {
+      const mid = Math.floor((lo + hi) / 2);
+      if ((await compareTasks(candidate, merged[mid])) === -1) hi = mid;
+      else lo = mid + 1;
+    }
+    merged.splice(lo, 0, candidate);
+    i++;
+  }
+
+  return { sortedTasks: merged, partiallySorted: partiallySorted.slice(i), promoted: i };
+}
+
+/**
+ * Сортировка задач:
+ * 1. (опц.) Адаптивный зонд хвоста — повышает задачи из PARTIALLY SORTED в SORTED.
+ * 2. Сортируем новые задачи (выше маркера SORTED).
+ * 3. Победители → в SORTED, проигравшие → в PARTIALLY SORTED.
  */
 async function sortTasks() {
   saveDataToLocalStorage();
 
   try {
-    // 1) разбиваем текст на строки
-    const lines = taskList.value.split(/[\r\n]+/);
+    const { newTasks, sortedTasks, partiallySorted, tail } = parseAllSections(taskList.value);
 
-    // 2) ищем индекс строки, где начинается заголовок
-    const splitIndex = lines.findIndex(l => l.startsWith("ИГНОРИРУЕМЫЕ ЗАДАЧИ"));
+    let currentSorted    = [...sortedTasks];
+    let workingPartially = [...partiallySorted];
 
-    // 3) разделяем на то, что надо сортировать, и на остальное
-    const toSort = splitIndex > -1 ? lines.slice(0, splitIndex) : lines;
-    const rest   = splitIndex > -1 ? lines.slice(splitIndex) : [];
+    // Шаг 1: адаптивный зонд хвоста (только если оба списка непусты)
+    if (currentSorted.length > 0 && workingPartially.length > 0) {
+      const check = await Swal.fire({
+        title: 'Проверить хвост?',
+        html: `В <b>PARTIALLY SORTED</b> ${workingPartially.length} задач.<br>
+               Проверим: есть ли в начале хвоста задачи важнее конца SORTED?<br>
+               <b>В лучшем случае — 1 вопрос.</b>`,
+        showConfirmButton: true,
+        showDenyButton: true,
+        confirmButtonText: 'Да',
+        denyButtonText: 'Нет, пропустить',
+        allowOutsideClick: false,
+      });
 
-    // 4) убираем пустые строки
-    const cleaned = toSort.filter(l => l.trim() !== "");
+      if (check.isConfirmed) {
+        const result = await promoteTailCandidates(currentSorted, workingPartially);
+        currentSorted    = result.sortedTasks;
+        workingPartially = result.partiallySorted;
 
-    // 5) сортируем массив (ВАЖНО: await)
-    const sortedTasks = await mergeSort(cleaned);
+        if (result.promoted > 0) {
+          await Swal.fire({
+            title: `Повышено ${result.promoted} задач`,
+            text: `${result.promoted} задач из PARTIALLY SORTED перемещены в SORTED.`,
+            icon: 'success', timer: 2000, showConfirmButton: false,
+          });
+        } else {
+          await Swal.fire({
+            title: 'Хвост в порядке',
+            text: 'Начало PARTIALLY SORTED не важнее конца SORTED.',
+            icon: 'info', timer: 1500, showConfirmButton: false,
+          });
+        }
+      }
+    }
 
-    // 6) собираем вместе с остальными строками
-    const result = [
-      ...sortedTasks,
-      ...rest
-    ];
+    // Шаг 2: формируем пул из новых задач
+    const pool = [...newTasks];
 
-    // 7) обновляем textarea
-    taskList.value = result.join("\n\n");
+    // Если нет ни новых задач, ни повышений — нечего делать
+    if (pool.length === 0 && currentSorted.length === sortedTasks.length) {
+      Swal.fire('Нет задач', 'Нет новых задач. Добавьте задачи выше маркера SORTED.', 'info');
+      return;
+    }
 
+    // Шаг 3: сортируем пул (если есть новые задачи)
+    let winners = [], losers = [];
+    if (pool.length > 0) {
+      if (pool.length <= 60) {
+        winners = await mergeSort(pool);
+      } else {
+        const n = Math.min(50, Math.ceil(pool.length * 0.2));
+        ({ sorted: winners, remaining: losers } = await partialSortTasks(pool, n));
+      }
+    }
+
+    // Шаг 4: пересобираем секции
+    const { year, month, day } = getDateParts();
+    const sortedHeader  = `SORTED (${year}.${month}.${day})`;
+    const partialHeader = `PARTIALLY SORTED (${year}.${month}.${day})`;
+
+    const newSorted    = [...winners, ...currentSorted];
+    const newPartially = [...losers, ...workingPartially];
+
+    const parts = [];
+    if (newSorted.length > 0) {
+      parts.push(sortedHeader);
+      parts.push(...newSorted);
+    }
+    if (newPartially.length > 0) {
+      if (parts.length > 0) parts.push('');
+      parts.push(partialHeader);
+      parts.push(...newPartially);
+    }
+    if (tail.length > 0) {
+      if (parts.length > 0) parts.push('');
+      parts.push(...tail);
+    }
+
+    taskList.value = parts.join('\n');
     saveDataToLocalStorage();
 
-    // 8) авто-приоритеты и перерисовка подсветки
     if (typeof assignPrioritiesAfterSort === 'function') assignPrioritiesAfterSort();
-    if (typeof syncHighlight === 'function') syncHighlight();
+    if (typeof syncHighlight   === 'function') syncHighlight();
     if (typeof renderFilterBar === 'function') renderFilterBar();
-    console.log('sortTasks: done, sortedTasks count =', sortedTasks.length);
+    const promoted = currentSorted.length - sortedTasks.length;
+    console.log('sortTasks: winners =', winners.length, ', promoted =', promoted, ', partially =', newPartially.length);
   } catch (err) {
     console.error('sortTasks error:', err);
-    // аккуратно уведомим, чтобы не ломать UX
     if (typeof Swal !== 'undefined') {
       Swal.fire('Ошибка', 'Сортировка упала — см. консоль', 'error');
     } else {
