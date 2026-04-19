@@ -283,6 +283,18 @@
     .empty { text-align: center; color: var(--fg-m); padding: 2.5rem; font-style: italic; }
     .kbd { font-size: 0.68rem; color: var(--fg-m); background: var(--bg-el); border: 1px solid var(--border); border-radius: 4px; padding: 0 4px; line-height: 1.6; }
 
+    /* Section headers */
+    .section-header {
+      font-size: 0.72rem;
+      text-transform: uppercase;
+      letter-spacing: 0.09em;
+      color: var(--fg-m);
+      padding: 0.6rem 0.2rem 0.2rem;
+      border-bottom: 1px solid var(--border);
+      margin-top: 0.4rem;
+      margin-bottom: 0.1rem;
+    }
+
     /* Ignored tasks */
     .ignored-row { opacity: 0.38; border-style: dashed; }
     .ignored-row .task-text { font-style: italic; }
@@ -383,6 +395,7 @@
   <div class="controls">
     Сортировка:
     <select id="sort">
+      <option value="order">По порядку</option>
       <option value="pri">По приоритету</option>
       <option value="due">По сроку (due:)</option>
       <option value="date">По дате создания</option>
@@ -403,7 +416,7 @@
 
     let items = [];
     let tab = 'active', priF = null, ctxF = null, projF = null;
-    let sortMode = 'pri', searchQ = '';
+    let sortMode = 'order', searchQ = '';
     let showIgnored = false, rightClickedIdx = -1;
 
     // --- Boolean search ---
@@ -471,7 +484,21 @@
       let inIgnored = false;
       for (const line of raw) {
         if (!line.trim()) continue;
-        if (/^#?\s*ИГНОРИРУЕМЫЕ\s+ЗАДАЧИ\s*$/i.test(line.trim())) { inIgnored = true; continue; }
+        const trimmed = line.trim();
+        // Маркеры секций — рендерятся как заголовки, не как задачи
+        if (/^SORTED\s*\(/i.test(trimmed)) {
+          items.push({ _sectionHeader: true, _raw: line, _label: trimmed, _ignored: false, complete: false, priority: null, contexts: null, projects: null });
+          continue;
+        }
+        if (/^PARTIALLY SORTED/i.test(trimmed)) {
+          items.push({ _sectionHeader: true, _raw: line, _label: trimmed, _ignored: false, complete: false, priority: null, contexts: null, projects: null });
+          continue;
+        }
+        if (/^#?\s*ИГНОРИРУЕМЫЕ\s+ЗАДАЧИ/i.test(trimmed)) {
+          inIgnored = true;
+          items.push({ _sectionHeader: true, _raw: line, _label: trimmed.replace(/^#+\s*/, ''), _ignored: true, complete: false, priority: null, contexts: null, projects: null });
+          continue;
+        }
         const item = parseLine(line);
         item._ignored = inIgnored;
         items.push(item);
@@ -480,11 +507,7 @@
     }
 
     function saveItems() {
-      const active  = items.filter(t => !t._ignored).map(t => t._raw);
-      const ignored = items.filter(t =>  t._ignored).map(t => t._raw);
-      let result = active.join('\n');
-      if (ignored.length) result += '\n# ИГНОРИРУЕМЫЕ ЗАДАЧИ\n' + ignored.join('\n');
-      localStorage.setItem('tasks', result);
+      localStorage.setItem('tasks', items.map(t => t._raw).join('\n'));
     }
 
     // --- Quick add ---
@@ -502,7 +525,21 @@
     // --- Filter & sort ---
 
     function getFiltered() {
-      let list = items.filter(t => !t._ignored || showIgnored);
+      if (sortMode === 'order') {
+        // Естественный порядок: заголовки секций всегда включаем, задачи — фильтруем
+        return items.filter(t => {
+          if (t._sectionHeader) return true;
+          if (t._ignored && !showIgnored) return false;
+          if (tab === 'active' && t.complete) return false;
+          if (tab === 'done'   && !t.complete) return false;
+          if (priF  && t.priority !== priF) return false;
+          if (ctxF  && !(t.contexts && t.contexts.includes(ctxF))) return false;
+          if (projF && !(t.projects && t.projects.includes(projF))) return false;
+          if (searchQ && !searchMatches(t._raw, searchQ)) return false;
+          return true;
+        });
+      }
+      let list = items.filter(t => !t._sectionHeader && (!t._ignored || showIgnored));
       if (tab === 'active') list = list.filter(t => !t.complete);
       if (tab === 'done')   list = list.filter(t =>  t.complete);
       if (priF)  list = list.filter(t => t.priority === priF);
@@ -513,6 +550,7 @@
     }
 
     function getSorted(list) {
+      if (sortMode === 'order') return list; // сохраняем естественный порядок
       return list.slice().sort((a, b) => {
         if (sortMode === 'pri') return priOrd(a.priority) - priOrd(b.priority);
         if (sortMode === 'due') {
@@ -583,7 +621,7 @@
     function render() {
       const terms = queryTerms(searchQ);
       const show  = getSorted(getFiltered());
-      document.getElementById('count').textContent = show.filter(t => !t._ignored).length;
+      document.getElementById('count').textContent = show.filter(t => !t._sectionHeader && !t._ignored).length;
 
       // Ignored toggle button
       const ignoredCount = items.filter(t => t._ignored).length;
@@ -593,8 +631,9 @@
         ? `🙈 Скрыть игнорируемые (${ignoredCount})`
         : `👁 Показать игнорируемые (${ignoredCount})`;
 
-      // Chip source: base tab, excluding ignored unless shown
+      // Chip source: base tab, excluding ignored unless shown, excluding section headers
       const base = items.filter(t =>
+        !t._sectionHeader &&
         (tab === 'active' ? !t.complete : tab === 'done' ? t.complete : true) &&
         (!t._ignored || showIgnored)
       );
@@ -644,6 +683,9 @@
       }
 
       listEl.innerHTML = show.map(t => {
+        if (t._sectionHeader) {
+          return `<div class="section-header">${esc(t._label)}</div>`;
+        }
         const idx = items.indexOf(t);
         const tags = [];
         if (t.priority) tags.push(priTag(t.priority));
