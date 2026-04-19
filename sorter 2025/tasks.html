@@ -8,6 +8,7 @@
   <script src="https://cdn.jsdelivr.net/npm/jstodotxt@0.10.0/jsTodoTxt.min.js"></script>
   <!-- vanilla-context-menu 1.6.0 — MIT license, github.com/GeorgianStan/vanilla-context-menu -->
   <script src="https://unpkg.com/vanilla-context-menu@1.6.0/dist/vanilla-context-menu.js"></script>
+  <script src="markers.js"></script>
   <style>
     :root {
       --bg: #1c1c2e;
@@ -511,15 +512,15 @@
         if (!line.trim()) continue;
         const trimmed = line.trim();
         // Маркеры секций — рендерятся как заголовки, не как задачи
-        if (/^SORTED\s*\(/i.test(trimmed)) {
+        if (MARKERS.isSorted(trimmed)) {
           items.push({ _sectionHeader: true, _raw: line, _label: trimmed, _ignored: false, complete: false, priority: null, contexts: null, projects: null });
           continue;
         }
-        if (/^PARTIALLY SORTED/i.test(trimmed)) {
+        if (MARKERS.isPartiallySorted(trimmed)) {
           items.push({ _sectionHeader: true, _raw: line, _label: trimmed, _ignored: false, complete: false, priority: null, contexts: null, projects: null });
           continue;
         }
-        if (/^#?\s*ИГНОРИРУЕМЫЕ\s+ЗАДАЧИ/i.test(trimmed)) {
+        if (MARKERS.isIgnored(trimmed)) {
           inIgnored = true;
           items.push({ _sectionHeader: true, _raw: line, _label: trimmed.replace(/^#+\s*/, ''), _ignored: true, complete: false, priority: null, contexts: null, projects: null });
           continue;
@@ -542,7 +543,13 @@
       if (!text) return;
       const item = parseLine(text);
       item._ignored = false;
-      items.push(item);
+      // Вставляем новую задачу перед маркером ИГНОРИРУЕМЫЕ (если есть), чтобы она не попала в ignored секцию
+      const ignoredHeaderIdx = items.findIndex(t => t._sectionHeader && t._ignored);
+      if (ignoredHeaderIdx > -1) {
+        items.splice(ignoredHeaderIdx, 0, item);
+      } else {
+        items.push(item);
+      }
       saveItems();
       render();
     }
@@ -782,13 +789,31 @@
     }
 
     function moveToIgnored(idx) {
-      items[idx]._ignored = true;
+      const item = items[idx];
+      item._ignored = true;
+      // Физически перемещаем: вырезаем задачу из текущей позиции и вставляем сразу после заголовка ИГНОРИРУЕМЫЕ
+      items.splice(idx, 1);
+      const insertAfter = items.findIndex(t => t._sectionHeader && t._ignored);
+      if (insertAfter > -1) {
+        items.splice(insertAfter + 1, 0, item);
+      } else {
+        items.push(item);
+      }
       saveItems();
       render();
     }
 
     function restoreIgnored(idx) {
-      items[idx]._ignored = false;
+      const item = items[idx];
+      item._ignored = false;
+      // Физически перемещаем: вырезаем задачу из ignored секции и вставляем перед заголовком ИГНОРИРУЕМЫЕ
+      items.splice(idx, 1);
+      const ignoredHeaderIdx = items.findIndex(t => t._sectionHeader && t._ignored);
+      if (ignoredHeaderIdx > -1) {
+        items.splice(ignoredHeaderIdx, 0, item);
+      } else {
+        items.push(item);
+      }
       saveItems();
       render();
     }
