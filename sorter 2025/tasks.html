@@ -55,8 +55,9 @@
       gap: 0.4rem;
       margin-bottom: 0.65rem;
     }
+    .add-input-wrap { position: relative; flex: 1; }
     .add-bar input {
-      flex: 1;
+      width: 100%;
       background: var(--bg-card);
       color: var(--fg);
       border: 1px solid var(--border);
@@ -69,6 +70,27 @@
     }
     .add-bar input:focus { border-color: var(--primary); }
     .add-bar input::placeholder { color: var(--fg-m); }
+    /* Autocomplete dropdown */
+    .ac-drop {
+      position: absolute;
+      top: calc(100% + 2px);
+      left: 0; right: 0;
+      background: var(--bg-card);
+      border: 1px solid var(--primary);
+      border-radius: 0 0 8px 8px;
+      z-index: 200;
+      max-height: 180px;
+      overflow-y: auto;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.4);
+    }
+    .ac-item {
+      padding: 0.35rem 0.75rem;
+      cursor: pointer;
+      font-size: 0.85rem;
+      color: var(--fg);
+      transition: background 0.1s;
+    }
+    .ac-item:hover, .ac-item.selected { background: var(--bg-el); }
     .add-bar button {
       background: var(--primary);
       color: #fff;
@@ -141,7 +163,16 @@
       letter-spacing: 0.07em;
       color: var(--fg-m);
       margin-bottom: 0.26rem;
+      display: flex;
+      align-items: center;
+      cursor: pointer;
+      user-select: none;
+      gap: 0.3rem;
     }
+    .chip-label:hover { color: var(--fg); }
+    .chip-toggle { font-size: 0.6rem; margin-left: auto; transition: transform 0.15s; opacity: 0.55; }
+    .chip-section.collapsed .chip-toggle { transform: rotate(-90deg); }
+    .chip-section.collapsed .chip-row { display: none; }
     .chip-row { display: flex; flex-wrap: wrap; gap: 0.25rem; }
     .chip {
       padding: 2px 10px;
@@ -334,7 +365,8 @@
     #ignored-toggle:hover { color: var(--fg); border-color: var(--fg-m); }
 
     /* Search hint */
-    .search-hint { font-size: 0.68rem; color: var(--fg-m); margin-bottom: 0.4rem; }
+    .search-hint { font-size: 0.68rem; color: var(--fg-m); margin-bottom: 0.4rem; display: none; }
+    .search-hint.visible { display: block; }
     .search-hint code { background: var(--bg-el); border-radius: 3px; padding: 0 4px; font-size: 0.66rem; }
 
     /* vanilla-context-menu dark theme override */
@@ -427,6 +459,60 @@
       font-family: inherit;
     }
     .archive-btn:hover { color: var(--fg); border-color: var(--fg-m); }
+    .archive-btn.on { background: var(--primary); color: #fff; border-color: var(--primary); }
+
+    /* Sync badge */
+    .sync-badge {
+      font-size: 0.72rem;
+      padding: 2px 8px;
+      border-radius: 12px;
+      background: var(--bg-el);
+      color: var(--fg-m);
+      border: 1px solid var(--border);
+      white-space: nowrap;
+      cursor: default;
+      max-width: 190px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .sync-badge[data-state="loading"] { color: var(--primary); border-color: var(--primary); }
+    .sync-badge[data-state="ok"]      { color: #7fc97f;        border-color: #3a6a3a; }
+
+    /* Due date picker in edit mode */
+    .due-pick-lbl {
+      display: inline-flex !important;
+      align-items: center;
+      gap: 3px;
+      border-color: #505070;
+      color: #8888ab;
+    }
+    .due-pick-inp {
+      background: transparent;
+      border: none;
+      color: #8888ab;
+      font-family: inherit;
+      font-size: 0.74rem;
+      outline: none;
+      cursor: pointer;
+      padding: 0;
+      width: 120px;
+    }
+    .due-pick-inp::-webkit-calendar-picker-indicator { filter: invert(0.6); cursor: pointer; }
+
+    @media (max-width: 600px) {
+      body { padding: 0.6rem; }
+      header { margin-bottom: 0.65rem; }
+      h1 { font-size: 1.1rem; }
+      .add-bar { margin-bottom: 0.4rem; }
+      .search-bar { margin-bottom: 0.4rem; }
+      .tabs { margin-bottom: 0.5rem; gap: 0.25rem; }
+      .tab { padding: 3px 12px; }
+      .chip-section { margin-bottom: 0.3rem; }
+      .controls { margin-bottom: 0.5rem; gap: 0.3rem; flex-wrap: wrap; }
+      .tasklist { gap: 0.25rem; }
+      .task-row { padding: 0.4rem 0.55rem; gap: 0.4rem; }
+      .kbd { display: none; }
+    }
   </style>
 </head>
 <body>
@@ -434,11 +520,15 @@
     <a href="/">← Назад</a>
     <h1>Задачи</h1>
     <span class="badge" id="count">0</span>
+    <span id="sync-badge" class="sync-badge" style="display:none" title="Dropbox синхронизация"></span>
   </header>
 
   <!-- Quick add -->
   <div class="add-bar">
-    <input id="add-input" type="text" placeholder="Новая задача… (A) +проект @контекст due:2026-04-10">
+    <div class="add-input-wrap">
+      <input id="add-input" type="text" placeholder="Новая задача… (A) +проект @контекст due:2026-04-10">
+      <div id="ac-drop" class="ac-drop" style="display:none"></div>
+    </div>
     <button id="add-btn" title="Добавить (Enter)">+</button>
   </div>
 
@@ -460,19 +550,19 @@
 
   <!-- Priority filter -->
   <div id="pri-sec" class="chip-section" style="display:none">
-    <div class="chip-label">Приоритет</div>
+    <div class="chip-label" onclick="toggleChipSection('pri-sec')">Приоритет <span class="chip-toggle">▾</span></div>
     <div class="chip-row" id="pri-row"></div>
   </div>
 
   <!-- Context filter -->
   <div id="ctx-sec" class="chip-section" style="display:none">
-    <div class="chip-label">Контекст</div>
+    <div class="chip-label" onclick="toggleChipSection('ctx-sec')">Контекст <span class="chip-toggle">▾</span></div>
     <div class="chip-row" id="ctx-row"></div>
   </div>
 
   <!-- Project filter -->
   <div id="proj-sec" class="chip-section" style="display:none">
-    <div class="chip-label">Проект</div>
+    <div class="chip-label" onclick="toggleChipSection('proj-sec')">Проект <span class="chip-toggle">▾</span></div>
     <div class="chip-row" id="proj-row"></div>
   </div>
 
@@ -488,6 +578,7 @@
       <option value="text">По алфавиту</option>
     </select>
     <button id="archive-btn" class="archive-btn" style="display:none" onclick="archiveCompleted()" title="Архивировать выполненные">📦 Архив</button>
+    <button id="future-btn" class="archive-btn" style="display:none" onclick="toggleFuture()" title="Показать/скрыть задачи с будущей датой t:">📅 Будущие (<span id="future-count">0</span>)</button>
     <button id="clear-filters" style="display:none">✕ Сбросить фильтры</button>
   </div>
 
@@ -504,7 +595,7 @@
     let items = [];
     let tab = 'active', priF = null, ctxF = null, projF = null;
     let sortMode = 'order', searchQ = '';
-    let showIgnored = false, rightClickedIdx = -1;
+    let showIgnored = false, showFuture = false, rightClickedIdx = -1;
     const collapsedSections = new Set(); // хранит _raw маркеров свёрнутых секций
     let editingIdx = -1;          // индекс задачи в режиме редактирования (-1 = нет)
     let editingTempValue = null;  // временный текст редактируемой задачи
@@ -566,8 +657,10 @@
           contexts: null, projects: null, date: null, dateString: () => null };
       }
       // Parse due: extension manually (jstodotxt 0.10 doesn't auto-parse extensions)
-      const dueM = mainLine.match(/\bdue:(\d{4}-\d{2}-\d{2})\b/);
-      item._due     = dueM ? dueM[1] : null;
+      const dueM    = mainLine.match(/\bdue:(\d{4}-\d{2}-\d{2})\b/);
+      const threshM = mainLine.match(/\bt:(\d{4}-\d{2}-\d{2})\b/);
+      item._due       = dueM    ? dueM[1]    : null;
+      item._threshold = threshM ? threshM[1] : null;
       item._goal    = goal;
       item._raw     = line;
       item._ignored = false;
@@ -604,6 +697,7 @@
 
     function saveItems() {
       localStorage.setItem('tasks', items.map(t => t._raw).join('\n'));
+      if (typeof scheduleAutosave === 'function') scheduleAutosave();
     }
 
     // --- Quick add ---
@@ -634,6 +728,7 @@
           if (t._ignored && !showIgnored) return false;
           if (tab === 'active' && t.complete) return false;
           if (tab === 'done'   && !t.complete) return false;
+          if (tab === 'active' && !showFuture && t._threshold && t._threshold > new Date().toISOString().slice(0, 10)) return false;
           if (priF  && t.priority !== priF) return false;
           if (ctxF  && !(t.contexts && t.contexts.includes(ctxF))) return false;
           if (projF && !(t.projects && t.projects.includes(projF))) return false;
@@ -644,6 +739,10 @@
       let list = items.filter(t => !t._sectionHeader && (!t._ignored || showIgnored));
       if (tab === 'active') list = list.filter(t => !t.complete);
       if (tab === 'done')   list = list.filter(t =>  t.complete);
+      if (tab === 'active' && !showFuture) {
+        const today = new Date().toISOString().slice(0, 10);
+        list = list.filter(t => !t._threshold || t._threshold <= today);
+      }
       if (priF)  list = list.filter(t => t.priority === priF);
       if (ctxF)  list = list.filter(t => t.contexts && t.contexts.includes(ctxF));
       if (projF) list = list.filter(t => t.projects && t.projects.includes(projF));
@@ -782,6 +881,7 @@
       const priSec = document.getElementById('pri-sec');
       if (pris.length) {
         priSec.style.display = '';
+        if (priF) priSec.classList.remove('collapsed'); // auto-expand when filter active
         document.getElementById('pri-row').innerHTML = pris.map(p => {
           const cc = PRI_CHIP_CLS[p] || 'pri-d';
           return `<button class="chip ${cc}${priF===p?' on':''}" onclick="setPri('${esc(p)}')">(${esc(p)})</button>`;
@@ -792,6 +892,7 @@
       const ctxSec = document.getElementById('ctx-sec');
       if (ctxs.length) {
         ctxSec.style.display = '';
+        if (ctxF) ctxSec.classList.remove('collapsed');
         document.getElementById('ctx-row').innerHTML = ctxs.map(c => {
           const safe = c.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
           return `<button class="chip${ctxF===c?' on':''}" onclick="setCtx('${safe}')">@${esc(c)}</button>`;
@@ -802,6 +903,7 @@
       const projSec = document.getElementById('proj-sec');
       if (projs.length) {
         projSec.style.display = '';
+        if (projF) projSec.classList.remove('collapsed');
         document.getElementById('proj-row').innerHTML = projs.map(p => {
           const safe = p.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
           return `<button class="chip${projF===p?' on':''}" onclick="setProj('${safe}')">+${esc(p)}</button>`;
@@ -815,6 +917,17 @@
       // Archive button — показываем когда есть выполненные задачи
       const archiveBtn = document.getElementById('archive-btn');
       if (archiveBtn) archiveBtn.style.display = items.some(t => !t._sectionHeader && t.complete) ? '' : 'none';
+
+      // Future tasks button — задачи с t: в будущем
+      const futureBtn = document.getElementById('future-btn');
+      if (futureBtn) {
+        const today = new Date().toISOString().slice(0, 10);
+        const fc = items.filter(t => !t._sectionHeader && !t.complete && t._threshold && t._threshold > today).length;
+        const fcEl = document.getElementById('future-count');
+        if (fcEl) fcEl.textContent = fc;
+        futureBtn.style.display = fc ? '' : 'none';
+        futureBtn.classList.toggle('on', showFuture);
+      }
 
       // Task rows
       const listEl = document.getElementById('list');
@@ -885,13 +998,15 @@
             const safe = p.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
             return `<button class="tag-pick-chip proj-tag${on?' active-tag':''}" data-tag="${esc('+'+p)}" onclick="toggleTagOnEdit('+${safe}')">+${esc(p)}</button>`;
           }).join('');
+          const currentDue = t._due || '';
+          const duePicker = `<label class="tag-pick-chip due-pick-lbl" title="Дата due:">\uD83D\uDCC5\u00A0<input type="date" id="due-pick-${idx}" class="due-pick-inp" value="${currentDue}" onchange="setDueOnEdit(${idx},this.value)" onclick="event.stopPropagation()"></label>`;
           return `<div class="task-row editing" data-idx="${idx}">
   <input type="checkbox" ${t.complete ? 'checked' : ''} onchange="toggleDone(${idx})" style="margin-top:8px;flex-shrink:0">
   <div class="task-body" style="flex:1;min-width:0">
     <input id="edit-inp-${idx}" class="task-edit-input" type="text"
       value="${esc(editVal).replace(/"/g,'&quot;')}"
       onkeydown="handleEditKey(event,${idx})" oninput="updateTagPicker(${idx})">
-    <div class="tag-picker" id="tag-picker-${idx}">${priChips}${ctxChips}${projChips}</div>
+    <div class="tag-picker" id="tag-picker-${idx}">${priChips}${ctxChips}${projChips}${duePicker}</div>
     <div class="edit-hint">Enter — сохранить &nbsp;·&nbsp; Escape — отмена &nbsp;·&nbsp; клик по тегу — добавить/убрать</div>
   </div>
   <button class="proc-btn" onclick="saveEdit(${idx})" title="Сохранить" style="opacity:0.8">✓</button>
@@ -966,6 +1081,10 @@
     function setCtx(c) { ctxF = ctxF === c ? null : c; render(); }
     function setProj(p) { projF = projF === p ? null : p; render(); }
 
+    function toggleChipSection(id) {
+      document.getElementById(id)?.classList.toggle('collapsed');
+    }
+
     function clearAllFilters() {
       priF = ctxF = projF = null;
       searchQ = '';
@@ -1028,14 +1147,18 @@
     // Search
     const searchInput = document.getElementById('search');
     const searchClear = document.getElementById('search-clear');
+    const searchHint  = document.querySelector('.search-hint');
     searchInput.oninput = () => {
       searchQ = searchInput.value;
       searchClear.style.display = searchQ ? '' : 'none';
       render();
     };
+    searchInput.addEventListener('focus', () => searchHint?.classList.add('visible'));
+    searchInput.addEventListener('blur',  () => { if (!searchQ) searchHint?.classList.remove('visible'); });
     searchClear.onclick = () => {
       searchInput.value = ''; searchQ = '';
       searchClear.style.display = 'none';
+      searchHint?.classList.remove('visible');
       render();
     };
 
@@ -1136,6 +1259,12 @@
         }
         chip.classList.toggle('active-tag', on);
       });
+      // Sync due date picker with edit input
+      const duePick = document.getElementById('due-pick-' + idx);
+      if (duePick) {
+        const m = inp.value.match(/\bdue:(\d{4}-\d{2}-\d{2})\b/);
+        duePick.value = m ? m[1] : '';
+      }
     }
 
     // Переключает @context или +project в строке редактирования
@@ -1184,10 +1313,28 @@
     }
 
     // Архивирует выполненные: скачивает как done.txt и удаляет из списка
-    function archiveCompleted() {
+    async function archiveCompleted() {
       const completed = items.filter(t => !t._sectionHeader && t.complete);
       if (!completed.length) return;
-      if (!confirm(`Архивировать ${completed.length} выполн. задач?\nОни будут скачаны как done.txt и удалены из списка.`)) return;
+
+      const useDropbox = typeof getToken === 'function' && getToken();
+      const dest = useDropbox ? 'archive.txt в Dropbox' : 'файл done.txt (Dropbox не подключён)';
+      if (!confirm(`Архивировать ${completed.length} выполн. задач?\nОни будут перемещены в ${dest}.`)) return;
+
+      if (useDropbox) {
+        const lines = completed.map(t => t._raw);
+        const ok = await dbxArchiveCompleted(lines);
+        if (!ok) {
+          alert('Не удалось записать archive.txt в Dropbox. Задачи остались в списке.');
+          return;
+        }
+        items = items.filter(t => t._sectionHeader || !t.complete);
+        saveItems();
+        render();
+        return;
+      }
+
+      // Fallback: скачать локально
       const blob = new Blob([completed.map(t => t._raw).join('\n') + '\n'], { type: 'text/plain' });
       const a = document.createElement('a');
       a.href = URL.createObjectURL(blob);
@@ -1201,8 +1348,151 @@
       render();
     }
 
+    function toggleFuture() { showFuture = !showFuture; render(); }
+
+    function setDueOnEdit(idx, dateVal) {
+      const inp = document.getElementById('edit-inp-' + idx);
+      if (!inp) return;
+      let text = inp.value.replace(/\s*\bdue:\d{4}-\d{2}-\d{2}\b/g, '').trim();
+      if (dateVal) text = (text + ' due:' + dateVal).trim();
+      inp.value = text;
+      editingTempValue = text;
+      updateTagPicker(idx);
+      inp.focus();
+    }
+
+    // ── Автокомплит @контекст / +проект в быстром добавлении ──────────────────
+    let _acItems = [], _acIdx = -1;
+
+    function initAutocomplete() {
+      const inp  = document.getElementById('add-input');
+      const drop = document.getElementById('ac-drop');
+      if (!inp || !drop) return;
+      inp.addEventListener('input', () => _acUpdate(inp, drop));
+      inp.addEventListener('keydown', e => {
+        if (drop.style.display === 'none') return;
+        if (e.key === 'ArrowDown') {
+          e.preventDefault();
+          _acIdx = Math.min(_acIdx + 1, _acItems.length - 1);
+          _acRender(drop);
+        } else if (e.key === 'ArrowUp') {
+          e.preventDefault();
+          _acIdx = Math.max(_acIdx - 1, 0);
+          _acRender(drop);
+        } else if ((e.key === 'Enter' || e.key === 'Tab') && _acIdx >= 0) {
+          e.preventDefault();
+          e.stopPropagation();
+          _acApply(inp, drop, _acItems[_acIdx]);
+        } else if (e.key === 'Escape') {
+          _acClose(drop);
+        }
+      });
+      document.addEventListener('click', e => {
+        if (!inp.contains(e.target) && !drop.contains(e.target)) _acClose(drop);
+      });
+    }
+
+    function _acCurrentWord(inp) {
+      const before = inp.value.slice(0, inp.selectionStart);
+      const m = before.match(/[@+][\w\u0400-\u04FF\-_]*$/);
+      if (!m) return null;
+      return { word: m[0], start: inp.selectionStart - m[0].length, end: inp.selectionStart };
+    }
+
+    function _acUpdate(inp, drop) {
+      const cw = _acCurrentWord(inp);
+      if (!cw) { _acClose(drop); return; }
+      const prefix = cw.word[0];
+      const query  = cw.word.slice(1).toLowerCase();
+      const source = prefix === '@'
+        ? [...new Set(items.filter(t => !t._sectionHeader).flatMap(t => t.contexts || []))].sort()
+        : [...new Set(items.filter(t => !t._sectionHeader).flatMap(t => t.projects  || []))].sort();
+      _acItems = source.filter(s => s.toLowerCase().startsWith(query) ||
+                                    (query.length > 1 && s.toLowerCase().includes(query)));
+      if (!_acItems.length) { _acClose(drop); return; }
+      _acIdx = -1;
+      _acRender(drop);
+      drop.style.display = '';
+    }
+
+    function _acRender(drop) {
+      drop.innerHTML = _acItems.map((v, i) =>
+        `<div class="ac-item${i === _acIdx ? ' selected' : ''}" data-i="${i}">${esc(v)}</div>`
+      ).join('');
+      drop.querySelectorAll('.ac-item').forEach((el, i) => {
+        el.onmousedown = e => {
+          e.preventDefault(); // prevent blur
+          const inp = document.getElementById('add-input');
+          _acApply(inp, drop, _acItems[i]);
+        };
+      });
+    }
+
+    function _acApply(inp, drop, value) {
+      const cw = _acCurrentWord(inp);
+      if (!cw) return;
+      const prefix = inp.value[cw.start];
+      const newVal = inp.value.slice(0, cw.start) + prefix + value + ' ' + inp.value.slice(cw.end).trimStart();
+      inp.value = newVal;
+      const pos = cw.start + 1 + value.length + 1;
+      inp.setSelectionRange(pos, pos);
+      _acClose(drop);
+      inp.focus();
+    }
+
+    function _acClose(drop) {
+      if (drop) drop.style.display = 'none';
+      _acItems = []; _acIdx = -1;
+    }
+
+    // На мобильных — сворачиваем фильтры по умолчанию
+    if (window.matchMedia('(max-width: 600px)').matches) {
+      ['pri-sec', 'ctx-sec', 'proj-sec'].forEach(id =>
+        document.getElementById(id)?.classList.add('collapsed')
+      );
+    }
+
     loadItems();
     initContextMenu();
+    initAutocomplete();
+  </script>
+  <script src="dropbox.js"></script>
+  <script>
+    // \u2500\u2500 Dropbox \u0438\u043d\u0442\u0435\u0433\u0440\u0430\u0446\u0438\u044f \u0434\u043b\u044f tasks.html \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
+    // \u041f\u0435\u0440\u0435\u0437\u0430\u0433\u0440\u0443\u0437\u0438\u0442\u044c \u0437\u0430\u0434\u0430\u0447\u0438 \u043f\u043e\u0441\u043b\u0435 Dropbox-\u0437\u0430\u0433\u0440\u0443\u0437\u043a\u0438
+    window._onDbxLoad = () => loadItems();
+
+    // \u041e\u0432\u0435\u0440\u0440\u0430\u0439\u0434 setDbxStatus \u2014 \u043e\u0431\u043d\u043e\u0432\u043b\u044f\u0435\u043c \u0431\u0435\u0439\u0434\u0436 \u0432 \u0448\u0430\u043f\u043a\u0435
+    const _origSetDbxStatus = setDbxStatus;
+    setDbxStatus = function(text) {
+      _origSetDbxStatus(text);
+      _updateSyncBadge(text);
+    };
+
+    function _updateSyncBadge(text) {
+      const badge = document.getElementById('sync-badge');
+      if (!badge) return;
+      if (typeof getToken !== 'function' || !getToken()) { badge.style.display = 'none'; return; }
+      badge.style.display = '';
+      const t = text !== undefined ? text
+                : (typeof getLastSyncText === 'function' ? getLastSyncText() : '');
+      if (t.includes('\u2026') || t.includes('\uD83D\uDD04')) {
+        badge.dataset.state = 'loading';
+        badge.textContent   = '\u21BB \u0441\u0438\u043d\u0445\u0440.';
+        badge.title         = t;
+      } else if (t.includes('\u2601') || t.includes('\u2B07')) {
+        badge.dataset.state = 'ok';
+        badge.textContent   = t;
+        badge.title         = t;
+      } else {
+        badge.dataset.state = '';
+        badge.textContent   = t || '\u2601';
+        badge.title         = t || 'Dropbox \u043f\u043e\u0434\u043a\u043b\u044e\u0447\u0451\u043d';
+      }
+    }
+
+    setInterval(() => _updateSyncBadge(), 60_000);
+    setTimeout(() => _updateSyncBadge(), 300);
   </script>
 </body>
 </html>

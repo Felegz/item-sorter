@@ -9,11 +9,12 @@
 //       - используем mode:"update" + rev → Dropbox сам обнаружит конфликт (409)
 //   • Ручные кнопки: fallback; «В Dropbox» — всегда перезапись, «Из Dropbox» — с подтверждением
 
-const DROPBOX_APP_KEY      = 'd1t1dje9vyjotd7';
+const DROPBOX_APP_KEY       = 'd1t1dje9vyjotd7';
 // Динамический redirect URI — работает и локально, и на продакшне
-const DROPBOX_REDIRECT_URI = window.location.origin + '/';
-const DROPBOX_FILE_PATH    = '/tasks.txt';
-const AUTOSAVE_DELAY_MS    = 20_000;
+const DROPBOX_REDIRECT_URI  = window.location.origin + '/';
+const DROPBOX_FILE_PATH     = '/tasks.txt';
+const DROPBOX_ARCHIVE_PATH  = '/archive.txt';
+const AUTOSAVE_DELAY_MS     = 20_000;
 
 // ─── PKCE helpers ────────────────────────────────────────────────────────────
 
@@ -202,6 +203,75 @@ async function dbxGetMetadata() {
   } catch (_) { return null; }
 }
 
+// ─── Архивирование в archive.txt ────────────────────────────────────────────
+
+// Скачивает текущий archive.txt (или пустую строку если файла нет),
+// дописывает lines в конец и заливает обратно.
+// Возвращает true при успехе.
+async function dbxArchiveCompleted(lines) {
+  const token = getToken();
+  if (!token) return false;
+
+  setDbxStatus('📦 Архивирование…');
+
+  // 1. Скачать текущий archive.txt (он может не существовать)
+  let existing = '';
+  try {
+    const dlResp = await fetch('https://content.dropboxapi.com/2/files/download', {
+      method:  'POST',
+      headers: {
+        'Authorization':   'Bearer ' + token,
+        'Dropbox-API-Arg': JSON.stringify({ path: DROPBOX_ARCHIVE_PATH }),
+      },
+    });
+    if (dlResp.ok) {
+      existing = await dlResp.text();
+    } else if (dlResp.status === 401) {
+      const refreshed = await tryRefreshToken();
+      if (refreshed.ok) return dbxArchiveCompleted(lines);
+      return false;
+    }
+    // 409 = файл не существует, это нормально — начинаем с пустого
+  } catch (_) { /* сетевая ошибка при скачивании — начнём с пустого */ }
+
+  // 2. Составить новое содержимое
+  const newContent = (existing.trimEnd() ? existing.trimEnd() + '\n' : '') +
+                     lines.join('\n') + '\n';
+
+  // 3. Загрузить обратно (overwrite)
+  try {
+    const ulResp = await fetch('https://content.dropboxapi.com/2/files/upload', {
+      method:  'POST',
+      headers: {
+        'Authorization':   'Bearer ' + token,
+        'Content-Type':    'application/octet-stream',
+        'Dropbox-API-Arg': JSON.stringify({
+          path:       DROPBOX_ARCHIVE_PATH,
+          mode:       'overwrite',
+          autorename: false,
+          mute:       true,
+        }),
+      },
+      body: newContent,
+    });
+    if (ulResp.ok) {
+      updateDropboxUI();
+      return true;
+    }
+    if (ulResp.status === 401) {
+      const refreshed = await tryRefreshToken();
+      if (refreshed.ok) return dbxArchiveCompleted(lines);
+    }
+    console.error('dbxArchiveCompleted upload HTTP', ulResp.status);
+    updateDropboxUI();
+    return false;
+  } catch (err) {
+    console.error('dbxArchiveCompleted upload error:', err);
+    updateDropboxUI();
+    return false;
+  }
+}
+
 // ─── Автоматическое скачивание (без диалога) ─────────────────────────────────
 
 async function dbxAutoDownload() {
@@ -224,6 +294,7 @@ async function dbxAutoDownload() {
       const ta = document.getElementById('task-list');
       if (ta) ta.value = text;
       localStorage.setItem('tasks', text);
+      if (typeof window._onDbxLoad === 'function') window._onDbxLoad();
       _dbxSaveSyncState(text, apiResult.rev);
       dbxTimestamp('load');
       updateDropboxUI();
@@ -444,7 +515,8 @@ async function dropboxSave() {
 async function dropboxLoad() {
   if (!getToken()) { dropboxLogin(); return; }
 
-  const currentContent = document.getElementById('task-list').value;
+  const _ta = document.getElementById('task-list');
+  const currentContent = _ta ? _ta.value : (localStorage.getItem('tasks') || '');
   const result = await Swal.fire({
     title:             'Загрузить из Dropbox?',
     html:              'Текущий список будет заменён данными из облака.<br><small style="color:#8888ab">Резервная копия автоматически сохранится в браузере.</small>',
@@ -475,10 +547,14 @@ function setDbxStatus(text) {
 
 function updateDropboxUI() {
   const loggedIn = !!getToken();
-  document.getElementById('dbx-login-btn').hidden  = loggedIn;
-  document.getElementById('dbx-save-btn').hidden   = !loggedIn;
-  document.getElementById('dbx-load-btn').hidden   = !loggedIn;
-  document.getElementById('dbx-logout-btn').hidden = !loggedIn;
+  const loginBtn  = document.getElementById('dbx-login-btn');
+  const saveBtn   = document.getElementById('dbx-save-btn');
+  const loadBtn   = document.getElementById('dbx-load-btn');
+  const logoutBtn = document.getElementById('dbx-logout-btn');
+  if (loginBtn)  loginBtn.hidden  = loggedIn;
+  if (saveBtn)   saveBtn.hidden   = !loggedIn;
+  if (loadBtn)   loadBtn.hidden   = !loggedIn;
+  if (logoutBtn) logoutBtn.hidden = !loggedIn;
   setDbxStatus(loggedIn ? getLastSyncText() : '');
 }
 
@@ -488,10 +564,10 @@ document.addEventListener('DOMContentLoaded', () => {
   handleOAuthCallback();
   updateDropboxUI();
 
-  document.getElementById('dbx-login-btn').addEventListener('click', dropboxLogin);
-  document.getElementById('dbx-save-btn').addEventListener('click', dropboxSave);
-  document.getElementById('dbx-load-btn').addEventListener('click', dropboxLoad);
-  document.getElementById('dbx-logout-btn').addEventListener('click', dropboxLogout);
+  document.getElementById('dbx-login-btn')?.addEventListener('click', dropboxLogin);
+  document.getElementById('dbx-save-btn')?.addEventListener('click', dropboxSave);
+  document.getElementById('dbx-load-btn')?.addEventListener('click', dropboxLoad);
+  document.getElementById('dbx-logout-btn')?.addEventListener('click', dropboxLogout);
 
   // Автосохранение при изменении textarea
   const ta = document.getElementById('task-list');
