@@ -224,6 +224,7 @@ async function dbxAutoDownload() {
       const ta = document.getElementById('task-list');
       if (ta) ta.value = text;
       localStorage.setItem('tasks', text);
+      if (typeof window._onDbxLoad === 'function') window._onDbxLoad();
       _dbxSaveSyncState(text, apiResult.rev);
       dbxTimestamp('load');
       updateDropboxUI();
@@ -444,7 +445,8 @@ async function dropboxSave() {
 async function dropboxLoad() {
   if (!getToken()) { dropboxLogin(); return; }
 
-  const currentContent = document.getElementById('task-list').value;
+  const _ta = document.getElementById('task-list');
+  const currentContent = _ta ? _ta.value : (localStorage.getItem('tasks') || '');
   const result = await Swal.fire({
     title:             'Загрузить из Dropbox?',
     html:              'Текущий список будет заменён данными из облака.<br><small style="color:#8888ab">Резервная копия автоматически сохранится в браузере.</small>',
@@ -475,10 +477,14 @@ function setDbxStatus(text) {
 
 function updateDropboxUI() {
   const loggedIn = !!getToken();
-  document.getElementById('dbx-login-btn').hidden  = loggedIn;
-  document.getElementById('dbx-save-btn').hidden   = !loggedIn;
-  document.getElementById('dbx-load-btn').hidden   = !loggedIn;
-  document.getElementById('dbx-logout-btn').hidden = !loggedIn;
+  const loginBtn  = document.getElementById('dbx-login-btn');
+  const saveBtn   = document.getElementById('dbx-save-btn');
+  const loadBtn   = document.getElementById('dbx-load-btn');
+  const logoutBtn = document.getElementById('dbx-logout-btn');
+  if (loginBtn)  loginBtn.hidden  = loggedIn;
+  if (saveBtn)   saveBtn.hidden   = !loggedIn;
+  if (loadBtn)   loadBtn.hidden   = !loggedIn;
+  if (logoutBtn) logoutBtn.hidden = !loggedIn;
   setDbxStatus(loggedIn ? getLastSyncText() : '');
 }
 
@@ -488,10 +494,10 @@ document.addEventListener('DOMContentLoaded', () => {
   handleOAuthCallback();
   updateDropboxUI();
 
-  document.getElementById('dbx-login-btn').addEventListener('click', dropboxLogin);
-  document.getElementById('dbx-save-btn').addEventListener('click', dropboxSave);
-  document.getElementById('dbx-load-btn').addEventListener('click', dropboxLoad);
-  document.getElementById('dbx-logout-btn').addEventListener('click', dropboxLogout);
+  document.getElementById('dbx-login-btn')?.addEventListener('click', dropboxLogin);
+  document.getElementById('dbx-save-btn')?.addEventListener('click', dropboxSave);
+  document.getElementById('dbx-load-btn')?.addEventListener('click', dropboxLoad);
+  document.getElementById('dbx-logout-btn')?.addEventListener('click', dropboxLogout);
 
   // Автосохранение при изменении textarea
   const ta = document.getElementById('task-list');
