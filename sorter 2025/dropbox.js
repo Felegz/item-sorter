@@ -10,7 +10,8 @@
 //   • Ручные кнопки: fallback; «В Dropbox» — всегда перезапись, «Из Dropbox» — с подтверждением
 
 const DROPBOX_APP_KEY      = 'd1t1dje9vyjotd7';
-const DROPBOX_REDIRECT_URI = 'https://item-sorter.pages.dev/';
+// Динамический redirect URI — работает и локально, и на продакшне
+const DROPBOX_REDIRECT_URI = window.location.origin + '/';
 const DROPBOX_FILE_PATH    = '/tasks.txt';
 const AUTOSAVE_DELAY_MS    = 20_000;
 
