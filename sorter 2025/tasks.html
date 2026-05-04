@@ -163,7 +163,16 @@
       letter-spacing: 0.07em;
       color: var(--fg-m);
       margin-bottom: 0.26rem;
+      display: flex;
+      align-items: center;
+      cursor: pointer;
+      user-select: none;
+      gap: 0.3rem;
     }
+    .chip-label:hover { color: var(--fg); }
+    .chip-toggle { font-size: 0.6rem; margin-left: auto; transition: transform 0.15s; opacity: 0.55; }
+    .chip-section.collapsed .chip-toggle { transform: rotate(-90deg); }
+    .chip-section.collapsed .chip-row { display: none; }
     .chip-row { display: flex; flex-wrap: wrap; gap: 0.25rem; }
     .chip {
       padding: 2px 10px;
@@ -356,7 +365,8 @@
     #ignored-toggle:hover { color: var(--fg); border-color: var(--fg-m); }
 
     /* Search hint */
-    .search-hint { font-size: 0.68rem; color: var(--fg-m); margin-bottom: 0.4rem; }
+    .search-hint { font-size: 0.68rem; color: var(--fg-m); margin-bottom: 0.4rem; display: none; }
+    .search-hint.visible { display: block; }
     .search-hint code { background: var(--bg-el); border-radius: 3px; padding: 0 4px; font-size: 0.66rem; }
 
     /* vanilla-context-menu dark theme override */
@@ -488,6 +498,21 @@
       width: 120px;
     }
     .due-pick-inp::-webkit-calendar-picker-indicator { filter: invert(0.6); cursor: pointer; }
+
+    @media (max-width: 600px) {
+      body { padding: 0.6rem; }
+      header { margin-bottom: 0.65rem; }
+      h1 { font-size: 1.1rem; }
+      .add-bar { margin-bottom: 0.4rem; }
+      .search-bar { margin-bottom: 0.4rem; }
+      .tabs { margin-bottom: 0.5rem; gap: 0.25rem; }
+      .tab { padding: 3px 12px; }
+      .chip-section { margin-bottom: 0.3rem; }
+      .controls { margin-bottom: 0.5rem; gap: 0.3rem; flex-wrap: wrap; }
+      .tasklist { gap: 0.25rem; }
+      .task-row { padding: 0.4rem 0.55rem; gap: 0.4rem; }
+      .kbd { display: none; }
+    }
   </style>
 </head>
 <body>
@@ -525,19 +550,19 @@
 
   <!-- Priority filter -->
   <div id="pri-sec" class="chip-section" style="display:none">
-    <div class="chip-label">Приоритет</div>
+    <div class="chip-label" onclick="toggleChipSection('pri-sec')">Приоритет <span class="chip-toggle">▾</span></div>
     <div class="chip-row" id="pri-row"></div>
   </div>
 
   <!-- Context filter -->
   <div id="ctx-sec" class="chip-section" style="display:none">
-    <div class="chip-label">Контекст</div>
+    <div class="chip-label" onclick="toggleChipSection('ctx-sec')">Контекст <span class="chip-toggle">▾</span></div>
     <div class="chip-row" id="ctx-row"></div>
   </div>
 
   <!-- Project filter -->
   <div id="proj-sec" class="chip-section" style="display:none">
-    <div class="chip-label">Проект</div>
+    <div class="chip-label" onclick="toggleChipSection('proj-sec')">Проект <span class="chip-toggle">▾</span></div>
     <div class="chip-row" id="proj-row"></div>
   </div>
 
@@ -856,6 +881,7 @@
       const priSec = document.getElementById('pri-sec');
       if (pris.length) {
         priSec.style.display = '';
+        if (priF) priSec.classList.remove('collapsed'); // auto-expand when filter active
         document.getElementById('pri-row').innerHTML = pris.map(p => {
           const cc = PRI_CHIP_CLS[p] || 'pri-d';
           return `<button class="chip ${cc}${priF===p?' on':''}" onclick="setPri('${esc(p)}')">(${esc(p)})</button>`;
@@ -866,6 +892,7 @@
       const ctxSec = document.getElementById('ctx-sec');
       if (ctxs.length) {
         ctxSec.style.display = '';
+        if (ctxF) ctxSec.classList.remove('collapsed');
         document.getElementById('ctx-row').innerHTML = ctxs.map(c => {
           const safe = c.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
           return `<button class="chip${ctxF===c?' on':''}" onclick="setCtx('${safe}')">@${esc(c)}</button>`;
@@ -876,6 +903,7 @@
       const projSec = document.getElementById('proj-sec');
       if (projs.length) {
         projSec.style.display = '';
+        if (projF) projSec.classList.remove('collapsed');
         document.getElementById('proj-row').innerHTML = projs.map(p => {
           const safe = p.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
           return `<button class="chip${projF===p?' on':''}" onclick="setProj('${safe}')">+${esc(p)}</button>`;
@@ -1053,6 +1081,10 @@
     function setCtx(c) { ctxF = ctxF === c ? null : c; render(); }
     function setProj(p) { projF = projF === p ? null : p; render(); }
 
+    function toggleChipSection(id) {
+      document.getElementById(id)?.classList.toggle('collapsed');
+    }
+
     function clearAllFilters() {
       priF = ctxF = projF = null;
       searchQ = '';
@@ -1115,14 +1147,18 @@
     // Search
     const searchInput = document.getElementById('search');
     const searchClear = document.getElementById('search-clear');
+    const searchHint  = document.querySelector('.search-hint');
     searchInput.oninput = () => {
       searchQ = searchInput.value;
       searchClear.style.display = searchQ ? '' : 'none';
       render();
     };
+    searchInput.addEventListener('focus', () => searchHint?.classList.add('visible'));
+    searchInput.addEventListener('blur',  () => { if (!searchQ) searchHint?.classList.remove('visible'); });
     searchClear.onclick = () => {
       searchInput.value = ''; searchQ = '';
       searchClear.style.display = 'none';
+      searchHint?.classList.remove('visible');
       render();
     };
 
@@ -1407,6 +1443,13 @@
     function _acClose(drop) {
       if (drop) drop.style.display = 'none';
       _acItems = []; _acIdx = -1;
+    }
+
+    // На мобильных — сворачиваем фильтры по умолчанию
+    if (window.matchMedia('(max-width: 600px)').matches) {
+      ['pri-sec', 'ctx-sec', 'proj-sec'].forEach(id =>
+        document.getElementById(id)?.classList.add('collapsed')
+      );
     }
 
     loadItems();
