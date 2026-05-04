@@ -361,72 +361,6 @@
       margin: 3px 6px !important;
       padding: 0 !important;
     }
-
-    /* ── Edit mode ──────────────────────────────────────────────── */
-    .task-row.editing { background: var(--bg-el); border-color: var(--primary); align-items: flex-start; }
-    .task-edit-input {
-      width: 100%;
-      background: var(--bg);
-      color: var(--fg);
-      border: 1px solid var(--primary);
-      border-radius: 6px;
-      padding: 0.4rem 0.7rem;
-      font-size: 0.88rem;
-      font-family: inherit;
-      outline: none;
-    }
-    .tag-picker { display: flex; flex-wrap: wrap; gap: 0.25rem; margin-top: 0.4rem; }
-    .tag-pick-chip {
-      padding: 2px 9px;
-      border-radius: 12px;
-      border: 1px solid var(--border);
-      background: var(--bg-card);
-      color: var(--fg-m);
-      font-size: 0.74rem;
-      cursor: pointer;
-      font-family: inherit;
-      transition: background 0.1s, color 0.1s;
-      user-select: none;
-    }
-    .tag-pick-chip.active-tag { background: var(--primary); color: #fff; border-color: var(--primary); }
-    .tag-pick-chip.ctx-tag  { border-color: #3070a0; color: #7cb8f0; }
-    .tag-pick-chip.ctx-tag.active-tag  { background: #3070a0; color: #fff; border-color: #3070a0; }
-    .tag-pick-chip.proj-tag { border-color: #3a6a3a; color: #7fc97f; }
-    .tag-pick-chip.proj-tag.active-tag { background: #3a6a3a; color: #fff; border-color: #3a6a3a; }
-    .tag-pick-chip.pri-pick { border-color: #805050; color: #f0a0a0; font-weight: 700; }
-    .tag-pick-chip.pri-pick.active-tag { background: #805050; color: #fff; border-color: #805050; }
-    .edit-hint { font-size: 0.67rem; color: var(--fg-m); margin-top: 0.3rem; opacity: 0.7; }
-
-    /* ── Delete & edit hover buttons ────────────────────────────── */
-    .del-btn, .edit-btn {
-      flex-shrink: 0;
-      background: transparent;
-      border: none;
-      color: var(--fg-m);
-      cursor: pointer;
-      font-size: 0.85rem;
-      padding: 2px 4px;
-      opacity: 0;
-      margin-top: 1px;
-      transition: opacity 0.1s;
-    }
-    .task-row:hover .del-btn,
-    .task-row:hover .edit-btn { opacity: 0.45; }
-    .del-btn:hover  { opacity: 1 !important; color: #f08080; }
-    .edit-btn:hover { opacity: 1 !important; color: var(--primary); }
-
-    /* ── Archive button ─────────────────────────────────────────── */
-    .archive-btn {
-      background: transparent;
-      border: 1px solid var(--border);
-      color: var(--fg-m);
-      border-radius: 14px;
-      padding: 2px 10px;
-      font-size: 0.75rem;
-      cursor: pointer;
-      font-family: inherit;
-    }
-    .archive-btn:hover { color: var(--fg); border-color: var(--fg-m); }
   </style>
 </head>
 <body>
@@ -481,13 +415,11 @@
     Сортировка:
     <select id="sort">
       <option value="order">По порядку</option>
-      <option value="proj">По проекту</option>
       <option value="pri">По приоритету</option>
       <option value="due">По сроку (due:)</option>
       <option value="date">По дате создания</option>
       <option value="text">По алфавиту</option>
     </select>
-    <button id="archive-btn" class="archive-btn" style="display:none" onclick="archiveCompleted()" title="Архивировать выполненные">📦 Архив</button>
     <button id="clear-filters" style="display:none">✕ Сбросить фильтры</button>
   </div>
 
@@ -506,8 +438,6 @@
     let sortMode = 'order', searchQ = '';
     let showIgnored = false, rightClickedIdx = -1;
     const collapsedSections = new Set(); // хранит _raw маркеров свёрнутых секций
-    let editingIdx = -1;          // индекс задачи в режиме редактирования (-1 = нет)
-    let editingTempValue = null;  // временный текст редактируемой задачи
 
     function toggleSection(raw) {
       if (collapsedSections.has(raw)) collapsedSections.delete(raw);
@@ -653,36 +583,6 @@
 
     function getSorted(list) {
       if (sortMode === 'order') return list; // сохраняем естественный порядок
-
-      if (sortMode === 'proj') {
-        // Группируем по +проект с синтетическими заголовками секций
-        const groups = {};
-        const noProj = [];
-        for (const t of list) {
-          if (t._sectionHeader) continue;
-          if (t.projects && t.projects.length) {
-            for (const p of t.projects) {
-              if (!groups[p]) groups[p] = [];
-              if (!groups[p].includes(t)) groups[p].push(t);
-            }
-          } else {
-            noProj.push(t);
-          }
-        }
-        const result = [];
-        for (const proj of Object.keys(groups).sort()) {
-          result.push({ _sectionHeader: true, _synthetic: true, _raw: '\x00proj:' + proj,
-            _label: '+' + proj, _ignored: false, complete: false, priority: null, contexts: null, projects: null });
-          result.push(...groups[proj]);
-        }
-        if (noProj.length) {
-          result.push({ _sectionHeader: true, _synthetic: true, _raw: '\x00proj:none',
-            _label: 'Без проекта', _ignored: false, complete: false, priority: null, contexts: null, projects: null });
-          result.push(...noProj);
-        }
-        return result;
-      }
-
       return list.slice().sort((a, b) => {
         if (sortMode === 'pri') return priOrd(a.priority) - priOrd(b.priority);
         if (sortMode === 'due') {
@@ -751,11 +651,6 @@
     // --- Render ---
 
     function render() {
-      // Сохраняем текст редактируемой задачи до перерисовки
-      if (editingIdx >= 0) {
-        const inp = document.getElementById('edit-inp-' + editingIdx);
-        if (inp) editingTempValue = inp.value;
-      }
       const terms = queryTerms(searchQ);
       const show  = getSorted(getFiltered());
       document.getElementById('count').textContent = show.filter(t => !t._sectionHeader && !t._ignored).length;
@@ -812,10 +707,6 @@
       const hasFilter = !!(priF || ctxF || projF || searchQ);
       document.getElementById('clear-filters').style.display = hasFilter ? '' : 'none';
 
-      // Archive button — показываем когда есть выполненные задачи
-      const archiveBtn = document.getElementById('archive-btn');
-      if (archiveBtn) archiveBtn.style.display = items.some(t => !t._sectionHeader && t.complete) ? '' : 'none';
-
       // Task rows
       const listEl = document.getElementById('list');
       if (!show.length) {
@@ -823,9 +714,9 @@
         return;
       }
 
-      // В режиме 'order' и 'proj' скрываем задачи свёрнутых секций
+      // В режиме 'order' скрываем задачи свёрнутых секций
       const hiddenBySection = new Set();
-      if (sortMode === 'order' || sortMode === 'proj') {
+      if (sortMode === 'order') {
         let currentHeader = null;
         for (const t of show) {
           if (t._sectionHeader) { currentHeader = t; continue; }
@@ -866,48 +757,13 @@
         // Strip due: token from displayed text (it's shown as a badge)
         const displayText = (t.text || t._raw).replace(/\bdue:\d{4}-\d{2}-\d{2}\b/g, '').trim();
 
-        // ── Edit mode ──
-        if (editingIdx === idx) {
-          const allCtxs  = [...new Set(items.filter(i => !i._sectionHeader).flatMap(i => i.contexts || []))].sort();
-          const allProjs = [...new Set(items.filter(i => !i._sectionHeader).flatMap(i => i.projects || []))].sort();
-          const editVal  = editingTempValue !== null ? editingTempValue : t._raw;
-          const priChips = ['A','B','C','D','E','F'].map(p => {
-            const on = new RegExp('^\\(' + p + '\\)').test(editVal);
-            return `<button class="tag-pick-chip pri-pick${on?' active-tag':''}" data-tag="${p}" onclick="togglePriOnEdit(${idx},'${p}')">(${p})</button>`;
-          }).join('');
-          const ctxChips = allCtxs.map(c => {
-            const on = new RegExp('(^|\\s)@' + escRe(c) + '(\\s|$)').test(editVal);
-            const safe = c.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
-            return `<button class="tag-pick-chip ctx-tag${on?' active-tag':''}" data-tag="${esc('@'+c)}" onclick="toggleTagOnEdit('@${safe}')">@${esc(c)}</button>`;
-          }).join('');
-          const projChips = allProjs.map(p => {
-            const on = new RegExp('(^|\\s)\\+' + escRe(p) + '(\\s|$)').test(editVal);
-            const safe = p.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
-            return `<button class="tag-pick-chip proj-tag${on?' active-tag':''}" data-tag="${esc('+'+p)}" onclick="toggleTagOnEdit('+${safe}')">+${esc(p)}</button>`;
-          }).join('');
-          return `<div class="task-row editing" data-idx="${idx}">
-  <input type="checkbox" ${t.complete ? 'checked' : ''} onchange="toggleDone(${idx})" style="margin-top:8px;flex-shrink:0">
-  <div class="task-body" style="flex:1;min-width:0">
-    <input id="edit-inp-${idx}" class="task-edit-input" type="text"
-      value="${esc(editVal).replace(/"/g,'&quot;')}"
-      onkeydown="handleEditKey(event,${idx})" oninput="updateTagPicker(${idx})">
-    <div class="tag-picker" id="tag-picker-${idx}">${priChips}${ctxChips}${projChips}</div>
-    <div class="edit-hint">Enter — сохранить &nbsp;·&nbsp; Escape — отмена &nbsp;·&nbsp; клик по тегу — добавить/убрать</div>
-  </div>
-  <button class="proc-btn" onclick="saveEdit(${idx})" title="Сохранить" style="opacity:0.8">✓</button>
-  <button class="proc-btn" onclick="cancelEdit()" title="Отмена" style="opacity:0.8">✕</button>
-</div>`;
-        }
-
         return `<div class="task-row${t.complete ? ' done' : ''}${t._ignored ? ' ignored-row' : ''}" data-idx="${idx}">
   <input type="checkbox" ${t.complete ? 'checked' : ''} onchange="toggleDone(${idx})">
   <div class="task-body">
-    <span class="task-text" onclick="editTask(${idx})" style="cursor:pointer">${renderText(displayText, terms)}</span>
+    <span class="task-text">${renderText(displayText, terms)}</span>
     ${t._goal ? `<span class="task-goal">🎯 ${renderText(t._goal, terms)}</span>` : ''}
     ${tags.length ? `<div class="task-tags">${tags.join('')}</div>` : ''}
   </div>
-  <button class="edit-btn" title="Редактировать" onclick="editTask(${idx})">✏</button>
-  <button class="del-btn" title="Удалить" onclick="deleteTask(${idx})">🗑</button>
   <button class="proc-btn" title="Обработать в Помогаторе" onclick="openProcess(${idx})">⚙</button>
 </div>`;
       }).join('');
@@ -991,14 +847,12 @@
         transitionDuration: 100,
         normalizePosition: true,
         menuItems: [
-          { label: '✏ Редактировать', callback: () => { if (rightClickedIdx >= 0) editTask(rightClickedIdx); } },
-          { label: '✓ Отметить выполненной', callback: () => { if (rightClickedIdx >= 0) toggleDone(rightClickedIdx); } },
           { label: '⚙ Обработать (GTD)', callback: () => { if (rightClickedIdx >= 0) openProcess(rightClickedIdx); } },
+          { label: '✓ Отметить выполненной', callback: () => { if (rightClickedIdx >= 0) toggleDone(rightClickedIdx); } },
           'hr',
           { label: '🚫 В игнорируемые', callback: () => { if (rightClickedIdx >= 0 && !items[rightClickedIdx]._ignored) moveToIgnored(rightClickedIdx); } },
           { label: '↩ Вернуть из игнорируемых', callback: () => { if (rightClickedIdx >= 0 && items[rightClickedIdx]._ignored) restoreIgnored(rightClickedIdx); } },
           'hr',
-          { label: '🗑 Удалить', callback: () => { if (rightClickedIdx >= 0) deleteTask(rightClickedIdx); } },
           { label: '📋 Копировать текст', callback: () => { if (rightClickedIdx >= 0) navigator.clipboard?.writeText(items[rightClickedIdx]._raw); } },
         ],
       });
@@ -1064,142 +918,6 @@
         if (searchQ) { searchInput.value = ''; searchQ = ''; searchClear.style.display = 'none'; render(); }
       }
     });
-
-    // ─── Edit / Delete / Archive functions ───────────────────────────────────
-
-    function editTask(idx) {
-      if (editingIdx >= 0 && editingIdx !== idx) {
-        // Автосохранение предыдущей правки перед переключением
-        const prev = document.getElementById('edit-inp-' + editingIdx);
-        if (prev) {
-          const newRaw = prev.value.trim();
-          if (newRaw && newRaw !== items[editingIdx]._raw) {
-            const origIgnored = items[editingIdx]._ignored;
-            const newItem = parseLine(newRaw);
-            newItem._ignored = origIgnored;
-            items[editingIdx] = newItem;
-            saveItems();
-          }
-        }
-      }
-      editingIdx = idx;
-      editingTempValue = null;
-      render();
-      setTimeout(() => {
-        const inp = document.getElementById('edit-inp-' + idx);
-        if (inp) { inp.focus(); const l = inp.value.length; inp.setSelectionRange(l, l); }
-      }, 0);
-    }
-
-    function handleEditKey(e, idx) {
-      if (e.key === 'Enter')  { e.preventDefault(); saveEdit(idx); }
-      if (e.key === 'Escape') { cancelEdit(); }
-    }
-
-    function saveEdit(idx) {
-      const inp    = document.getElementById('edit-inp-' + idx);
-      const newRaw = (inp ? inp.value : editingTempValue || '').trim();
-      if (!newRaw) { cancelEdit(); return; }
-      const origIgnored = items[idx]._ignored;
-      const newItem = parseLine(newRaw);
-      newItem._ignored = origIgnored;
-      items[idx] = newItem;
-      saveItems();
-      editingIdx = -1;
-      editingTempValue = null;
-      render();
-    }
-
-    function cancelEdit() {
-      editingIdx = -1;
-      editingTempValue = null;
-      render();
-    }
-
-    // Обновляет подсветку чипов тегов без полного перерендера
-    function updateTagPicker(idx) {
-      const inp = document.getElementById('edit-inp-' + idx);
-      if (!inp) return;
-      editingTempValue = inp.value;
-      const picker = document.getElementById('tag-picker-' + idx);
-      if (!picker) return;
-      picker.querySelectorAll('.tag-pick-chip').forEach(chip => {
-        const tag = chip.dataset.tag;
-        if (!tag) return;
-        let on;
-        if (/^[A-F]$/.test(tag)) {
-          on = new RegExp('^\\(' + tag + '\\)').test(inp.value);
-        } else if (tag.startsWith('@')) {
-          on = new RegExp('(^|\\s)' + escRe(tag) + '(\\s|$)').test(inp.value);
-        } else {
-          on = new RegExp('(^|\\s)\\+' + escRe(tag.slice(1)) + '(\\s|$)').test(inp.value);
-        }
-        chip.classList.toggle('active-tag', on);
-      });
-    }
-
-    // Переключает @context или +project в строке редактирования
-    function toggleTagOnEdit(tag) {
-      const inp = document.getElementById('edit-inp-' + editingIdx);
-      if (!inp) return;
-      let text = inp.value;
-      const escaped = tag.startsWith('+') ? '\\+' + escRe(tag.slice(1)) : escRe(tag);
-      if (new RegExp('(^|\\s)' + escaped + '(?=\\s|$)').test(text)) {
-        text = text.replace(new RegExp('\\s*' + escaped + '(?=\\s|$)'), '').trim();
-      } else {
-        text = (text.trim() + ' ' + tag).trim();
-      }
-      inp.value = text;
-      editingTempValue = text;
-      updateTagPicker(editingIdx);
-      inp.focus();
-    }
-
-    // Переключает приоритет (A–F) в начале строки
-    function togglePriOnEdit(idx, pri) {
-      const inp = document.getElementById('edit-inp-' + idx);
-      if (!inp) return;
-      let text = inp.value;
-      const priRe = /^\([A-Z]\)\s*/;
-      const m = priRe.exec(text);
-      if (m) {
-        text = text[1] === pri
-          ? text.replace(priRe, '')           // убрать тот же приоритет
-          : text.replace(priRe, `(${pri}) `); // заменить на новый
-      } else {
-        text = `(${pri}) ` + text;            // добавить
-      }
-      inp.value = text;
-      editingTempValue = text;
-      updateTagPicker(idx);
-      inp.focus();
-    }
-
-    function deleteTask(idx) {
-      if (!confirm('Удалить задачу?')) return;
-      if (editingIdx === idx) { editingIdx = -1; editingTempValue = null; }
-      items.splice(idx, 1);
-      saveItems();
-      render();
-    }
-
-    // Архивирует выполненные: скачивает как done.txt и удаляет из списка
-    function archiveCompleted() {
-      const completed = items.filter(t => !t._sectionHeader && t.complete);
-      if (!completed.length) return;
-      if (!confirm(`Архивировать ${completed.length} выполн. задач?\nОни будут скачаны как done.txt и удалены из списка.`)) return;
-      const blob = new Blob([completed.map(t => t._raw).join('\n') + '\n'], { type: 'text/plain' });
-      const a = document.createElement('a');
-      a.href = URL.createObjectURL(blob);
-      a.download = 'done.txt';
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(a.href);
-      items = items.filter(t => t._sectionHeader || !t.complete);
-      saveItems();
-      render();
-    }
 
     loadItems();
     initContextMenu();
