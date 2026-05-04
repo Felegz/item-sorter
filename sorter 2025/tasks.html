@@ -1277,10 +1277,28 @@
     }
 
     // Архивирует выполненные: скачивает как done.txt и удаляет из списка
-    function archiveCompleted() {
+    async function archiveCompleted() {
       const completed = items.filter(t => !t._sectionHeader && t.complete);
       if (!completed.length) return;
-      if (!confirm(`Архивировать ${completed.length} выполн. задач?\nОни будут скачаны как done.txt и удалены из списка.`)) return;
+
+      const useDropbox = typeof getToken === 'function' && getToken();
+      const dest = useDropbox ? 'archive.txt в Dropbox' : 'файл done.txt (Dropbox не подключён)';
+      if (!confirm(`Архивировать ${completed.length} выполн. задач?\nОни будут перемещены в ${dest}.`)) return;
+
+      if (useDropbox) {
+        const lines = completed.map(t => t._raw);
+        const ok = await dbxArchiveCompleted(lines);
+        if (!ok) {
+          alert('Не удалось записать archive.txt в Dropbox. Задачи остались в списке.');
+          return;
+        }
+        items = items.filter(t => t._sectionHeader || !t.complete);
+        saveItems();
+        render();
+        return;
+      }
+
+      // Fallback: скачать локально
       const blob = new Blob([completed.map(t => t._raw).join('\n') + '\n'], { type: 'text/plain' });
       const a = document.createElement('a');
       a.href = URL.createObjectURL(blob);

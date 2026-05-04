@@ -9,11 +9,12 @@
 //       - используем mode:"update" + rev → Dropbox сам обнаружит конфликт (409)
 //   • Ручные кнопки: fallback; «В Dropbox» — всегда перезапись, «Из Dropbox» — с подтверждением
 
-const DROPBOX_APP_KEY      = 'd1t1dje9vyjotd7';
+const DROPBOX_APP_KEY       = 'd1t1dje9vyjotd7';
 // Динамический redirect URI — работает и локально, и на продакшне
-const DROPBOX_REDIRECT_URI = window.location.origin + '/';
-const DROPBOX_FILE_PATH    = '/tasks.txt';
-const AUTOSAVE_DELAY_MS    = 20_000;
+const DROPBOX_REDIRECT_URI  = window.location.origin + '/';
+const DROPBOX_FILE_PATH     = '/tasks.txt';
+const DROPBOX_ARCHIVE_PATH  = '/archive.txt';
+const AUTOSAVE_DELAY_MS     = 20_000;
 
 // ─── PKCE helpers ────────────────────────────────────────────────────────────
 
@@ -200,6 +201,75 @@ async function dbxGetMetadata() {
     if (!resp.ok) return null;
     return await resp.json();
   } catch (_) { return null; }
+}
+
+// ─── Архивирование в archive.txt ────────────────────────────────────────────
+
+// Скачивает текущий archive.txt (или пустую строку если файла нет),
+// дописывает lines в конец и заливает обратно.
+// Возвращает true при успехе.
+async function dbxArchiveCompleted(lines) {
+  const token = getToken();
+  if (!token) return false;
+
+  setDbxStatus('📦 Архивирование…');
+
+  // 1. Скачать текущий archive.txt (он может не существовать)
+  let existing = '';
+  try {
+    const dlResp = await fetch('https://content.dropboxapi.com/2/files/download', {
+      method:  'POST',
+      headers: {
+        'Authorization':   'Bearer ' + token,
+        'Dropbox-API-Arg': JSON.stringify({ path: DROPBOX_ARCHIVE_PATH }),
+      },
+    });
+    if (dlResp.ok) {
+      existing = await dlResp.text();
+    } else if (dlResp.status === 401) {
+      const refreshed = await tryRefreshToken();
+      if (refreshed.ok) return dbxArchiveCompleted(lines);
+      return false;
+    }
+    // 409 = файл не существует, это нормально — начинаем с пустого
+  } catch (_) { /* сетевая ошибка при скачивании — начнём с пустого */ }
+
+  // 2. Составить новое содержимое
+  const newContent = (existing.trimEnd() ? existing.trimEnd() + '\n' : '') +
+                     lines.join('\n') + '\n';
+
+  // 3. Загрузить обратно (overwrite)
+  try {
+    const ulResp = await fetch('https://content.dropboxapi.com/2/files/upload', {
+      method:  'POST',
+      headers: {
+        'Authorization':   'Bearer ' + token,
+        'Content-Type':    'application/octet-stream',
+        'Dropbox-API-Arg': JSON.stringify({
+          path:       DROPBOX_ARCHIVE_PATH,
+          mode:       'overwrite',
+          autorename: false,
+          mute:       true,
+        }),
+      },
+      body: newContent,
+    });
+    if (ulResp.ok) {
+      updateDropboxUI();
+      return true;
+    }
+    if (ulResp.status === 401) {
+      const refreshed = await tryRefreshToken();
+      if (refreshed.ok) return dbxArchiveCompleted(lines);
+    }
+    console.error('dbxArchiveCompleted upload HTTP', ulResp.status);
+    updateDropboxUI();
+    return false;
+  } catch (err) {
+    console.error('dbxArchiveCompleted upload error:', err);
+    updateDropboxUI();
+    return false;
+  }
 }
 
 // ─── Автоматическое скачивание (без диалога) ─────────────────────────────────
