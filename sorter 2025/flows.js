@@ -102,7 +102,21 @@ const FLOWS = {
   mutny: [
     { id: 'outcome',
       q: 'Какой результат должен быть?',
-      hintHtml: `<div class="step-hint">Как выглядит «сделано»? Запиши в виде условия, которое можно проверить.<br><br><ul style="margin:0 0 0 1.1em;line-height:1.8"><li>Отражает видимый желаемый результат.</li><li>Формулируется как условие, которое можно проверить (истинно/ложно).</li><li>При условии true — завершается. При условии false — завершаем или пересматриваем.</li><li>Предпочтительно включает глагол для конкретности.</li><li>Начинается с ключевого слова для удобной сортировки (например, «Отпуск – завершить»).</li><li>Можно завершить за 12 месяцев.</li><li>Effective project names motivate you toward the outcome you wish to achieve, and give you clear direction about what you are trying to accomplish.</li></ul></div>`,
+      hintHtmlFn: () => {
+        const items = [
+          'Отражает видимый желаемый результат.',
+          'Формулируется как условие, которое можно проверить (истинно/ложно).',
+          'При условии true — завершается. При условии false — завершаем или пересматриваем.',
+          'Предпочтительно включает глагол для конкретности.',
+          'Начинается с ключевого слова для удобной сортировки (например, «Отпуск – завершить»).',
+          'Можно завершить за 12 месяцев.',
+          'Effective project names motivate you toward the outcome you wish to achieve, and give you clear direction about what you are trying to accomplish.',
+        ];
+        return '<div class="step-hint">Как выглядит «сделано»? Запиши в виде условия, которое можно проверить.<br><br>'
+          + '<ul style="margin:0 0 0 1.1em;line-height:1.8">'
+          + items.map(i => '<li>' + i + '</li>').join('')
+          + '</ul></div>';
+      },
       type: 'text',
       placeholder: 'Результат выглядит как\u2026',
       multiline: true,
