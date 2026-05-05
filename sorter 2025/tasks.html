@@ -333,7 +333,7 @@
 
     function escAndHashtags(plain) {
       return esc(plain).replace(/#([^\s<]+?)([.,;!?]*(?=\s|$|&lt;|<))/g,
-        (_, tag, punct) => `<span class="task-hashtag" onclick="setHashtag('${tag.replace(/'/g, "\\'")}')">#${esc(tag)}</span>${punct}`);
+        (_, tag, punct) => `<span class="task-hashtag" onclick="event.stopPropagation();setHashtag('${tag.replace(/'/g, "\\'")}')">#${esc(tag)}</span>${punct}`);
     }
 
     // --- Badge helpers ---
