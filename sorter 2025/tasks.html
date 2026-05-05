@@ -163,7 +163,7 @@
       const threshM = mainLine.match(/\bt:(\d{4}-\d{2}-\d{2})\b/);
       item._due       = dueM    ? dueM[1]    : null;
       item._threshold = threshM ? threshM[1] : null;
-      item._hashtags  = (mainLine.match(/#([^\s⟦]+?)(?=[.,;!?]*(?:\s|$))/g) || []).map(h => h.slice(1).replace(/[.,;!?]+$/, ''));
+      item._hashtags  = (mainLine.replace(/https?:\/\/[^\s]+/g, '').match(/#([^\s⟦]+?)(?=[.,;!?]*(?:\s|$))/g) || []).map(h => h.slice(1).replace(/[.,;!?]+$/, ''));
       item._goal    = goal;
       item._raw     = line;
       item._ignored = false;
