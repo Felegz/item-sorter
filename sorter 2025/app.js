@@ -240,7 +240,7 @@ async function compareTasks(task1, task2, progress = null) {
         <span style="color:#86efac;font-weight:500">${_statusText}</span>
         <span style="color:#4ade80">${_pct}%</span>
       </div>
-      <div style="height:5px;background:#2e2e4a;border-radius:3px;overflow:hidden;margin-bottom:5px">
+      <div style="height:5px;background:#2e2e2e;border-radius:3px;overflow:hidden;margin-bottom:5px">
         <div style="height:100%;width:${_pct}%;background:linear-gradient(90deg,#4ade80,#86efac);border-radius:3px;transition:width 0.15s ease"></div>
       </div>
       <div style="font-size:0.7rem;color:#6a6488;text-align:right">
@@ -778,11 +778,18 @@ async function promoteTailCandidates(sortedTasks, partiallySorted) {
   const merged = [...sortedTasks];
   let i = 0;
 
+  const progress = {
+    done:       0,
+    expected:   partiallySorted.length * (1 + Math.ceil(Math.log2(sortedTasks.length + 1))),
+    tasksDone:  0,
+    tasksTotal: partiallySorted.length,
+  };
+
   while (i < partiallySorted.length) {
     const candidate = partiallySorted[i];
 
     // Воротный вопрос: важнее ли кандидат наихудшей задачи в SORTED?
-    const cmpGate = await compareTasks(candidate, merged[merged.length - 1]);
+    const cmpGate = await compareTasks(candidate, merged[merged.length - 1], progress);
     if (cmpGate !== -1) break; // Не победил → стоп; следующие тоже не победят
 
     // Победил — бинарный поиск точной позиции вставки
@@ -790,11 +797,12 @@ async function promoteTailCandidates(sortedTasks, partiallySorted) {
     let lo = 0, hi = merged.length - 1;
     while (lo < hi) {
       const mid = Math.floor((lo + hi) / 2);
-      if ((await compareTasks(candidate, merged[mid])) === -1) hi = mid;
+      if ((await compareTasks(candidate, merged[mid], progress)) === -1) hi = mid;
       else lo = mid + 1;
     }
     merged.splice(lo, 0, candidate);
     i++;
+    progress.tasksDone = i;
   }
 
   return { sortedTasks: merged, partiallySorted: partiallySorted.slice(i), promoted: i };
