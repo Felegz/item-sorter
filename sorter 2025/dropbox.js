@@ -511,6 +511,96 @@ async function autoSyncOnFocus(silent = false) {
   }
 }
 
+// ─── Умная синхронизация ──────────────────────────────────────────────────────
+// Сама определяет направление:
+//   • Сервер новее, локально чисто  → скачать
+//   • Локально изменено, сервер тот же → сохранить
+//   • Оба изменились                → диалог конфликта
+//   • Первый раз (нет rev)          → диалог выбора направления
+//   • Всё совпадает                 → «Уже синхронизировано»
+
+async function dropboxSmartSync() {
+  if (!getToken()) { dropboxLogin(); return; }
+  if (_syncInProgress) return;
+  _syncInProgress = true;
+  setDbxStatus('🔄 Проверка…');
+  try {
+    const meta      = await dbxGetMetadata();
+    const currTasks = localStorage.getItem('tasks') || '';
+    const lastRev   = localStorage.getItem('dbx_last_rev');
+    const lastTasks = localStorage.getItem('dbx_last_tasks');
+
+    const neverSynced   = !lastRev;
+    const serverChanged = meta && !neverSynced && meta.rev !== lastRev;
+    const localChanged  = lastTasks !== null && currTasks !== lastTasks;
+
+    // Первый запуск — спросить направление
+    if (neverSynced) {
+      const noServer = !meta;
+      const choice = await Swal.fire({
+        title:             '☁ Первая синхронизация',
+        html:              noServer
+          ? 'Файла в Dropbox нет. Загрузить текущий список?'
+          : 'Что сделать с данными?',
+        icon:              'question',
+        showCancelButton:  true,
+        showDenyButton:    !noServer,
+        confirmButtonText: '☁ Сохранить мои задачи',
+        denyButtonText:    '⬇ Скачать из Dropbox',
+        cancelButtonText:  'Отмена',
+        confirmButtonColor:'#4ade80',
+      });
+      if (choice.isConfirmed)       { _syncInProgress = false; await dbxAutoUpload(); }
+      else if (choice.isDenied)     { _syncInProgress = false; await dbxAutoDownload(); }
+      else updateDropboxUI();
+      return;
+    }
+
+    // Всё совпадает
+    if (!serverChanged && !localChanged) {
+      updateDropboxUI();
+      Swal.fire({ title: '✓ Всё синхронизировано', icon: 'success', timer: 1500, showConfirmButton: false });
+      return;
+    }
+
+    // Сервер новее, локально чисто → тихо скачать
+    if (serverChanged && !localChanged) {
+      _syncInProgress = false;
+      await dbxAutoDownload();
+      return;
+    }
+
+    // Локально изменено, сервер тот же → сохранить
+    if (!serverChanged && localChanged) {
+      _syncInProgress = false;
+      await dbxAutoUpload();
+      return;
+    }
+
+    // Оба изменились → конфликт
+    const modStr = meta ? new Date(meta.server_modified).toLocaleString('ru') : '?';
+    const choice = await Swal.fire({
+      title:             '⚠ Конфликт версий',
+      html:              `Файл изменён на другом устройстве.<br><small style="color:#8888ab">Серверная версия: ${modStr}</small>`,
+      icon:              'warning',
+      showCancelButton:  true,
+      showDenyButton:    true,
+      confirmButtonText: '⬇ Взять из облака',
+      denyButtonText:    '☁ Сохранить мою',
+      cancelButtonText:  'Отмена',
+      confirmButtonColor:'#7c6fcd',
+    });
+    _syncInProgress = false;
+    if (choice.isConfirmed)   await dbxAutoDownload();
+    else if (choice.isDenied) { localStorage.removeItem('dbx_last_rev'); await dbxAutoUpload(); }
+    else updateDropboxUI();
+  } catch (err) {
+    console.error('dropboxSmartSync error:', err);
+    updateDropboxUI();
+    _syncInProgress = false;
+  }
+}
+
 // ─── Ручные кнопки (fallback) ─────────────────────────────────────────────────
 
 async function dropboxSave() {
@@ -624,11 +714,13 @@ function setDbxStatus(text) {
 function updateDropboxUI() {
   const loggedIn = !!getToken();
   const loginBtn  = document.getElementById('dbx-login-btn');
+  const syncBtn   = document.getElementById('dbx-sync-btn');
   const saveBtn   = document.getElementById('dbx-save-btn');
   const loadBtn   = document.getElementById('dbx-load-btn');
   const logoutBtn = document.getElementById('dbx-logout-btn');
   const historyBtn = document.getElementById('dbx-history-btn');
   if (loginBtn)    loginBtn.hidden    = loggedIn;
+  if (syncBtn)     syncBtn.hidden     = !loggedIn;
   if (saveBtn)     saveBtn.hidden     = !loggedIn;
   if (loadBtn)     loadBtn.hidden     = !loggedIn;
   if (logoutBtn)   logoutBtn.hidden   = !loggedIn;
@@ -643,6 +735,7 @@ document.addEventListener('DOMContentLoaded', () => {
   updateDropboxUI();
 
   document.getElementById('dbx-login-btn')?.addEventListener('click', dropboxLogin);
+  document.getElementById('dbx-sync-btn')?.addEventListener('click', dropboxSmartSync);
   document.getElementById('dbx-save-btn')?.addEventListener('click', dropboxSave);
   document.getElementById('dbx-load-btn')?.addEventListener('click', dropboxLoad);
   document.getElementById('dbx-logout-btn')?.addEventListener('click', dropboxLogout);
