@@ -140,12 +140,12 @@ function dropboxLogout() {
 // ─── Состояние синхронизации ─────────────────────────────────────────────────
 //
 // localStorage keys:
-//   dbx_last_sync   — { type:'save'|'load', time:ms }   (для строки "5 мин назад")
+//   dbx_last_sync   — { type:'save'|'load'|'check', time:ms, detail:str }   (для строки "5 мин назад · причина")
 //   dbx_last_rev    — rev-хэш Dropbox после последней синхронизации
 //   dbx_last_tasks  — текст задач в момент последней синхронизации
 
-function dbxTimestamp(type) {
-  localStorage.setItem('dbx_last_sync', JSON.stringify({ type, time: Date.now() }));
+function dbxTimestamp(type, detail = '') {
+  localStorage.setItem('dbx_last_sync', JSON.stringify({ type, time: Date.now(), detail }));
 }
 
 function _dbxSaveSyncState(content, rev) {
@@ -159,7 +159,7 @@ function getLastSyncText() {
   const raw = localStorage.getItem('dbx_last_sync');
   if (!raw) return '';
   try {
-    const { type, time } = JSON.parse(raw);
+    const { type, time, detail = '' } = JSON.parse(raw);
     const totalMins = Math.round((Date.now() - time) / 60000);
     let when;
     if (totalMins < 1) {
@@ -174,8 +174,11 @@ function getLastSyncText() {
       else if (days > 0)            when = `${days}\u00a0дн назад`;
       else                          when = `${totalHours}\u00a0ч назад`;
     }
-    const action = type === 'save' ? '☁ Сохранено' : '⬇ Загружено';
-    return `${action} ${when}`;
+    let action;
+    if (type === 'save')       action = '☁ Сохранено';
+    else if (type === 'check') action = '✓ Синхронизировано';
+    else                       action = '⬇ Загружено';
+    return `${action} ${when}${detail ? ' · ' + detail : ''}`;
   } catch (_) { return ''; }
 }
 
@@ -325,7 +328,7 @@ async function dbxArchiveCompleted(lines) {
 
 // ─── Автоматическое скачивание (без диалога) ─────────────────────────────────
 
-async function dbxAutoDownload() {
+async function dbxAutoDownload(detail = '') {
   const token = getToken();
   if (!token) return false;
   setDbxStatus('⬇ Загрузка…');
@@ -348,7 +351,7 @@ async function dbxAutoDownload() {
       localStorage.setItem('tasks', text);
       if (typeof window._onDbxLoad === 'function') window._onDbxLoad();
       _dbxSaveSyncState(text, apiResult.rev);
-      dbxTimestamp('load');
+      dbxTimestamp('load', detail);
       updateDropboxUI();
 
       if (typeof syncHighlight   === 'function') syncHighlight();
@@ -357,7 +360,7 @@ async function dbxAutoDownload() {
       return true;
     } else if (resp.status === 401) {
       const refreshed = await tryRefreshToken();
-      if (refreshed.ok) return dbxAutoDownload();
+      if (refreshed.ok) return dbxAutoDownload(detail);
     } else if (resp.status === 409) {
       // Файла нет на сервере — не ошибка
     } else {
@@ -380,10 +383,10 @@ let _syncInProgress = false;
 function scheduleAutosave() {
   if (!getToken()) return;
   clearTimeout(_autosaveTimer);
-  _autosaveTimer = setTimeout(dbxAutoUpload, AUTOSAVE_DELAY_MS);
+  _autosaveTimer = setTimeout(() => dbxAutoUpload('автосохранение'), AUTOSAVE_DELAY_MS);
 }
 
-async function dbxAutoUpload() {
+async function dbxAutoUpload(detail = '') {
   const token = getToken();
   if (!token) return;
   clearTimeout(_autosaveTimer);
@@ -413,7 +416,7 @@ async function dbxAutoUpload() {
     if (resp.ok) {
       const data = await resp.json();
       _dbxSaveSyncState(content, data.rev);
-      dbxTimestamp('save');
+      dbxTimestamp('save', detail);
       updateDropboxUI();
 
     } else if (resp.status === 409) {
@@ -431,17 +434,17 @@ async function dbxAutoUpload() {
         confirmButtonColor:'#7c6fcd',
       });
       if (choice.isConfirmed) {
-        await dbxAutoDownload();
+        await dbxAutoDownload('конфликт → скачано');
       } else if (choice.isDenied) {
         localStorage.removeItem('dbx_last_rev');
-        await dbxAutoUpload();
+        await dbxAutoUpload('конфликт → перезаписано');
       } else {
         updateDropboxUI();
       }
 
     } else if (resp.status === 401) {
       const refreshed = await tryRefreshToken();
-      if (refreshed.ok) return dbxAutoUpload();
+      if (refreshed.ok) return dbxAutoUpload(detail);
       dropboxLogout();
     } else {
       console.error('dbxAutoUpload HTTP', resp.status, await resp.text());
@@ -550,14 +553,15 @@ async function dropboxSmartSync() {
         cancelButtonText:  'Отмена',
         confirmButtonColor:'#4ade80',
       });
-      if (choice.isConfirmed)       { _syncInProgress = false; await dbxAutoUpload(); }
-      else if (choice.isDenied)     { _syncInProgress = false; await dbxAutoDownload(); }
+      if (choice.isConfirmed)       { _syncInProgress = false; await dbxAutoUpload('первая синхронизация'); }
+      else if (choice.isDenied)     { _syncInProgress = false; await dbxAutoDownload('первая синхронизация'); }
       else updateDropboxUI();
       return;
     }
 
     // Всё совпадает
     if (!serverChanged && !localChanged) {
+      dbxTimestamp('check');
       updateDropboxUI();
       Swal.fire({ title: '✓ Всё синхронизировано', icon: 'success', timer: 1500, showConfirmButton: false });
       return;
@@ -566,14 +570,14 @@ async function dropboxSmartSync() {
     // Сервер новее, локально чисто → тихо скачать
     if (serverChanged && !localChanged) {
       _syncInProgress = false;
-      await dbxAutoDownload();
+      await dbxAutoDownload('сервер был новее');
       return;
     }
 
     // Локально изменено, сервер тот же → сохранить
     if (!serverChanged && localChanged) {
       _syncInProgress = false;
-      await dbxAutoUpload();
+      await dbxAutoUpload('ваши изменения');
       return;
     }
 
@@ -591,8 +595,8 @@ async function dropboxSmartSync() {
       confirmButtonColor:'#7c6fcd',
     });
     _syncInProgress = false;
-    if (choice.isConfirmed)   await dbxAutoDownload();
-    else if (choice.isDenied) { localStorage.removeItem('dbx_last_rev'); await dbxAutoUpload(); }
+    if (choice.isConfirmed)   await dbxAutoDownload('конфликт → скачано');
+    else if (choice.isDenied) { localStorage.removeItem('dbx_last_rev'); await dbxAutoUpload('конфликт → перезаписано'); }
     else updateDropboxUI();
   } catch (err) {
     console.error('dropboxSmartSync error:', err);
@@ -632,7 +636,7 @@ async function dropboxSave() {
     if (resp.ok) {
       const data = await resp.json();
       _dbxSaveSyncState(content, data.rev);
-      dbxTimestamp('save');
+      dbxTimestamp('save', 'вручную');
       updateDropboxUI();
       Swal.fire({ title: 'Сохранено в Dropbox!', icon: 'success', timer: 1500, showConfirmButton: false });
     } else if (resp.status === 409) {
@@ -650,10 +654,10 @@ async function dropboxSave() {
         confirmButtonColor:'#7c6fcd',
       });
       if (choice.isConfirmed) {
-        await dbxAutoDownload();
+        await dbxAutoDownload('конфликт → скачано');
       } else if (choice.isDenied) {
         localStorage.removeItem('dbx_last_rev');
-        await dbxAutoUpload();
+        await dbxAutoUpload('конфликт → перезаписано');
       } else {
         updateDropboxUI();
       }
@@ -700,7 +704,7 @@ async function dropboxLoad() {
   }
 
   localStorage.removeItem('dbx_last_rev');
-  const ok = await dbxAutoDownload();
+  const ok = await dbxAutoDownload('вручную');
   if (ok) Swal.fire({ title: 'Загружено из Dropbox!', icon: 'success', timer: 1500, showConfirmButton: false });
 }
 
