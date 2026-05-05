@@ -187,6 +187,7 @@
       <div class="act-row">
         <button class="btn btn-p" onclick="copyOut()">&#x1F4CB; Копировать</button>
         <button class="btn" onclick="addToList()">&#x2795; В список</button>
+        <button id="next-task-btn" class="btn btn-p hidden" onclick="nextTask()">&#x27A1; Следующая задача</button>
         <button class="btn btn-g" onclick="resetAll()">&#x21BA; Ещё одну</button>
       </div>
       <div class="note" id="out-note"></div>
@@ -474,6 +475,8 @@ function showOutput(action) {
   el('out-goal').innerHTML    = goalHtml;
   el('out-note').textContent  = '';
   el('out-note').className    = 'note';
+  // Show "next task" button only when we came from a task list
+  if (S.originalTask) show('next-task-btn'); else hide('next-task-btn');
 }
 
 function buildNextLine(t) {
@@ -570,6 +573,26 @@ function resetAll() {
   Object.assign(S, { task:'', originalTask:'', mode:null, flow:null, stepIdx:0, history:[],
     outcome:'',action:'',delegate:'',dueDate:'',priority:null,contexts:[],feelings:'',advice:'' });
   hide('step-area','out-area','task-cap','edit-area'); show('mode-sel'); window.scrollTo(0,0);
+}
+
+function nextTask() {
+  const lines = (localStorage.getItem('tasks') || '').split('\n');
+  const curIdx = lines.findIndex(l => l.trim() === (S.originalTask || '').trim());
+  const start = curIdx !== -1 ? curIdx + 1 : 0;
+  let inIgnored = false;
+  for (let i = start; i < lines.length; i++) {
+    const l = lines[i].trim();
+    if (!l) continue;
+    if (/^ИГНОРИРУЕМЫЕ\s+ЗАДАЧИ/i.test(l)) { inIgnored = true; continue; }
+    if (inIgnored) continue;
+    if (/^(SORTED\s*\(|PARTIALLY SORTED|NEW ARRAY|НЕУПОРЯДОЧЕННЫЕ ЗАДАЧИ)/i.test(l)) continue;
+    if (/^x\s/.test(l)) continue;
+    if (/\+someday-maybe/.test(l)) continue;
+    window.location.href = '/process?task=' + encodeURIComponent(lines[i]) + '&from=tasks';
+    return;
+  }
+  el('out-note').textContent = 'Больше задач для обработки нет!';
+  el('out-note').className = 'note ok';
 }
 
 function esc(s) {
