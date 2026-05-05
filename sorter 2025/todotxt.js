@@ -44,21 +44,23 @@ function parseTodoLine(line) {
 
   const text = rest;
 
-  // extract +projects, @contexts, key:value tags
+  // extract +projects, @contexts, #hashtags, key:value tags
   const projects = [];
   const contexts = [];
+  const hashtags = [];
   const tags = {};
   const words = text.split(/\s+/);
   for (const word of words) {
     if (word.startsWith('+') && word.length > 1) projects.push(word.slice(1));
     else if (word.startsWith('@') && word.length > 1) contexts.push(word.slice(1));
+    else if (word.startsWith('#') && word.length > 1) hashtags.push(word.slice(1));
     else {
       const kv = word.match(/^([a-zA-Z][a-zA-Z0-9_-]*):([^\s]+)$/);
       if (kv) tags[kv[1]] = kv[2];
     }
   }
 
-  return { raw, completed, priority, completionDate, creationDate, text, projects, contexts, tags };
+  return { raw, completed, priority, completionDate, creationDate, text, projects, contexts, hashtags, tags };
 }
 
 /**
@@ -131,6 +133,9 @@ function highlightTodoLine(line) {
 
   // @context
   html = html.replace(/@([^\s<]+)/g, '<span class="todo-context">@$1</span>');
+
+  // #hashtag
+  html = html.replace(/#([^\s<]+)/g, '<span class="todo-hashtag">#$1</span>');
 
   // дата создания после приоритета
   html = html.replace(/(\d{4}-\d{2}-\d{2})/g, '<span class="todo-date">$1</span>');
@@ -237,18 +242,17 @@ function toggleDoneCurrentLine() {
 
 // ─── Фильтр строк ────────────────────────────────────────────────
 
-let currentFilter = { project: null, context: null, priority: null };
+let currentFilter = { project: null, context: null, priority: null, hashtag: null };
 
 // Строки видимые в filter-view; используются кнопками действия в строке
 let filteredLines = [];
 
 function applyFilter() {
   const ta = document.getElementById('task-list');
-  const hl = document.getElementById('hl-layer');
-  if (!hl) return;
+  if (!ta) return;
 
-  const { project, context, priority } = currentFilter;
-  if (!project && !context && !priority) {
+  const { project, context, priority, hashtag } = currentFilter;
+  if (!project && !context && !priority && !hashtag) {
     filterActive = false;
     ta.style.display = '';
     document.getElementById('filter-view')?.remove();
@@ -263,9 +267,10 @@ function applyFilter() {
   filteredLines = lines.filter(line => {
     if (!line.trim()) return false;
     const todo = parseTodoLine(line);
-    if (project  && !todo.projects.includes(project))   return false;
-    if (context  && !todo.contexts.includes(context))   return false;
-    if (priority && todo.priority !== priority)          return false;
+    if (project  && !todo.projects.includes(project))    return false;
+    if (context  && !todo.contexts.includes(context))    return false;
+    if (priority && todo.priority !== priority)           return false;
+    if (hashtag  && !todo.hashtags.includes(hashtag))    return false;
     return true;
   });
 
@@ -322,7 +327,7 @@ function filterRowToggleDone(idx) {
 }
 
 function clearFilter() {
-  currentFilter = { project: null, context: null, priority: null };
+  currentFilter = { project: null, context: null, priority: null, hashtag: null };
   document.querySelectorAll('.filter-chip.active').forEach(el => el.classList.remove('active'));
   applyFilter();
 }
@@ -332,20 +337,21 @@ function clearFilter() {
  */
 function collectMeta() {
   const ta = document.getElementById('task-list');
-  const projects = new Set(), contexts = new Set(), priorities = new Set();
+  const projects = new Set(), contexts = new Set(), priorities = new Set(), hashtags = new Set();
   ta.value.split('\n').forEach(line => {
     const t = parseTodoLine(line);
     t.projects.forEach(p => projects.add(p));
     t.contexts.forEach(c => contexts.add(c));
+    t.hashtags.forEach(h => hashtags.add(h));
     if (t.priority) priorities.add(t.priority);
   });
-  return { projects: [...projects].sort(), contexts: [...contexts].sort(), priorities: [...priorities].sort() };
+  return { projects: [...projects].sort(), contexts: [...contexts].sort(), priorities: [...priorities].sort(), hashtags: [...hashtags].sort() };
 }
 
 function renderFilterBar() {
   const bar = document.getElementById('filter-bar');
   if (!bar) return;
-  const { projects, contexts, priorities } = collectMeta();
+  const { projects, contexts, priorities, hashtags } = collectMeta();
 
   let html = '<button class="filter-chip filter-clear" id="filter-clear-btn">&#x2715; Сбросить</button>';
 
@@ -358,6 +364,9 @@ function renderFilterBar() {
   });
   contexts.forEach(c => {
     html += `<button class="filter-chip todo-context" data-context="${c}">@${c}</button>`;
+  });
+  hashtags.forEach(h => {
+    html += `<button class="filter-chip todo-hashtag" data-hashtag="${h}">#${h}</button>`;
   });
 
   bar.innerHTML = html;
@@ -383,6 +392,14 @@ function renderFilterBar() {
       const c = btn.dataset.context;
       currentFilter.context = currentFilter.context === c ? null : c;
       btn.classList.toggle('active', currentFilter.context === c);
+      applyFilter();
+    });
+  });
+  bar.querySelectorAll('[data-hashtag]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const h = btn.dataset.hashtag;
+      currentFilter.hashtag = currentFilter.hashtag === h ? null : h;
+      btn.classList.toggle('active', currentFilter.hashtag === h);
       applyFilter();
     });
   });

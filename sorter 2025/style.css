@@ -394,6 +394,7 @@ a:hover {
 .todo-priority-other { color: #bd93f9; }
 .todo-project      { color: #50fa7b; }
 .todo-context      { color: #8be9fd; }
+.todo-hashtag      { color: #ff79c6; }
 .todo-tag          { color: #6272a4; }
 .todo-date         { color: #6272a4; }
 .todo-due          { color: #ffb86c; }
@@ -483,3 +484,4 @@ a:hover {
 #filter-bar .todo-priority-other { color: #bd93f9; }
 #filter-bar .todo-project      { color: #50fa7b; }
 #filter-bar .todo-context      { color: #8be9fd; }
+#filter-bar .todo-hashtag      { color: #ff79c6; }
