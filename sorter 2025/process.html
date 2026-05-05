@@ -115,7 +115,11 @@
       font-family: 'JetBrains Mono', monospace; font-size: 0.9rem;
       word-break: break-all; line-height: 1.6;
       border-bottom: 1px solid var(--border); padding-bottom: 0.75rem; margin-bottom: 0.75rem;
+      outline: none; border-radius: 4px; cursor: text;
+      transition: background 0.1s;
     }
+    .out-action:hover { background: rgba(255,255,255,0.04); }
+    .out-action:focus { background: rgba(255,255,255,0.07); outline: 1px solid var(--primary); }
     .out-goal { font-size: 0.85rem; color: var(--fg-m); line-height: 1.6; }
     .out-goal strong { color: var(--fg); }
     .task-cap { transition: border-color 0.1s; }
@@ -175,7 +179,7 @@
       <div class="badge">Готово</div>
       <div class="step-q" id="out-title" style="margin-bottom:0.75rem"></div>
       <div class="out-card">
-        <div class="out-action" id="out-line"></div>
+        <div class="out-action" id="out-line" contenteditable="true" spellcheck="false" title="Нажми, чтобы отредактировать"></div>
         <div class="out-goal" id="out-goal"></div>
       </div>
       <div class="act-row">
@@ -501,13 +505,13 @@ function continueWithMutny() {
 }
 
 function copyOut() {
-  navigator.clipboard.writeText(el('out-line').textContent).then(() => {
+  navigator.clipboard.writeText(el('out-line').textContent.trim()).then(() => {
     el('out-note').textContent='Скопировано!'; el('out-note').className='note ok';
   });
 }
 
 function addToList() {
-  const line = el('out-line').textContent;
+  const line = el('out-line').textContent.trim();
   if (!line || line.startsWith('# УДАЛЕНО')) {
     el('out-note').textContent='Помечено как удалённое \u2014 в список не добавляется.'; return;
   }
