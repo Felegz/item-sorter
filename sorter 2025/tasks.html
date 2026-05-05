@@ -525,9 +525,8 @@
           return `<div class="task-row editing" data-idx="${idx}">
   <input type="checkbox" ${t.complete ? 'checked' : ''} onchange="toggleDone(${idx})" style="margin-top:8px;flex-shrink:0">
   <div class="task-body" style="flex:1;min-width:0">
-    <input id="edit-inp-${idx}" class="task-edit-input" type="text"
-      value="${esc(editVal).replace(/"/g,'&quot;')}"
-      onkeydown="handleEditKey(event,${idx})" oninput="updateTagPicker(${idx})">
+    <textarea id="edit-inp-${idx}" class="task-edit-input"
+      onkeydown="handleEditKey(event,${idx})" oninput="updateTagPicker(${idx})">${esc(editVal)}</textarea>
     <div class="tag-picker" id="tag-picker-${idx}">${priChips}${ctxChips}${projChips}${duePicker}</div>
     <div class="edit-hint">Enter — сохранить &nbsp;·&nbsp; Escape — отмена &nbsp;·&nbsp; клик по тегу — добавить/убрать</div>
   </div>
