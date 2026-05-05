@@ -488,7 +488,7 @@ a:hover {
 .frow-note-toggle:hover { opacity: 1; }
 .filter-view .todo-hashtag,
 .filter-view .todo-project,
-.filter-view .todo-context { cursor: pointer; text-decoration: underline dotted; }
+.filter-view .todo-context { cursor: pointer; }
 .filter-view .todo-hashtag:hover,
 .filter-view .todo-project:hover,
 .filter-view .todo-context:hover { opacity: 0.75; }

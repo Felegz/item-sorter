@@ -189,7 +189,7 @@ h1 { flex: 1; font-size: 1.25rem; font-weight: 600; }
 .chip.ht-chip { border-color: #b0508a; color: #ff79c6; }
 .chip.ht-chip.on { background: #ff79c6; color: #1c1c2e; border-color: #ff79c6; }
 /* Inline hashtag in task text */
-.task-hashtag { color: #ff79c6; cursor: pointer; text-decoration: underline dotted; }
+.task-hashtag { color: #ff79c6; cursor: pointer; }
 .task-hashtag:hover { opacity: 0.75; }
 
 /* Controls */
