@@ -88,8 +88,19 @@
   <button id="ignored-toggle"></button>
 
   <script>
-    // ➤цель: separator (U+27A4 + "цель:")
-    const GOAL_SEP = '\u27A4\u0446\u0435\u043b\u044c:';
+    // ➤цель:/➤сложность:/➤совет: separators (U+27A4)
+    const GOAL_SEP       = '\u27A4\u0446\u0435\u043b\u044c:';
+    const DIFFICULTY_SEP = '\u27A4\u0441\u043b\u043e\u0436\u043d\u043e\u0441\u0442\u044c:';
+    const ADVICE_SEP     = '\u27A4\u0441\u043e\u0432\u0435\u0442:';
+
+    // Extract ➤key: field from str; value ends at next ➤ or end of string
+    function parseSepField(str, sep) {
+      const i = str.indexOf(sep);
+      if (i === -1) return { rest: str, val: null };
+      const j = str.indexOf('\u27A4', i + sep.length);
+      const end = j !== -1 ? j : str.length;
+      return { rest: (str.slice(0, i) + str.slice(end)).trim(), val: str.slice(i + sep.length, end).trim() || null };
+    }
     const PRI_CHIP_CLS = { A:'pri-a', B:'pri-b', C:'pri-c' };
     const PRI_TAG_CLS  = { A:'t-pri-A', B:'t-pri-B', C:'t-pri-C' };
     const priOrd = p => p ? (p.charCodeAt(0) - 64) : 27; // A=1..Z=26, none=27
@@ -149,9 +160,11 @@
     // --- Parsing ---
 
     function parseLine(line) {
-      const si = line.indexOf(GOAL_SEP);
-      const mainLine = si !== -1 ? line.slice(0, si).trim() : line;
-      const goal = si !== -1 ? line.slice(si + GOAL_SEP.length).trim() : null;
+      let work = line, goal, difficulty, advice;
+      ({ rest: work, val: goal }       = parseSepField(work, GOAL_SEP));
+      ({ rest: work, val: difficulty } = parseSepField(work, DIFFICULTY_SEP));
+      ({ rest: work, val: advice }     = parseSepField(work, ADVICE_SEP));
+      const mainLine = work;
       let item;
       try { item = TodoTxt.parseLine(mainLine); }
       catch (_) {
@@ -164,7 +177,9 @@
       item._due       = dueM    ? dueM[1]    : null;
       item._threshold = threshM ? threshM[1] : null;
       item._hashtags  = (mainLine.replace(/https?:\/\/[^\s]+/g, '').match(/#([^\s⟦]+?)(?=[.,;!?]*(?:\s|$))/g) || []).map(h => h.slice(1).replace(/[.,;!?]+$/, ''));
-      item._goal    = goal;
+      item._goal       = goal;
+      item._difficulty = difficulty;
+      item._advice     = advice;
       item._raw     = line;
       item._ignored = false;
       return item;
@@ -540,6 +555,8 @@
   <div class="task-body">
     <span class="task-text" onclick="editTask(${idx})" style="cursor:pointer">${renderText(displayText, terms)}</span>
     ${t._goal ? `<span class="task-goal">🎯 ${renderText(t._goal, terms)}</span>` : ''}
+    ${t._difficulty ? `<span class="task-difficulty">😰 ${renderText(t._difficulty, terms)}</span>` : ''}
+    ${t._advice ? `<span class="task-advice">💜 ${renderText(t._advice, terms)}</span>` : ''}
     ${tags.length ? `<div class="task-tags">${tags.join('')}</div>` : ''}
   </div>
   <button class="edit-btn" title="Редактировать" onclick="editTask(${idx})">✏</button>

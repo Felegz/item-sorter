@@ -122,6 +122,8 @@
     .out-action:focus { background: rgba(255,255,255,0.07); outline: 1px solid var(--primary); }
     .out-goal { font-size: 0.85rem; color: var(--fg-m); line-height: 1.6; }
     .out-goal strong { color: var(--fg); }
+    .out-field { margin-top: 0.55rem; font-size: 0.85rem; color: var(--fg); line-height: 1.5; white-space: pre-wrap; }
+    .out-field-lbl { display: block; font-size: 0.67rem; font-weight: 700; letter-spacing: 0.07em; text-transform: uppercase; color: var(--fg-m); margin-bottom: 0.1rem; }
     .task-cap { transition: border-color 0.1s; }
     .task-cap:hover { border-color: var(--primary); }
     .task-cap::after { content: ' ✒'; font-size: 0.75rem; color: var(--fg-m); }
@@ -461,9 +463,10 @@ function showOutput(action) {
     if (S.mode==='korz') show('offer-mutny');
   } else if (action === 'output') {
     title='✅ Разобрано'; line=buildMutnyLine(t);
-    // Show goal and advice separately in the UI (they're also embedded in the line)
-    if (S.outcome) goalHtml+='<div><strong>🎯 Цель:</strong> ' + esc(S.outcome) + '</div>';
-    if (S.advice)  goalHtml+='<div style="margin-top:0.4rem"><strong>💜 Совет:</strong> ' + esc(S.advice)  + '</div>';
+    // Show goal, difficulty and advice separately in the UI (they're also embedded in the line)
+    if (S.outcome)  goalHtml += '<div class="out-field"><span class="out-field-lbl">🎯 Цель</span>' + esc(S.outcome)  + '</div>';
+    if (S.feelings) goalHtml += '<div class="out-field"><span class="out-field-lbl">😰 Сложность</span>' + esc(S.feelings) + '</div>';
+    if (S.advice)   goalHtml += '<div class="out-field"><span class="out-field-lbl">💜 Совет</span>' + esc(S.advice)   + '</div>';
   }
 
   el('out-title').textContent = title;
@@ -493,7 +496,9 @@ function buildMutnyLine(t) {
   S.contexts.forEach(c => parts.push(c));
   let line = parts.join(' ');
   // Embed goal inline — renderers split on ➤цель: for visual display
-  if (S.outcome) line += ' \u27A4\u0446\u0435\u043B\u044C:' + S.outcome.trim().replace(/\n/g,' ');
+  if (S.outcome)   line += ' \u27A4\u0446\u0435\u043B\u044C:' + S.outcome.trim().replace(/\n/g,' ');
+  if (S.feelings)  line += ' \u27A4\u0441\u043B\u043E\u0436\u043D\u043E\u0441\u0442\u044C:' + S.feelings.trim().replace(/\n/g,' ');
+  if (S.advice)    line += ' \u27A4\u0441\u043E\u0432\u0435\u0442:' + S.advice.trim().replace(/\n/g,' ');
   return line;
 }
 
