@@ -472,8 +472,8 @@
           if (ds) tags.push(`<span class="t t-date">${esc(ds)}</span>`);
         }
 
-        // Strip due: token from displayed text (it's shown as a badge)
-        const displayText = (t.text || t._raw).replace(/\bdue:\d{4}-\d{2}-\d{2}\b/g, '').trim();
+        // Strip due: token and hidden note ⟦...⟧ from displayed text
+        const displayText = (t.text || t._raw).replace(/\bdue:\d{4}-\d{2}-\d{2}\b/g, '').replace(/\s*\u27e6[\s\S]*\u27e7/, '').trim();
 
         // ── Edit mode ──
         if (editingIdx === idx) {

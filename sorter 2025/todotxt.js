@@ -56,7 +56,7 @@ function parseTodoLine(line) {
   for (const word of words) {
     if (word.startsWith('+') && word.length > 1) projects.push(word.slice(1));
     else if (word.startsWith('@') && word.length > 1) contexts.push(word.slice(1));
-    else if (word.startsWith('#') && word.length > 1) hashtags.push(word.slice(1));
+    else if (word.startsWith('#') && word.length > 1) hashtags.push(word.slice(1).replace(/[.,;!?]+$/, ''));
     else {
       const kv = word.match(/^([a-zA-Z][a-zA-Z0-9_-]*):([^\s]+)$/);
       if (kv) tags[kv[1]] = kv[2];
@@ -140,7 +140,7 @@ function highlightTodoLine(line) {
   html = html.replace(/@([^\s<]+)/g, '<span class="todo-context">@$1</span>');
 
   // #hashtag
-  html = html.replace(/#([^\s<]+)/g, '<span class="todo-hashtag">#$1</span>');
+  html = html.replace(/#([^\s<]+?)([.,;!?]*(?=\s|$|<))/g, '<span class="todo-hashtag">#$1</span>$2');
 
   // дата создания после приоритета
   html = html.replace(/(\d{4}-\d{2}-\d{2})/g, '<span class="todo-date">$1</span>');
@@ -374,7 +374,7 @@ function applyFilter() {
         const todoP = parseTodoLine(l);
         const done = todoP.done;
         const noteHtml = todoP.note
-          ? '<span class="frow-note-toggle" onclick="this.nextSibling.style.display=this.nextSibling.style.display===\'none\'?\'\':\'none\'">\uD83D\uDCCE</span>'
+          ? ' <span class="frow-note-toggle" onclick="this.nextSibling.style.display=this.nextSibling.style.display===\'none\'?\'\':\'none\'">📎</span>'
             + '<span class="frow-note" style="display:none">' + escHtml(todoP.note) + '</span>'
           : '';
         return '<div class="filter-row">'
