@@ -1043,6 +1043,36 @@ document.getElementById('merge-button').onclick = () => {
   mergeArraysUI();
 };
 
+// ⚙ Обработать (GTD) — открывает process.html с выделенной/курсорной задачей
+document.getElementById('process-btn')?.addEventListener('click', () => {
+  const text = taskList.value;
+  const pos = taskList.selectionStart;
+  const lines = text.split('\n');
+  let charCount = 0;
+  let currentLine = '';
+  for (const line of lines) {
+    if (charCount + line.length + 1 > pos) { currentLine = line; break; }
+    charCount += line.length + 1;
+  }
+  const task = currentLine.trim();
+  if (!task || /^x /.test(task)) return;
+  const url = 'process.html?task=' + encodeURIComponent(task) + '&from=sorter';
+  window.location.href = url;
+});
+
+// ⚡ Быстрый разбор — первая необработанная задача → process.html
+document.getElementById('quick-triage-btn')?.addEventListener('click', () => {
+  const text = taskList.value;
+  const lines = text.split('\n');
+  const first = lines.find(l => {
+    const t = l.trim();
+    return t && !MARKERS.isAnyMarker(l) && !/^x /.test(t);
+  });
+  if (!first) { alert('Нет необработанных задач!'); return; }
+  const url = 'process.html?task=' + encodeURIComponent(first.trim()) + '&flow=korz&from=sorter';
+  window.location.href = url;
+});
+
 
 
 

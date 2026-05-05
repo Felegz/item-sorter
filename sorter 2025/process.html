@@ -519,13 +519,15 @@ function esc(s) {
 function todayStr() { return new Date().toISOString().slice(0,10); }
 
 window.addEventListener('DOMContentLoaded', () => {
-  const tp = new URLSearchParams(window.location.search).get('task');
+  const params = new URLSearchParams(window.location.search);
+  const tp   = params.get('task');
+  const flow = params.get('flow') || 'korz';
   if (tp) {
     S.task = decodeURIComponent(tp);
-    S.originalTask = S.task; // remember for replace-in-list on finish
+    S.originalTask = S.task;
     el('task-cap').textContent = S.task;
     show('task-cap');
-    startFlow('korz');
+    startFlow(FLOWS[flow] ? flow : 'korz');
   }
 });
 </script>
