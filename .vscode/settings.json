@@ -1,0 +1,9 @@
+{
+    "chat.tools.terminal.autoApprove": {
+        "/^cd \"c:\\\\_Fork Projects\\\\Sorter-pomogator\"; git checkout master; git merge dev; git push origin master$/": {
+            "approve": true,
+            "matchCommandLine": true
+        },
+        "git push": true
+    }
+}

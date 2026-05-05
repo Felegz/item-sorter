@@ -1,23 +1,23 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
 
 /* Основные значения CSS-переменных для темной темы */
+/* Цвета — Revolut dark design tokens (luongnv.com/sleek-ui/designs/revolut.json) */
 :root {
-  /* Editorial-dark inspired palette */
-  --bg:            #1a1a1a;
-  --bg-card:       #232323;
-  --bg-elevated:   #282828;
-  --fg:            #f2f2f2;
-  --fg-muted:      #8888a0;
+  --bg:            hsl(210, 11%, 11%);   /* #19202a */
+  --bg-card:       hsl(240, 33%, 17%);   /* #1c1c35 */
+  --bg-elevated:   hsl(240, 33%, 19%);   /* #202040 */
+  --fg:            hsl(0, 0%, 95%);      /* #f2f2f2 */
+  --fg-muted:      hsl(240, 5%, 64.9%); /* #9e9eab */
   --primary:       #4ade80;
   --primary-hover: #22c55e;
-  --border:        #2e2e2e;
-  --border-hover:  #3a3a3a;
+  --border:        hsl(240, 33%, 22%);   /* #252545 */
+  --border-hover:  hsl(240, 33%, 27%);   /* #2e2e58 */
   --success:       hsl(142, 70%, 50%);
   --warning:       hsl(38, 92%, 56%);
-  --radius:        0.5rem;
+  --radius:        0.375rem;             /* Revolut radius.default */
   /* Legacy vars kept for SweetAlert2 / misc */
-  --color-bg:           #1a1a1a;
-  --color-text-main:    #f2f2f2;
+  --color-bg:           hsl(210, 11%, 11%);
+  --color-text-main:    hsl(0, 0%, 95%);
   --color-primary:      #4ade80;
   --color-secondary:    #50fa7b;
   --wrapper-height:     87vh;
