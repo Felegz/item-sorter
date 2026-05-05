@@ -96,17 +96,22 @@
     textarea { min-height: 70px; resize: vertical; }
     textarea:focus, input:focus { outline: none; border-color: var(--primary); }
     .act-row { display: flex; flex-wrap: wrap; gap: 0.45rem; margin-top: 0.75rem; }
+    /* Revolut-unified button system — same tokens as style.css */
     .btn {
-      padding: 0.55rem 1rem; border-radius: 6px; border: 1px solid var(--border);
+      display: inline-flex; align-items: center; justify-content: center; gap: 0.35rem;
+      padding: 0.5rem 1rem; border-radius: var(--radius); border: 1px solid var(--border);
       background: var(--bg-el); color: var(--fg); font-family: inherit;
-      font-size: 0.875rem; font-weight: 500; cursor: pointer;
-      transition: background 0.08s, border-color 0.08s;
+      font-size: 0.875rem; font-weight: 600; letter-spacing: -0.01em;
+      cursor: pointer; white-space: nowrap; line-height: 1;
+      box-shadow: 0 1px 2px rgba(0,0,0,0.25);
+      transition: background 0.14s, border-color 0.14s, box-shadow 0.14s, transform 0.1s;
     }
-    .btn:hover { background: var(--border); border-color: var(--primary); }
-    .btn-p { background: var(--primary); border-color: transparent; color: #fff; }
-    .btn-p:hover { background: var(--primary-h); border-color: transparent; }
-    .btn-g { background: transparent; color: var(--fg-m); border-color: var(--border); font-size: 0.8rem; }
-    .btn-g:hover { color: var(--fg); }
+    .btn:hover { background: var(--border); border-color: var(--primary); box-shadow: 0 2px 6px rgba(0,0,0,0.35); transform: translateY(-1px); }
+    .btn:active { transform: translateY(0); box-shadow: none; }
+    .btn-p { background: var(--primary); border-color: transparent; color: #0d1117; font-weight: 700; }
+    .btn-p:hover { background: var(--primary-h); border-color: transparent; box-shadow: 0 2px 8px rgba(74,222,128,0.35); }
+    .btn-g { background: transparent; border-color: var(--border); color: var(--fg); box-shadow: none; font-size: 0.82rem; }
+    .btn-g:hover { background: var(--bg-el); border-color: var(--border); box-shadow: none; transform: none; }
     .out-card {
       background: var(--bg-card); border: 1px solid var(--primary);
       border-radius: var(--radius); padding: 1rem 1.25rem; margin-bottom: 0.75rem;
