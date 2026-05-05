@@ -179,6 +179,57 @@ function getLastSyncText() {
   } catch (_) { return ''; }
 }
 
+// ─── Снэпшоты (локальная история) ─────────────────────────────────────────────
+//   tasks_snapshots — JSON array [{ time, reason, text }, …], newest first, max 10
+
+const SNAPSHOT_MAX = 10;
+const SNAPSHOT_KEY = 'tasks_snapshots';
+
+function saveSnapshot(reason) {
+  const text = localStorage.getItem('tasks') || '';
+  if (!text.trim()) return;
+  let snaps = [];
+  try { snaps = JSON.parse(localStorage.getItem(SNAPSHOT_KEY) || '[]'); } catch (_) {}
+  if (snaps.length && snaps[0].text === text) return; // нет смысла дублировать
+  snaps.unshift({ time: Date.now(), reason, text });
+  if (snaps.length > SNAPSHOT_MAX) snaps = snaps.slice(0, SNAPSHOT_MAX);
+  localStorage.setItem(SNAPSHOT_KEY, JSON.stringify(snaps));
+}
+
+async function showSnapshots() {
+  let snaps = [];
+  try { snaps = JSON.parse(localStorage.getItem(SNAPSHOT_KEY) || '[]'); } catch (_) {}
+  if (!snaps.length) {
+    Swal.fire('Нет снэпшотов', 'Снэпшоты создаются автоматически перед каждой загрузкой из Dropbox.', 'info');
+    return;
+  }
+  const opts = snaps.map((s, i) => {
+    const d     = new Date(s.time).toLocaleString('ru');
+    const lines = s.text.trim().split('\n').length;
+    return `<option value="${i}">${d} — ${s.reason} (${lines} строк)</option>`;
+  }).join('');
+  const { value: idx } = await Swal.fire({
+    title:             '↩ История версий',
+    html:              `<select id="snap-sel" style="width:100%;padding:0.5rem;background:#1e1e2e;color:#cdd6f4;border:1px solid #585b70;border-radius:6px;font-size:0.82rem">${opts}</select>`,
+    confirmButtonText: 'Восстановить',
+    showCancelButton:  true,
+    cancelButtonText:  'Отмена',
+    confirmButtonColor:'#7c6fcd',
+    preConfirm: () => document.getElementById('snap-sel').value,
+  });
+  if (idx === undefined || idx === null || idx === '') return;
+  const snap = snaps[parseInt(idx, 10)];
+  saveSnapshot('перед восстановлением');
+  const ta = document.getElementById('task-list');
+  if (ta) ta.value = snap.text;
+  localStorage.setItem('tasks', snap.text);
+  if (typeof window._onDbxLoad === 'function') window._onDbxLoad();
+  if (typeof syncHighlight   === 'function') syncHighlight();
+  if (typeof renderFilterBar === 'function') renderFilterBar();
+  scheduleAutosave();
+  Swal.fire({ title: 'Восстановлено!', icon: 'success', timer: 1500, showConfirmButton: false });
+}
+
 // ─── API helpers ──────────────────────────────────────────────────────────────
 
 async function dbxGetMetadata() {
@@ -291,6 +342,7 @@ async function dbxAutoDownload() {
       const text      = await resp.text();
       const apiResult = JSON.parse(resp.headers.get('dropbox-api-result') || '{}');
 
+      saveSnapshot('автозагрузка из Dropbox');
       const ta = document.getElementById('task-list');
       if (ta) ta.value = text;
       localStorage.setItem('tasks', text);
@@ -466,7 +518,9 @@ async function dropboxSave() {
   clearTimeout(_autosaveTimer);
 
   const token   = getToken();
-  const content = document.getElementById('task-list').value;
+  const content = document.getElementById('task-list')?.value ?? localStorage.getItem('tasks') ?? '';
+  const lastRev = localStorage.getItem('dbx_last_rev');
+  const mode    = lastRev ? { '.tag': 'update', 'update': lastRev } : 'overwrite';
 
   setDbxStatus('☁ Сохранение…');
   try {
@@ -477,7 +531,7 @@ async function dropboxSave() {
         'Content-Type':    'application/octet-stream',
         'Dropbox-API-Arg': JSON.stringify({
           path:       DROPBOX_FILE_PATH,
-          mode:       'overwrite',
+          mode,
           autorename: false,
           mute:       false,
         }),
@@ -491,6 +545,28 @@ async function dropboxSave() {
       dbxTimestamp('save');
       updateDropboxUI();
       Swal.fire({ title: 'Сохранено в Dropbox!', icon: 'success', timer: 1500, showConfirmButton: false });
+    } else if (resp.status === 409) {
+      const meta   = await dbxGetMetadata();
+      const modStr = meta ? new Date(meta.server_modified).toLocaleString('ru') : '?';
+      const choice = await Swal.fire({
+        title:             '⚠ Конфликт версий',
+        html:              `Файл изменён на другом устройстве.<br><small style="color:#8888ab">Серверная версия: ${modStr}</small>`,
+        icon:              'warning',
+        showCancelButton:  true,
+        showDenyButton:    true,
+        confirmButtonText: '⬇ Взять из облака',
+        denyButtonText:    '☁ Перезаписать моей',
+        cancelButtonText:  'Отмена',
+        confirmButtonColor:'#7c6fcd',
+      });
+      if (choice.isConfirmed) {
+        await dbxAutoDownload();
+      } else if (choice.isDenied) {
+        localStorage.removeItem('dbx_last_rev');
+        await dbxAutoUpload();
+      } else {
+        updateDropboxUI();
+      }
     } else if (resp.status === 401) {
       localStorage.removeItem('dbx_access_token');
       const refreshed = await tryRefreshToken();
@@ -551,10 +627,12 @@ function updateDropboxUI() {
   const saveBtn   = document.getElementById('dbx-save-btn');
   const loadBtn   = document.getElementById('dbx-load-btn');
   const logoutBtn = document.getElementById('dbx-logout-btn');
-  if (loginBtn)  loginBtn.hidden  = loggedIn;
-  if (saveBtn)   saveBtn.hidden   = !loggedIn;
-  if (loadBtn)   loadBtn.hidden   = !loggedIn;
-  if (logoutBtn) logoutBtn.hidden = !loggedIn;
+  const historyBtn = document.getElementById('dbx-history-btn');
+  if (loginBtn)    loginBtn.hidden    = loggedIn;
+  if (saveBtn)     saveBtn.hidden     = !loggedIn;
+  if (loadBtn)     loadBtn.hidden     = !loggedIn;
+  if (logoutBtn)   logoutBtn.hidden   = !loggedIn;
+  if (historyBtn)  historyBtn.hidden  = !loggedIn;
   setDbxStatus(loggedIn ? getLastSyncText() : '');
 }
 
