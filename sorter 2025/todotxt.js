@@ -42,7 +42,10 @@ function parseTodoLine(line) {
     rest = rest.slice(cdMatch[0].length);
   }
 
-  const text = rest;
+  // Extract hidden note ⟦...⟧ before parsing text
+  const noteMatch = rest.match(/\u27e6([\s\S]*)\u27e7/);
+  const note = noteMatch ? noteMatch[1] : null;
+  const text = rest.replace(/\s*\u27e6[\s\S]*\u27e7/, '').trim();
 
   // extract +projects, @contexts, #hashtags, key:value tags
   const projects = [];
@@ -60,7 +63,7 @@ function parseTodoLine(line) {
     }
   }
 
-  return { raw, completed, priority, completionDate, creationDate, text, projects, contexts, hashtags, tags };
+  return { raw, completed, priority, completionDate, creationDate, text, note, projects, contexts, hashtags, tags };
 }
 
 /**
@@ -101,7 +104,9 @@ function highlightTodoLine(line) {
   }
 
   const todo = parseTodoLine(line);
-  let html = escHtml(line);
+  // Strip hidden note ⟦...⟧ from display
+  const displayLine = line.replace(/\s*\u27e6[\s\S]*\u27e7/, '');
+  let html = escHtml(displayLine);
 
   if (todo.completed) {
     return `<span class="todo-done">${html}</span>`;
@@ -109,7 +114,7 @@ function highlightTodoLine(line) {
 
   // Подсвечиваем last-to-first чтобы не ломать индексы
   // Используем замену по regex на финальной строке
-  html = escHtml(todo.raw);
+  html = escHtml(displayLine);
 
   // priority (A)
   html = html.replace(/^\(([A-Z])\)/, (m, p) => {
@@ -159,7 +164,7 @@ function syncHighlight() {
 
 // ─── Редактор хэштегов (правый клик) ────────────────────────────
 
-async function showHashtagEditor(lineIdx, lines) {
+async function showTaskEditor(lineIdx, lines) {
   const Swal = window.Swal;
   if (!Swal) return;
 
@@ -167,17 +172,20 @@ async function showHashtagEditor(lineIdx, lines) {
   const todo = parseTodoLine(line);
   const current = new Set(todo.hashtags);
   const allKnown = collectMeta().hashtags;
-  // merge: known + ones already on this line
   const merged = [...new Set([...allKnown, ...current])].sort();
 
   const chipsHtml = merged.map(h =>
     `<button type="button" class="ht-chip${current.has(h) ? ' ht-chip--on' : ''}" data-ht="${escHtml(h)}">#${escHtml(h)}</button>`
   ).join('');
 
-  const { value: selected, isConfirmed } = await Swal.fire({
-    title: 'Хэштеги',
+  const { value: result, isConfirmed } = await Swal.fire({
+    title: 'Задача',
     html: `
-      <div id="ht-chips" style="display:flex;flex-wrap:wrap;gap:0.4rem;margin-bottom:0.75rem;min-height:1.5rem">${chipsHtml}</div>
+      <div style="font-size:0.8rem;color:#888;margin-bottom:0.5rem;text-align:left">${escHtml(todo.text)}</div>
+      <div style="font-size:0.75rem;color:#888;margin-bottom:0.4rem;text-align:left">📝 Заметка</div>
+      <textarea id="task-note" rows="3" placeholder="Скрытая заметка..." style="width:100%;box-sizing:border-box;background:#1e1e1e;color:#ccc;border:1px solid #333;border-radius:6px;padding:0.5rem;font-family:inherit;font-size:0.85rem;resize:vertical;margin-bottom:0.75rem">${escHtml(todo.note || '')}</textarea>
+      <div style="font-size:0.75rem;color:#888;margin-bottom:0.4rem;text-align:left"># Хэштеги</div>
+      <div id="ht-chips" style="display:flex;flex-wrap:wrap;gap:0.4rem;margin-bottom:0.5rem;min-height:1.5rem">${chipsHtml}</div>
       <input id="ht-new" class="swal2-input" placeholder="Новый тег (без #)" style="margin:0;width:100%;box-sizing:border-box">`,
     showCancelButton: true,
     confirmButtonText: 'Сохранить',
@@ -193,16 +201,18 @@ async function showHashtagEditor(lineIdx, lines) {
       );
       const newTag = (document.getElementById('ht-new')?.value || '').trim().replace(/^#/, '');
       if (newTag) active.add(newTag);
-      return active;
+      const noteVal = (document.getElementById('task-note')?.value || '').trim();
+      return { hashtags: active, note: noteVal };
     },
   });
 
   if (!isConfirmed) return;
 
-  // Rebuild line: strip old #tags, append new ones
-  let newLine = line.replace(/#\S+/g, '').replace(/\s{2,}/g, ' ').trim();
-  const suffix = [...selected].map(h => `#${h}`).join(' ');
+  // Rebuild line: strip old #tags and ⟦note⟧, apply new
+  let newLine = line.replace(/#\S+/g, '').replace(/\s*\u27e6[\s\S]*\u27e7/, '').replace(/\s{2,}/g, ' ').trim();
+  const suffix = [...result.hashtags].map(h => `#${h}`).join(' ');
   if (suffix) newLine += ' ' + suffix;
+  if (result.note) newLine += ' \u27e6' + result.note + '\u27e7';
   lines[lineIdx] = newLine;
 
   const ta = document.getElementById('task-list');
@@ -230,7 +240,7 @@ function initHighlight() {
     }
     const line = lines[lineIdx]?.trim();
     if (!line || MARKERS.isAnyMarker(line)) return;
-    await showHashtagEditor(lineIdx, lines);
+    await showTaskEditor(lineIdx, lines);
   });
 }
 
@@ -359,11 +369,17 @@ function applyFilter() {
         const goalPart = sepIdx !== -1 ? l.slice(sepIdx + SEP.length).trim() : null;
 
         const enc = encodeURIComponent(l.trim());
-        const done = parseTodoLine(l).done;
+        const todoP = parseTodoLine(l);
+        const done = todoP.done;
+        const noteHtml = todoP.note
+          ? '<span class="frow-note-toggle" onclick="this.nextSibling.style.display=this.nextSibling.style.display===\'none\'?\'\':\'none\'">\uD83D\uDCCE</span>'
+            + '<span class="frow-note" style="display:none">' + escHtml(todoP.note) + '</span>'
+          : '';
         return '<div class="filter-row">'
           + '<span class="filter-row-text">'
           + highlightTodoLine(mainPart)
           + (goalPart ? '<span class="frow-goal">\uD83C\uDFAF ' + escHtml(goalPart) + '</span>' : '')
+          + noteHtml
           + '</span>'
           + '<span class="filter-row-actions">'
           + '<a href="process.html?task=' + enc + '" class="frow-btn" title="GTD разбор">GTD</a>'

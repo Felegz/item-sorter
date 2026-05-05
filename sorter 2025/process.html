@@ -516,13 +516,29 @@ function addToList() {
   // If came from a specific task, replace it instead of prepending
   if (S.originalTask) {
     const idx = lines.findIndex(l => l.trim() === S.originalTask.trim());
+    // If task text changed, preserve original in hidden note \u27e6...\u27e7
+    let finalLine = line;
+    const origCore = S.originalTask.replace(/\s*\u27e6[\s\S]*\u27e7/, '').trim();
+    const newCore  = line.replace(/\s*\u27e6[\s\S]*\u27e7/, '').trim();
+    if (origCore !== newCore) {
+      // Extract existing note from new line (if any), prepend original text
+      const existingNoteMatch = line.match(/\s*\u27e6([\s\S]*)\u27e7/);
+      const existingNote = existingNoteMatch ? existingNoteMatch[1] : '';
+      const origNote = '\u0438\u0441\u0445.: ' + origCore;
+      const combined = existingNote ? origNote + ' | ' + existingNote : origNote;
+      finalLine = line.replace(/\s*\u27e6[\s\S]*\u27e7/, '').trim() + ' \u27e6' + combined + '\u27e7';
+    }
     if (idx !== -1) {
-      lines[idx] = line;
+      lines[idx] = finalLine;
       localStorage.setItem('tasks', lines.join('\n'));
       el('out-note').textContent = 'Задача обновлена!';
       el('out-note').className = 'note ok';
       return;
     }
+    // Original not found — prepend
+    localStorage.setItem('tasks', finalLine + (existing ? '\n' + existing : ''));
+    el('out-note').textContent='Добавлено в список!'; el('out-note').className='note ok';
+    return;
   }
   // Otherwise prepend
   localStorage.setItem('tasks', line + (existing ? '\n' + existing : ''));
@@ -547,8 +563,10 @@ window.addEventListener('DOMContentLoaded', () => {
   const tp   = params.get('task');
   const flow = params.get('flow') || 'korz';
   if (tp) {
-    S.task = decodeURIComponent(tp);
-    S.originalTask = S.task;
+    const fullTask = decodeURIComponent(tp);
+    // Strip hidden note ⟦...⟧ from displayed task; keep full as originalTask for lookup
+    S.task = fullTask.replace(/\s*\u27e6[\s\S]*\u27e7/, '').trim();
+    S.originalTask = fullTask;
     el('task-cap').textContent = S.task;
     show('task-cap');
     startFlow(FLOWS[flow] ? flow : 'korz');
