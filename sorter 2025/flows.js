@@ -192,9 +192,9 @@ const FLOWS = {
     { id: 'friend_advice',
       q: 'Что скажешь другу?',
       hintHtmlFn: () => {
-        const task     = esc(S.task || '\u2026');
+        const action   = esc(S.action || S.task || '\u2026');
         const feelings = esc(S.feelings || '\u2026');
-        return '<div class="friend-quote"><span class="friend-label">Друг говорит:</span>Мне нужно <strong>' + task + '</strong>. Но ' + feelings + '. Что скажешь?</div>';
+        return '<div class="friend-quote"><span class="friend-label">Друг говорит:</span><strong>НУЖНО</strong> ' + action + ', <strong>НО</strong> ' + feelings + '. Что скажешь?</div>';
       },
       type: 'text',
       placeholder: 'Ты бы сказал…',
