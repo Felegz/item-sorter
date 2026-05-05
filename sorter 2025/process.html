@@ -516,8 +516,20 @@ function addToList() {
   // If came from a specific task, replace it instead of prepending
   if (S.originalTask) {
     const idx = lines.findIndex(l => l.trim() === S.originalTask.trim());
-    // If task text changed, preserve original in hidden note \u27e6...\u27e7
     let finalLine = line;
+    // Carry URLs from original task to new line
+    const origUrls = (S.originalTask.match(/https?:\/\/\S+/g) || []);
+    origUrls.forEach(url => {
+      if (!finalLine.includes(url)) {
+        // Insert before hidden note ⟦...⟧ if present, otherwise append
+        if (/\u27e6/.test(finalLine)) {
+          finalLine = finalLine.replace(/(\s*\u27e6)/, ' ' + url + '$1');
+        } else {
+          finalLine += ' ' + url;
+        }
+      }
+    });
+    // If task text changed, preserve original in hidden note \u27e6...\u27e7
     const origCore = S.originalTask.replace(/\s*\u27e6[\s\S]*\u27e7/, '').trim();
     const newCore  = line.replace(/\s*\u27e6[\s\S]*\u27e7/, '').trim();
     if (origCore !== newCore) {
