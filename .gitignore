@@ -1,3 +1,10 @@
 ﻿
 # context-mode MCP internal files
 .github/context-mode/
+
+# wrangler files
+.wrangler
+.dev.vars*
+!.dev.vars.example
+.env*
+!.env.example
