@@ -62,6 +62,12 @@
     <div class="chip-row" id="proj-row"></div>
   </div>
 
+  <!-- Hashtag filter -->
+  <div id="ht-sec" class="chip-section" style="display:none">
+    <div class="chip-label" onclick="toggleChipSection('ht-sec')">Хэштег <span class="chip-toggle">▾</span></div>
+    <div class="chip-row" id="ht-row"></div>
+  </div>
+
   <!-- Sort + clear -->
   <div class="controls">
     Сортировка:
@@ -89,7 +95,7 @@
     const priOrd = p => p ? (p.charCodeAt(0) - 64) : 27; // A=1..Z=26, none=27
 
     let items = [];
-    let tab = 'active', priF = null, ctxF = null, projF = null;
+    let tab = 'active', priF = null, ctxF = null, projF = null, hashtagF = null;
     let sortMode = 'order', searchQ = '';
     let showIgnored = false, showFuture = false, rightClickedIdx = -1;
     const collapsedSections = new Set(); // хранит _raw маркеров свёрнутых секций
@@ -157,6 +163,7 @@
       const threshM = mainLine.match(/\bt:(\d{4}-\d{2}-\d{2})\b/);
       item._due       = dueM    ? dueM[1]    : null;
       item._threshold = threshM ? threshM[1] : null;
+      item._hashtags  = (mainLine.match(/#([^\s⟦]+?)(?=[.,;!?]*(?:\s|$))/g) || []).map(h => h.slice(1).replace(/[.,;!?]+$/, ''));
       item._goal    = goal;
       item._raw     = line;
       item._ignored = false;
@@ -228,6 +235,7 @@
           if (priF  && t.priority !== priF) return false;
           if (ctxF  && !(t.contexts && t.contexts.includes(ctxF))) return false;
           if (projF && !(t.projects && t.projects.includes(projF))) return false;
+          if (hashtagF && !(t._hashtags && t._hashtags.includes(hashtagF))) return false;
           if (searchQ && !searchMatches(t._raw, searchQ)) return false;
           return true;
         });
@@ -242,6 +250,7 @@
       if (priF)  list = list.filter(t => t.priority === priF);
       if (ctxF)  list = list.filter(t => t.contexts && t.contexts.includes(ctxF));
       if (projF) list = list.filter(t => t.projects && t.projects.includes(projF));
+      if (hashtagF) list = list.filter(t => t._hashtags && t._hashtags.includes(hashtagF));
       if (searchQ) list = list.filter(t => searchMatches(t._raw, searchQ));
       return list;
     }
@@ -313,13 +322,18 @@
       const URL_RE = /https?:\/\/[^\s<>"]+/g;
       let out = '', last = 0, m;
       while ((m = URL_RE.exec(plain)) !== null) {
-        out += applyHL(esc(plain.slice(last, m.index)), terms);
+        out += applyHL(escAndHashtags(plain.slice(last, m.index)), terms);
         const url = m[0];
         out += `<a class="task-link" href="${esc(url)}" target="_blank" rel="noopener noreferrer">${applyHL(esc(url), terms)}</a>`;
         last = m.index + url.length;
       }
-      out += applyHL(esc(plain.slice(last)), terms);
+      out += applyHL(escAndHashtags(plain.slice(last)), terms);
       return out;
+    }
+
+    function escAndHashtags(plain) {
+      return esc(plain).replace(/#([^\s<]+?)([.,;!?]*(?=\s|$|&lt;|<))/g,
+        (_, tag, punct) => `<span class="task-hashtag" onclick="setHashtag('${tag.replace(/'/g, "\\'")}')">#${esc(tag)}</span>${punct}`);
     }
 
     // --- Badge helpers ---
@@ -406,8 +420,20 @@
         }).join('');
       } else { projSec.style.display = 'none'; }
 
+      // Hashtag chips
+      const hts = [...new Set(base.flatMap(t => t._hashtags || []))].sort();
+      const htSec = document.getElementById('ht-sec');
+      if (hts.length) {
+        htSec.style.display = '';
+        if (hashtagF) htSec.classList.remove('collapsed');
+        document.getElementById('ht-row').innerHTML = hts.map(h => {
+          const safe = h.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+          return `<button class="chip ht-chip${hashtagF===h?' on':''}" onclick="setHashtag('${safe}')">#${esc(h)}</button>`;
+        }).join('');
+      } else { htSec.style.display = 'none'; }
+
       // Clear-filters button
-      const hasFilter = !!(priF || ctxF || projF || searchQ);
+      const hasFilter = !!(priF || ctxF || projF || hashtagF || searchQ);
       document.getElementById('clear-filters').style.display = hasFilter ? '' : 'none';
 
       // Archive button — показываем когда есть выполненные задачи
@@ -576,13 +602,14 @@
     function setPri(p) { priF = priF === p ? null : p; render(); }
     function setCtx(c) { ctxF = ctxF === c ? null : c; render(); }
     function setProj(p) { projF = projF === p ? null : p; render(); }
+    function setHashtag(h) { hashtagF = hashtagF === h ? null : h; render(); }
 
     function toggleChipSection(id) {
       document.getElementById(id)?.classList.toggle('collapsed');
     }
 
     function clearAllFilters() {
-      priF = ctxF = projF = null;
+      priF = ctxF = projF = hashtagF = null;
       searchQ = '';
       const si = document.getElementById('search');
       si.value = '';

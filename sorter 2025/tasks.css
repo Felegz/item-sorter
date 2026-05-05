@@ -185,6 +185,12 @@ h1 { flex: 1; font-size: 1.25rem; font-weight: 600; }
 .chip.pri-c.on { background: #7cb8f0; color: #1c1c2e; border-color: #7cb8f0; }
 .chip.pri-d { border-color: #6040a0; color: #bd93f9; }
 .chip.pri-d.on { background: #bd93f9; color: #1c1c2e; border-color: #bd93f9; }
+/* Hashtag chip */
+.chip.ht-chip { border-color: #b0508a; color: #ff79c6; }
+.chip.ht-chip.on { background: #ff79c6; color: #1c1c2e; border-color: #ff79c6; }
+/* Inline hashtag in task text */
+.task-hashtag { color: #ff79c6; cursor: pointer; text-decoration: underline dotted; }
+.task-hashtag:hover { opacity: 0.75; }
 
 /* Controls */
 .controls {
