@@ -359,6 +359,7 @@ function applyFilter() {
     fv.id = 'filter-view';
     fv.className = 'filter-view';
     ta.parentNode.insertBefore(fv, ta.nextSibling);
+    fv.addEventListener('click', _filterViewDelegate);
   }
   fv.innerHTML = filteredLines.length
     ? filteredLines.map((l, i) => {
@@ -391,6 +392,23 @@ function applyFilter() {
 
 function escHtml(s) {
   return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+function _filterViewDelegate(e) {
+  const span = e.target.closest('.todo-hashtag, .todo-project, .todo-context');
+  if (!span) return;
+  if (span.classList.contains('todo-hashtag')) {
+    const h = span.textContent.slice(1);
+    currentFilter.hashtag = currentFilter.hashtag === h ? null : h;
+  } else if (span.classList.contains('todo-project')) {
+    const p = span.textContent.slice(1);
+    currentFilter.project = currentFilter.project === p ? null : p;
+  } else if (span.classList.contains('todo-context')) {
+    const c = span.textContent.slice(1);
+    currentFilter.context = currentFilter.context === c ? null : c;
+  }
+  renderFilterBar();
+  applyFilter();
 }
 
 // Кнопка «✓/↩» в строке фильтра
