@@ -3,22 +3,22 @@
 /* Основные значения CSS-переменных для темной темы */
 :root {
   /* Editorial-dark inspired palette */
-  --bg:            #1c1c2e;
-  --bg-card:       #252539;
-  --bg-elevated:   #27273e;
+  --bg:            #1a1a1a;
+  --bg-card:       #232323;
+  --bg-elevated:   #282828;
   --fg:            #f2f2f2;
-  --fg-muted:      #8888ab;
-  --primary:       #7c6fcd;
-  --primary-hover: #6959b8;
-  --border:        #2e2e4a;
-  --border-hover:  #3a3a5c;
+  --fg-muted:      #8888a0;
+  --primary:       #4ade80;
+  --primary-hover: #22c55e;
+  --border:        #2e2e2e;
+  --border-hover:  #3a3a3a;
   --success:       hsl(142, 70%, 50%);
   --warning:       hsl(38, 92%, 56%);
   --radius:        0.5rem;
   /* Legacy vars kept for SweetAlert2 / misc */
-  --color-bg:           #1c1c2e;
+  --color-bg:           #1a1a1a;
   --color-text-main:    #f2f2f2;
-  --color-primary:      #7c6fcd;
+  --color-primary:      #4ade80;
   --color-secondary:    #50fa7b;
   --wrapper-height:     87vh;
   --image-max-width:    300px;
