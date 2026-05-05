@@ -82,7 +82,7 @@ function chooseWindow(task, progress) {
           <span>Filter Tasks</span><span>${progress.current} / ${progress.total}</span>
         </div>
         <div style="height:3px;background:#2a2a2a;border-radius:2px;overflow:hidden">
-          <div style="height:100%;width:${Math.round(progress.current/progress.total*100)}%;background:#7c6fcd;border-radius:2px"></div>
+          <div style="height:100%;width:${Math.round(progress.current/progress.total*100)}%;background:#4ade80;border-radius:2px"></div>
         </div>
       </div>`
     : '';
@@ -237,11 +237,11 @@ async function compareTasks(task1, task2, progress = null) {
   const progressHtml = progress ? `
     <div style="margin-bottom:0.75rem">
       <div style="display:flex;justify-content:space-between;align-items:baseline;font-size:0.75rem;margin-bottom:4px">
-        <span style="color:#c0b8f0;font-weight:500">${_statusText}</span>
-        <span style="color:#8880bb">${_pct}%</span>
+        <span style="color:#86efac;font-weight:500">${_statusText}</span>
+        <span style="color:#4ade80">${_pct}%</span>
       </div>
       <div style="height:5px;background:#2e2e4a;border-radius:3px;overflow:hidden;margin-bottom:5px">
-        <div style="height:100%;width:${_pct}%;background:linear-gradient(90deg,#7c6fcd,#b8aff5);border-radius:3px;transition:width 0.15s ease"></div>
+        <div style="height:100%;width:${_pct}%;background:linear-gradient(90deg,#4ade80,#86efac);border-radius:3px;transition:width 0.15s ease"></div>
       </div>
       <div style="font-size:0.7rem;color:#6a6488;text-align:right">
         ещё ~${_remaining} сравнений
@@ -624,8 +624,8 @@ async function filterTasksUI() {
     return true;
   });
 
-  // 5) Убираем полностью пустые строки
-  tasks = tasks.filter(task => task.trim() !== "");
+  // 5) Убираем полностью пустые строки и выполненные задачи (x ...)
+  tasks = tasks.filter(task => task.trim() !== "" && !/^x /.test(task.trim()));
 
   // 6) Уникализация
   var uniqueTasks = Array.from(new Set(tasks));
@@ -736,17 +736,19 @@ function parseAllSections(text) {
   const endSorted  = iPartial > -1 ? iPartial : (iIgnored > -1 ? iIgnored : lines.length);
   const endPartial = iIgnored > -1 ? iIgnored : lines.length;
 
+  const isActive = l => l.trim() && !MARKERS.isAnyMarker(l) && !/^x /.test(l.trim());
+
   const newTasks = (iSorted > -1
     ? lines.slice(0, iSorted)
     : lines.slice(0, endSorted)
-  ).filter(l => l.trim());
+  ).filter(isActive);
 
   const sortedTasks = iSorted > -1
-    ? lines.slice(iSorted + 1, endSorted).filter(l => l.trim())
+    ? lines.slice(iSorted + 1, endSorted).filter(isActive)
     : [];
 
   const partiallySorted = iPartial > -1
-    ? lines.slice(iPartial + 1, endPartial).filter(l => l.trim())
+    ? lines.slice(iPartial + 1, endPartial).filter(isActive)
     : [];
 
   const tail = iIgnored > -1 ? lines.slice(iIgnored) : [];

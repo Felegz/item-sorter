@@ -8,14 +8,14 @@
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
     :root {
-      --bg:        #1c1c2e;
-      --bg-card:   #252539;
-      --bg-el:     #27273e;
+      --bg:        #1a1a1a;
+      --bg-card:   #232323;
+      --bg-el:     #282828;
       --fg:        #f2f2f2;
-      --fg-m:      #8888ab;
-      --primary:   #7c6fcd;
-      --primary-h: #6959b8;
-      --border:    #2e2e4a;
+      --fg-m:      #8888a0;
+      --primary:   #4ade80;
+      --primary-h: #22c55e;
+      --border:    #2e2e2e;
       --radius:    0.5rem;
     }
     * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -84,7 +84,7 @@
       background: transparent; color: var(--fg-m); cursor: pointer;
       font-family: inherit; font-size: 0.82rem; transition: all 0.08s;
     }
-    .chip.sel { border-color: var(--primary); background: rgba(124,111,205,0.15); color: var(--fg); }
+    .chip.sel { border-color: var(--primary); background: rgba(74,222,128,0.15); color: var(--fg); }
     .ctx-group-label { font-size: 0.68rem; font-weight: 600; letter-spacing: 0.07em;
       text-transform: uppercase; color: var(--fg-m); margin: 0.8rem 0 0.3rem; }
     .ctx-group-label:first-child { margin-top: 0; }
@@ -122,7 +122,7 @@
     .task-cap:hover { border-color: var(--primary); }
     .task-cap::after { content: ' ✒'; font-size: 0.75rem; color: var(--fg-m); }
     .friend-quote {
-      background: rgba(124,111,205,0.08); border-left: 3px solid var(--primary);
+      background: rgba(74,222,128,0.08); border-left: 3px solid var(--primary);
       border-radius: 0 var(--radius) var(--radius) 0;
       padding: 0.75rem 1rem; margin-bottom: 1rem;
       font-size: 0.9rem; line-height: 1.6; color: var(--fg);
@@ -610,9 +610,9 @@ function showOutput(action) {
   if (action === 'trash') {
     title='🗑 Удалить'; line='# УДАЛЕНО: ' + S.task;
   } else if (action === 'someday') {
-    title='💡 Когда-нибудь'; line=S.task + ' someday:yes';
+    title='💡 Когда-нибудь'; line=S.task + ' +someday-maybe';
   } else if (action === 'ref') {
-    title='📂 Справочная информация'; line=S.task + ' ref:yes';
+    title='📂 Справочная информация'; line=S.task + ' +information';
   } else if (action === 'delegate') {
     title='👆 Делегировано';
     const who = S.delegate ? ' @' + S.delegate.replace(/\s+/g,'_') : '';
