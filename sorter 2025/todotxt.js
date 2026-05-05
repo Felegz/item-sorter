@@ -365,9 +365,10 @@ function applyFilter() {
     ? filteredLines.map((l, i) => {
         // Split ➤цель: suffix for visual rendering (it stays on one line in storage)
         const SEP = '\u27A4\u0446\u0435\u043B\u044C:';
-        const sepIdx = l.indexOf(SEP);
-        const mainPart = sepIdx !== -1 ? l.slice(0, sepIdx).trim() : l;
-        const goalPart = sepIdx !== -1 ? l.slice(sepIdx + SEP.length).trim() : null;
+        const lNoNote = l.replace(/\s*\u27e6[\s\S]*\u27e7/, '');
+        const sepIdx = lNoNote.indexOf(SEP);
+        const mainPart = sepIdx !== -1 ? lNoNote.slice(0, sepIdx).trim() : lNoNote;
+        const goalPart = sepIdx !== -1 ? lNoNote.slice(sepIdx + SEP.length).trim() : null;
 
         const enc = encodeURIComponent(l.trim());
         const todoP = parseTodoLine(l);
