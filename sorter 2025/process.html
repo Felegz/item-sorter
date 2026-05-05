@@ -321,6 +321,30 @@ function renderStep(idx) {
     h += '<button class="btn btn-p" onclick="goNext(' + ni + ',-1)">Дальше &rarr;</button>';
     h += '<button class="btn btn-g" onclick="goNext(' + ni + ',-1)">Пропустить</button>';
     h += '</div>';
+
+  } else if (step.type === 'coinflip') {
+    const heads = Math.random() < 0.5;
+    const noIdx = findIdx(step.noactionId || 'noaction');
+    const yesIdx = findIdx(step.yesId || 'mine');
+    if (heads) {
+      h += '<div style="font-size:2.5rem;line-height:1;margin:0.25rem 0">🪙</div>';
+      h += '<div class="step-q" style="margin-top:0.3rem">Выпал орёл. Не надо делать.</div>';
+      h += '<div class="step-hint">Монетка решила: задача не требует действий.\n\nВот что с ней можно сделать:\n\u2022 Отложить в «Когда-нибудь / Может быть» и рассмотреть позже\n\u2022 Добавить в справочные материалы\n\u2022 Удалить в корзину</div>';
+      h += '<div class="choices">';
+      h += '<button class="c-btn warn" onclick="goNext(' + noIdx + ',-1)">Принять решение монетки &rarr;</button>';
+      h += '<button class="c-btn no" onclick="renderStep(' + idx + ')">\uD83D\uDD04 Перебросить монетку</button>';
+      h += '<button class="c-btn yes" onclick="goNext(' + yesIdx + ',-1)">Всё равно буду делать</button>';
+      h += '</div>';
+    } else {
+      h += '<div style="font-size:2.5rem;line-height:1;margin:0.25rem 0">🪙</div>';
+      h += '<div class="step-q" style="margin-top:0.3rem">Выпала решка. Делаем!</div>';
+      h += '<div class="step-hint">Монетка решила: задача требует действий.</div>';
+      h += '<div class="choices">';
+      h += '<button class="c-btn yes" onclick="goNext(' + yesIdx + ',-1)">Делаем &rarr;</button>';
+      h += '<button class="c-btn no" onclick="renderStep(' + idx + ')">\uD83D\uDD04 Перебросить монетку</button>';
+      h += '<button class="c-btn warn" onclick="goNext(' + noIdx + ',-1)">Всё равно не буду делать</button>';
+      h += '</div>';
+    }
   }
 
   h += '<div style="margin-top:0.75rem;display:flex;gap:0.5rem;flex-wrap:wrap">';
