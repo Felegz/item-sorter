@@ -157,12 +157,81 @@ function syncHighlight() {
   renderFilterBar();
 }
 
+// ─── Редактор хэштегов (правый клик) ────────────────────────────
+
+async function showHashtagEditor(lineIdx, lines) {
+  const Swal = window.Swal;
+  if (!Swal) return;
+
+  const line = lines[lineIdx];
+  const todo = parseTodoLine(line);
+  const current = new Set(todo.hashtags);
+  const allKnown = collectMeta().hashtags;
+  // merge: known + ones already on this line
+  const merged = [...new Set([...allKnown, ...current])].sort();
+
+  const chipsHtml = merged.map(h =>
+    `<button type="button" class="ht-chip${current.has(h) ? ' ht-chip--on' : ''}" data-ht="${escHtml(h)}">#${escHtml(h)}</button>`
+  ).join('');
+
+  const { value: selected, isConfirmed } = await Swal.fire({
+    title: 'Хэштеги',
+    html: `
+      <div id="ht-chips" style="display:flex;flex-wrap:wrap;gap:0.4rem;margin-bottom:0.75rem;min-height:1.5rem">${chipsHtml}</div>
+      <input id="ht-new" class="swal2-input" placeholder="Новый тег (без #)" style="margin:0;width:100%;box-sizing:border-box">`,
+    showCancelButton: true,
+    confirmButtonText: 'Сохранить',
+    cancelButtonText: 'Отмена',
+    didOpen: () => {
+      document.querySelectorAll('.ht-chip').forEach(btn => {
+        btn.addEventListener('click', () => btn.classList.toggle('ht-chip--on'));
+      });
+    },
+    preConfirm: () => {
+      const active = new Set(
+        [...document.querySelectorAll('.ht-chip.ht-chip--on')].map(b => b.dataset.ht)
+      );
+      const newTag = (document.getElementById('ht-new')?.value || '').trim().replace(/^#/, '');
+      if (newTag) active.add(newTag);
+      return active;
+    },
+  });
+
+  if (!isConfirmed) return;
+
+  // Rebuild line: strip old #tags, append new ones
+  let newLine = line.replace(/#\S+/g, '').replace(/\s{2,}/g, ' ').trim();
+  const suffix = [...selected].map(h => `#${h}`).join(' ');
+  if (suffix) newLine += ' ' + suffix;
+  lines[lineIdx] = newLine;
+
+  const ta = document.getElementById('task-list');
+  ta.value = lines.join('\n');
+  syncHighlight();
+  localStorage.setItem('tasks', ta.value);
+  renderFilterBar();
+}
+
 // ─── Инициализация подсветки ─────────────────────────────────────
 
 function initHighlight() {
   const ta = document.getElementById('task-list');
   if (!ta) return;
   ta.addEventListener('input', renderFilterBar);
+
+  ta.addEventListener('contextmenu', async (e) => {
+    e.preventDefault();
+    const pos = ta.selectionStart;
+    const lines = ta.value.split('\n');
+    let charCount = 0, lineIdx = 0;
+    for (let i = 0; i < lines.length; i++) {
+      if (charCount + lines[i].length >= pos) { lineIdx = i; break; }
+      charCount += lines[i].length + 1;
+    }
+    const line = lines[lineIdx]?.trim();
+    if (!line || MARKERS.isAnyMarker(line)) return;
+    await showHashtagEditor(lineIdx, lines);
+  });
 }
 
 // ─── Авто-приоритеты ─────────────────────────────────────────────

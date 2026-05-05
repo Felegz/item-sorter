@@ -485,3 +485,20 @@ a:hover {
 #filter-bar .todo-project      { color: #50fa7b; }
 #filter-bar .todo-context      { color: #8be9fd; }
 #filter-bar .todo-hashtag      { color: #ff79c6; }
+
+/* Hashtag editor chips (SweetAlert2 dialog) */
+.ht-chip {
+  font-family: inherit;
+  font-size: 0.85rem;
+  padding: 0.25rem 0.65rem;
+  border-radius: 999px;
+  border: 1px solid #ff79c6;
+  color: #ff79c6;
+  background: transparent;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+.ht-chip--on {
+  background: #ff79c6;
+  color: #111;
+}
