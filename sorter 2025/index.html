@@ -9,73 +9,101 @@
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
+  <!--
+    THESIS: The full list is a working document, not a dashboard; it refuses a wall of equally loud controls.
+    OWN-WORLD: Deep graphite surfaces, warm white text, restrained mint state color, hairline dividers, and compact rectangular controls.
+    STORY: Scan or edit the ordered list, insert a batch into priority order, then reach occasional tools without losing the document.
+    FIRST VIEWPORT: Compact shared navigation and sync status lead directly into the two primary list actions and the text editor; filters and utilities stay folded.
+    FORM: Calm operations ledger, grounded direction five, seed 6ce9094d.
+    FINISH: unreviewed and undocumented is unfinished; this build ends with the finish review, the verdict, DESIGN.md, and every shipping raster carrying its provenance
+  -->
   <div class="app">
+    <header class="app-header">
+      <nav class="view-switch" aria-label="Разделы">
+        <a href="/" aria-current="page">Список</a>
+        <a href="/tasks">Задачи</a>
+      </nav>
+      <button type="button" id="sync-badge" class="sync-badge" data-state="idle" onclick="dropboxSmartSync()" title="Запустить синхронизацию">
+        <span class="sync-status-text">○ Sync off</span>
+      </button>
+    </header>
 
-    <div class="top-nav">
-      <a href="/tasks" class="btn-link btn-link--ghost">&#x1F4CB; Таск-трекер</a>
-    </div>
+    <main class="list-workspace">
+      <section class="workspace-head">
+        <div class="primary-actions" aria-label="Основные действия">
+          <button id="insert-button" class="btn--accent">Insert Unsorted Tasks</button>
+          <button id="sort-button">Sort Tasks</button>
+        </div>
+      </section>
 
-    <div id="filter-bar"></div>
+      <details class="filter-panel">
+        <summary>Фильтры</summary>
+        <div id="filter-bar"></div>
+      </details>
 
-    <textarea
-      class="text-field"
-      id="task-list"
-      placeholder="Enter your list of tasks here.
+      <section class="editor-surface">
+        <label class="sr-only" for="task-list">Список задач</label>
+        <textarea
+          class="text-field"
+          id="task-list"
+          placeholder="Enter your list of tasks here.
 Write one task per line.
 Duplicate and empty lines will be ignored automatically.
 Hit Sort button.
 Output will appear in the same area as input.
 Your text will be stored in browser memory even after page reload, but it's not reliable! Better save it somewhere else too!"
-    ></textarea>
+        ></textarea>
+      </section>
 
-    <textarea
-      id="user-question"
-      rows="2"
-      placeholder="Which task would bring more value or impact if completed first? (Enter your custom question here)"
-      class="text-field"
-    ></textarea>
+      <details class="question-panel">
+        <summary>Вопрос для сравнения</summary>
+        <label class="sr-only" for="user-question">Пользовательский вопрос для сравнения задач</label>
+        <textarea
+          id="user-question"
+          rows="2"
+          placeholder="Which task would bring more value or impact if completed first? (Enter your custom question here)"
+          class="text-field"
+        ></textarea>
+      </details>
 
-    <div class="toolbar">
+      <details class="command-panel">
+        <summary>Ещё инструменты</summary>
+        <div class="toolbar">
+          <div class="btn-group">
+            <span class="btn-group-label">Задача</span>
+            <div class="btn-row">
+              <button id="done-button" class="btn--ghost">Отметить текущую строку выполненной</button>
+              <button id="assign-priorities-btn">Присвоить приоритеты</button>
+              <button id="process-btn">Обработать (GTD)</button>
+              <button id="quick-triage-btn">Быстрый разбор</button>
+            </div>
+          </div>
 
-      <!-- Задача -->
-      <div class="btn-group">
-        <span class="btn-group-label">Задача</span>
-        <div class="btn-row">
-          <button id="done-button" class="btn--accent">&#x2705; Отметить выполненной</button>
-          <button id="assign-priorities-btn" class="btn--accent">&#x1F3C6; Присвоить приоритеты</button>
-          <button id="process-btn" class="btn--accent">&#x2699; Обработать (GTD)</button>
-          <button id="quick-triage-btn">&#x26A1; Быстрый разбор</button>
+          <div class="btn-group">
+            <span class="btn-group-label">Сортировка</span>
+            <div class="btn-row">
+              <button id="filter-button">Filter Tasks</button>
+              <button id="merge-button">Merge Arrays</button>
+            </div>
+          </div>
+
+          <div class="btn-group">
+            <span class="btn-group-label">Данные</span>
+            <div class="btn-row">
+              <button id="copy-button" class="btn--ghost">Copy</button>
+              <button id="save-button" class="btn--ghost" onclick="saveAsTxt()">Save .txt</button>
+              <button id="dbx-login-btn" class="btn--dbx-login">Войти в Dropbox</button>
+              <button id="dbx-sync-btn" class="btn--accent" hidden>Синхронизировать</button>
+              <button id="dbx-save-btn" class="btn--dbx-save btn--sm" hidden>В Dropbox</button>
+              <button id="dbx-load-btn" class="btn--dbx-load btn--sm" hidden>Из Dropbox</button>
+              <button id="dbx-history-btn" class="btn--ghost btn--sm" hidden onclick="showSnapshots()">История</button>
+              <button id="dbx-logout-btn" class="btn--ghost btn--sm" hidden>Выйти из Dropbox</button>
+            </div>
+            <div id="dbx-status"></div>
+          </div>
         </div>
-      </div>
-
-      <!-- Сортировка -->
-      <div class="btn-group">
-        <span class="btn-group-label">Сортировка</span>
-        <div class="btn-row">
-          <button id="filter-button">Filter Tasks</button>
-          <button id="sort-button">Sort Tasks</button>
-          <button id="insert-button">Insert Unsorted Tasks</button>
-          <button id="merge-button">Merge Arrays</button>
-        </div>
-      </div>
-
-      <!-- Данные -->
-      <div class="btn-group">
-        <span class="btn-group-label">Данные</span>
-        <div class="btn-row">
-          <button id="copy-button" class="btn--ghost">&#x1F4CB; Copy</button>
-          <button id="save-button" class="btn--ghost" onclick="saveAsTxt()">Save .txt</button>
-          <button id="dbx-login-btn" class="btn--dbx-login">&#x1F4E6; Войти в Dropbox</button>
-          <button id="dbx-sync-btn" class="btn--accent" hidden>&#x1F504; Синхронизировать</button>
-          <button id="dbx-save-btn" class="btn--dbx-save btn--sm" hidden>&#x2601; В Dropbox</button>
-          <button id="dbx-load-btn" class="btn--dbx-load btn--sm" hidden>&#x1F4E5; Из Dropbox</button>
-          <button id="dbx-history-btn" class="btn--ghost btn--sm" hidden onclick="showSnapshots()">↩ История</button>
-          <button id="dbx-logout-btn" class="btn--ghost btn--sm" hidden>Выйти из Dropbox</button>
-        </div>
-        <div id="dbx-status"></div>
-      </div>
-
-    </div>
+      </details>
+    </main>
 
     <!-- SweetAlert2 -->
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
@@ -84,6 +112,66 @@ Your text will be stored in browser memory even after page reload, but it's not 
     <script src="app.js"></script>
     <script src="dropbox.js"></script>
     <script src="todotxt.js"></script>
+    <script>
+      const _origSetDbxStatus = setDbxStatus;
+      setDbxStatus = function(text) {
+        _origSetDbxStatus(text);
+        updateCompactSyncBadge(text);
+      };
+
+      function updateCompactSyncBadge(text) {
+        const badge = document.getElementById('sync-badge');
+        if (!badge) return;
+
+        const setBadge = (state, label, title) => {
+          badge.dataset.state = state;
+          badge.querySelector('.sync-status-text').textContent = label;
+          badge.title = title;
+          badge.setAttribute('aria-label', `${title}. Нажмите, чтобы синхронизировать`);
+        };
+
+        if (typeof getToken !== 'function' || !getToken()) {
+          setBadge('off', '○ Sync off', 'Dropbox не подключён');
+          return;
+        }
+
+        const status = text !== undefined ? text
+          : (typeof getLastSyncText === 'function' ? getLastSyncText() : '');
+
+        if (status.includes('…') || status.includes('🔄')) {
+          setBadge('loading', '↻ Syncing…', status || 'Идёт синхронизация');
+          return;
+        }
+
+        if (/ошиб|не удалось|конфликт/i.test(status)) {
+          setBadge('error', '! Sync failed', status);
+          return;
+        }
+
+        let sync;
+        try { sync = JSON.parse(localStorage.getItem('dbx_last_sync') || 'null'); }
+        catch (_) { sync = null; }
+
+        if (!sync?.time) {
+          setBadge('idle', '○ Sync now', 'Dropbox подключён, синхронизация ещё не запускалась');
+          return;
+        }
+
+        const ageMinutes = Math.max(0, Math.floor((Date.now() - sync.time) / 60_000));
+        let age;
+        if (ageMinutes < 1) age = 'just now';
+        else if (ageMinutes < 60) age = `${ageMinutes} min ago`;
+        else if (ageMinutes < 1440) age = `${Math.floor(ageMinutes / 60)} h ago`;
+        else age = `${Math.floor(ageMinutes / 1440)} d ago`;
+
+        const state = ageMinutes <= 15 ? 'ok' : 'stale';
+        const fullStatus = typeof getLastSyncText === 'function' ? getLastSyncText() : status;
+        setBadge(state, `✓ Sync · ${age}`, fullStatus || `Последняя синхронизация: ${age}`);
+      }
+
+      setInterval(() => updateCompactSyncBadge(), 60_000);
+      setTimeout(() => updateCompactSyncBadge(), 300);
+    </script>
 
     <footer>
       <p>

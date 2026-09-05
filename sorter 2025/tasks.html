@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Задачи — Помогатор</title>
+  <title>Tasks</title>
   <!-- jsTodoTxt 0.10.0 — MIT license, github.com/jmhobbs/jsTodoTxt -->
   <script src="https://cdn.jsdelivr.net/npm/jstodotxt@0.10.0/jsTodoTxt.min.js"></script>
   <!-- vanilla-context-menu 1.6.0 — MIT license, github.com/GeorgianStan/vanilla-context-menu -->
@@ -13,67 +13,94 @@
   <link rel="stylesheet" href="tasks.css" />
 </head>
 <body>
-  <header>
-    <a href="/">← Назад</a>
-    <h1>Задачи</h1>
-    <span class="badge" id="count">0</span>
-    <span id="sync-badge" class="sync-badge" style="display:none" title="Dropbox синхронизация"></span>
-    <button id="dbx-sync-btn" class="btn--accent btn--sm" hidden onclick="dropboxSmartSync()">🔄 Синхронизировать</button>
-    <button id="dbx-history-btn" class="btn--ghost btn--sm" hidden onclick="showSnapshots()" style="margin-left:auto;font-size:0.78rem;padding:0.2rem 0.55rem">↩ История</button>
+  <!--
+    THESIS: Ready tasks form an action queue, not a stack of decorative cards; it refuses hidden hover-only controls and filter walls.
+    OWN-WORLD: Deep graphite field, warm white text, restrained mint state color, hairline separators, and compact rectangular controls.
+    STORY: Capture one task, scan the actionable queue, complete or refine it, and reveal metadata tools only when needed.
+    FIRST VIEWPORT: Compact shared navigation and sync status lead directly into status tabs and tasks; capture, search, filtering, and sorting stay in the bottom command bar.
+    FORM: Calm operations ledger, grounded direction five, seed 6ce9094d.
+    FINISH: unreviewed and undocumented is unfinished; this build ends with the finish review, the verdict, DESIGN.md, and every shipping raster carrying its provenance
+  -->
+  <div class="tasks-app">
+  <header class="app-header">
+    <nav class="view-switch" aria-label="Разделы">
+      <a href="/">Список</a>
+      <a href="/tasks" aria-current="page">Задачи</a>
+    </nav>
+    <button type="button" id="sync-badge" class="sync-badge" data-state="idle" onclick="dropboxSmartSync()" title="Запустить синхронизацию">
+      <span class="sync-status-text">○ Sync off</span>
+    </button>
   </header>
+
+  <main>
 
   <!-- Quick add -->
   <div class="add-bar">
     <div class="add-input-wrap">
+      <label class="sr-only" for="add-input">Новая задача</label>
       <input id="add-input" type="text" placeholder="Новая задача… (A) +проект @контекст due:2026-04-10">
       <div id="ac-drop" class="ac-drop" style="display:none"></div>
     </div>
-    <button id="add-btn" title="Добавить (Enter)">+</button>
+    <button id="add-btn" title="Добавить (Enter)">Добавить</button>
   </div>
 
   <!-- Search -->
   <div class="search-bar">
-    <span class="search-icon">🔍</span>
+    <label class="sr-only" for="search">Поиск задач</label>
     <input id="search" type="search" placeholder="Поиск… word -исключить &quot;точная фраза&quot; A OR B">
-    <button class="search-clear" id="search-clear" style="display:none" title="Очистить">✕</button>
+    <button class="search-clear" id="search-clear" style="display:none" title="Очистить">Очистить</button>
     <span class="kbd" title="Нажми / чтобы сфокусироваться">/</span>
   </div>
   <div class="search-hint">Операторы: <code>-слово</code> исключить &nbsp; <code>OR</code> или <code>||</code> &nbsp; <code>AND</code> или <code>&&</code> &nbsp; <code>"точная фраза"</code></div>
 
   <!-- Tabs -->
-  <div class="tabs">
-    <button class="tab on" data-t="active">Активные</button>
-    <button class="tab" data-t="all">Все</button>
-    <button class="tab" data-t="done">Выполненные</button>
+  <div class="tasks-tabs-row">
+    <div class="tabs">
+      <button class="tab on" data-t="active">Активные</button>
+      <button class="tab" data-t="all">Все</button>
+      <button class="tab" data-t="done">Выполненные</button>
+    </div>
+    <span class="task-count"><span id="count">0</span> tasks</span>
   </div>
+
+  <section class="mobile-tools-panel" id="mobile-tools-panel" aria-label="Настройка списка">
+    <div class="mobile-panel-heading">
+      <strong>Настройка списка</strong>
+      <button type="button" class="mobile-panel-close btn--ghost btn--sm" data-mobile-close>Закрыть</button>
+    </div>
+
+  <details class="filters-panel" id="filters-panel">
+    <summary>Фильтры</summary>
 
   <!-- Priority filter -->
   <div id="pri-sec" class="chip-section" style="display:none">
-    <div class="chip-label" onclick="toggleChipSection('pri-sec')">Приоритет <span class="chip-toggle">▾</span></div>
+    <div class="chip-label" onclick="toggleChipSection('pri-sec')">Приоритет <span class="chip-toggle" aria-hidden="true"></span></div>
     <div class="chip-row" id="pri-row"></div>
   </div>
 
   <!-- Context filter -->
   <div id="ctx-sec" class="chip-section" style="display:none">
-    <div class="chip-label" onclick="toggleChipSection('ctx-sec')">Контекст <span class="chip-toggle">▾</span></div>
+    <div class="chip-label" onclick="toggleChipSection('ctx-sec')">Контекст <span class="chip-toggle" aria-hidden="true"></span></div>
     <div class="chip-row" id="ctx-row"></div>
   </div>
 
   <!-- Project filter -->
   <div id="proj-sec" class="chip-section" style="display:none">
-    <div class="chip-label" onclick="toggleChipSection('proj-sec')">Проект <span class="chip-toggle">▾</span></div>
+    <div class="chip-label" onclick="toggleChipSection('proj-sec')">Проект <span class="chip-toggle" aria-hidden="true"></span></div>
     <div class="chip-row" id="proj-row"></div>
   </div>
 
   <!-- Hashtag filter -->
   <div id="ht-sec" class="chip-section" style="display:none">
-    <div class="chip-label" onclick="toggleChipSection('ht-sec')">Хэштег <span class="chip-toggle">▾</span></div>
+    <div class="chip-label" onclick="toggleChipSection('ht-sec')">Хэштег <span class="chip-toggle" aria-hidden="true"></span></div>
     <div class="chip-row" id="ht-row"></div>
   </div>
+    <button id="clear-filters" style="display:none">Сбросить фильтры</button>
+  </details>
 
   <!-- Sort + clear -->
   <div class="controls">
-    Сортировка:
+    <label for="sort">Сортировка</label>
     <select id="sort">
       <option value="order">По порядку</option>
       <option value="proj">По проекту</option>
@@ -82,13 +109,34 @@
       <option value="date">По дате создания</option>
       <option value="text">По алфавиту</option>
     </select>
-    <button id="archive-btn" class="archive-btn" style="display:none" onclick="archiveCompleted()" title="Архивировать выполненные">📦 Архив</button>
-    <button id="future-btn" class="archive-btn" style="display:none" onclick="toggleFuture()" title="Показать/скрыть задачи с будущей датой t:">📅 Будущие (<span id="future-count">0</span>)</button>
-    <button id="clear-filters" style="display:none">✕ Сбросить фильтры</button>
+    <button id="archive-btn" class="archive-btn" style="display:none" onclick="archiveCompleted()" title="Архивировать выполненные">Архив</button>
+    <button id="future-btn" class="archive-btn" style="display:none" onclick="toggleFuture()" title="Показать или скрыть задачи с будущей датой t:">Будущие (<span id="future-count">0</span>)</button>
+    <button id="dbx-history-btn" class="btn--ghost btn--sm" hidden onclick="showSnapshots()">История</button>
+    <button id="dbx-sync-btn" hidden tabindex="-1" aria-hidden="true">Синхронизировать</button>
   </div>
+  </section>
 
   <div class="tasklist" id="list"></div>
   <button id="ignored-toggle"></button>
+
+  </main>
+
+  <button type="button" class="mobile-scrim" aria-label="Закрыть панель" data-mobile-close hidden></button>
+  <nav class="mobile-taskbar" aria-label="Действия со списком">
+    <button type="button" class="mobile-taskbar-add" data-mobile-panel="add" aria-controls="add-input" aria-expanded="false">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+      <span>Добавить</span>
+    </button>
+    <button type="button" class="mobile-taskbar-action" data-mobile-panel="search" aria-controls="search" aria-expanded="false">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="m16 16 4 4"/></svg>
+      <span>Поиск</span>
+    </button>
+    <button type="button" class="mobile-taskbar-action" data-mobile-panel="tools" aria-controls="mobile-tools-panel" aria-expanded="false">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="5" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="12" cy="19" r="1"/></svg>
+      <span>Ещё</span>
+    </button>
+  </nav>
+  </div>
 
   <script>
     // ➤цель:/➤сложность:/➤совет: separators (U+27A4)
@@ -372,7 +420,7 @@
       else if (diff === 0) { cls = 'due-today';   label = 'сегодня'; }
       else if (diff <= 3)  { cls = 'due-soon';    label = `через ${diff}д`; }
       else                 { cls = 'due-ok';      label = dueStr; }
-      return `<span class="t t-due ${cls}">📅 ${esc(label)}</span>`;
+      return `<span class="t t-due ${cls}">${esc(label)}</span>`;
     }
 
     // --- Render ---
@@ -500,7 +548,7 @@
           const collapsed = collapsedSections.has(t._raw);
           const safeRaw = t._raw.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
           return `<div class="section-header" onclick="toggleSection('${safeRaw}')">
-  <span class="section-toggle${collapsed?' collapsed':''}">▾</span>
+  <span class="section-toggle${collapsed?' collapsed':''}" aria-hidden="true"></span>
   ${esc(t._label)}
   <span class="section-count">${count}</span>
 </div>`;
@@ -539,7 +587,7 @@
             return `<button class="tag-pick-chip proj-tag${on?' active-tag':''}" data-tag="${esc('+'+p)}" onclick="toggleTagOnEdit('+${safe}')">+${esc(p)}</button>`;
           }).join('');
           const currentDue = t._due || '';
-          const duePicker = `<label class="tag-pick-chip due-pick-lbl" title="Дата due:">\uD83D\uDCC5\u00A0<input type="date" id="due-pick-${idx}" class="due-pick-inp" value="${currentDue}" onchange="setDueOnEdit(${idx},this.value)" onclick="event.stopPropagation()"></label>`;
+          const duePicker = `<label class="tag-pick-chip due-pick-lbl" title="Дата due:">Срок <input type="date" id="due-pick-${idx}" class="due-pick-inp" value="${currentDue}" onchange="setDueOnEdit(${idx},this.value)" onclick="event.stopPropagation()"></label>`;
           return `<div class="task-row editing" data-idx="${idx}">
   <input type="checkbox" ${t.complete ? 'checked' : ''} onchange="toggleDone(${idx})" style="margin-top:8px;flex-shrink:0">
   <div class="task-body" style="flex:1;min-width:0">
@@ -548,8 +596,8 @@
     <div class="tag-picker" id="tag-picker-${idx}">${priChips}${ctxChips}${projChips}${duePicker}</div>
     <div class="edit-hint">Enter — сохранить &nbsp;·&nbsp; Escape — отмена &nbsp;·&nbsp; клик по тегу — добавить/убрать</div>
   </div>
-  <button class="proc-btn" onclick="saveEdit(${idx})" title="Сохранить" style="opacity:0.8">✓</button>
-  <button class="proc-btn" onclick="cancelEdit()" title="Отмена" style="opacity:0.8">✕</button>
+  <button class="edit-confirm-btn" onclick="saveEdit(${idx})">Сохранить</button>
+  <button class="edit-cancel-btn" onclick="cancelEdit()">Отмена</button>
 </div>`;
         }
 
@@ -557,14 +605,19 @@
   <input type="checkbox" ${t.complete ? 'checked' : ''} onchange="toggleDone(${idx})">
   <div class="task-body">
     <span class="task-text" onclick="editTask(${idx})" style="cursor:pointer">${renderText(displayText, terms)}</span>
-    ${t._goal ? `<span class="task-goal">🎯 ${renderText(t._goal, terms)}</span>` : ''}
-    ${t._difficulty ? `<span class="task-difficulty">😰 ${renderText(t._difficulty, terms)}</span>` : ''}
-    ${t._advice ? `<span class="task-advice">💜 ${renderText(t._advice, terms)}</span>` : ''}
+    ${t._goal ? `<span class="task-goal"><strong>Цель:</strong> ${renderText(t._goal, terms)}</span>` : ''}
+    ${t._difficulty ? `<span class="task-difficulty"><strong>Сложность:</strong> ${renderText(t._difficulty, terms)}</span>` : ''}
+    ${t._advice ? `<span class="task-advice"><strong>Совет:</strong> ${renderText(t._advice, terms)}</span>` : ''}
     ${tags.length ? `<div class="task-tags">${tags.join('')}</div>` : ''}
   </div>
-  <button class="edit-btn" title="Редактировать" onclick="editTask(${idx})">✏</button>
-  <button class="del-btn" title="Удалить" onclick="deleteTask(${idx})">🗑</button>
-  <button class="proc-btn" title="Обработать в Помогаторе" onclick="openProcess(${idx})">⚙</button>
+  <details class="task-actions">
+    <summary aria-label="Действия" title="Действия"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="5" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="12" cy="19" r="1"/></svg></summary>
+    <div class="task-actions-menu">
+      <button class="edit-btn" onclick="editTask(${idx})">Редактировать</button>
+      <button class="proc-btn" onclick="openProcess(${idx})">Обработать</button>
+      <button class="del-btn" onclick="deleteTask(${idx})">Удалить</button>
+    </div>
+  </details>
 </div>`;
       }).join('');
     }
@@ -704,11 +757,42 @@
       render();
     };
 
+    // Mobile command bar
+    const mobilePanelButtons = [...document.querySelectorAll('[data-mobile-panel]')];
+    const mobileScrim = document.querySelector('.mobile-scrim');
+
+    function setMobilePanel(name = '') {
+      const next = document.body.dataset.mobilePanel === name ? '' : name;
+      document.body.dataset.mobilePanel = next;
+      mobileScrim.hidden = !next;
+      mobilePanelButtons.forEach(button => {
+        button.setAttribute('aria-expanded', String(button.dataset.mobilePanel === next));
+      });
+      if (next === 'add') requestAnimationFrame(() => addInput.focus());
+      if (next === 'search') requestAnimationFrame(() => searchInput.focus());
+    }
+
+    mobilePanelButtons.forEach(button => {
+      button.addEventListener('click', () => setMobilePanel(button.dataset.mobilePanel));
+    });
+    document.querySelectorAll('[data-mobile-close]').forEach(button => {
+      button.addEventListener('click', () => setMobilePanel(''));
+    });
+    document.addEventListener('keydown', event => {
+      if (event.key === 'Escape' && document.body.dataset.mobilePanel) setMobilePanel('');
+    });
+
     // Quick-add
     const addInput = document.getElementById('add-input');
-    document.getElementById('add-btn').onclick = () => { addTask(addInput.value); addInput.value = ''; };
+    function submitQuickAdd() {
+      if (!addInput.value.trim()) return;
+      addTask(addInput.value);
+      addInput.value = '';
+      if (window.matchMedia('(max-width: 760px)').matches) setMobilePanel('');
+    }
+    document.getElementById('add-btn').onclick = submitQuickAdd;
     addInput.onkeydown = e => {
-      if (e.key === 'Enter') { addTask(addInput.value); addInput.value = ''; }
+      if (e.key === 'Enter') submitQuickAdd();
     };
 
     // Keyboard shortcuts
@@ -1014,23 +1098,52 @@
     function _updateSyncBadge(text) {
       const badge = document.getElementById('sync-badge');
       if (!badge) return;
-      if (typeof getToken !== 'function' || !getToken()) { badge.style.display = 'none'; return; }
-      badge.style.display = '';
+
+      const setBadge = (state, label, title) => {
+        badge.dataset.state = state;
+        badge.querySelector('.sync-status-text').textContent = label;
+        badge.title = title;
+        badge.setAttribute('aria-label', `${title}. Нажмите, чтобы синхронизировать`);
+      };
+
+      if (typeof getToken !== 'function' || !getToken()) {
+        setBadge('off', '○ Sync off', 'Dropbox не подключён');
+        return;
+      }
+
       const t = text !== undefined ? text
                 : (typeof getLastSyncText === 'function' ? getLastSyncText() : '');
+
       if (t.includes('\u2026') || t.includes('\uD83D\uDD04')) {
         badge.dataset.state = 'loading';
-        badge.textContent   = '\u21BB \u0441\u0438\u043d\u0445\u0440.';
-        badge.title         = t;
-      } else if (t.includes('\u2601') || t.includes('\u2B07')) {
-        badge.dataset.state = 'ok';
-        badge.textContent   = t;
-        badge.title         = t;
-      } else {
-        badge.dataset.state = '';
-        badge.textContent   = t || '\u2601';
-        badge.title         = t || 'Dropbox \u043f\u043e\u0434\u043a\u043b\u044e\u0447\u0451\u043d';
+        setBadge('loading', '↻ Syncing…', t || 'Идёт синхронизация');
+        return;
       }
+
+      if (/ошиб|не удалось|конфликт/i.test(t)) {
+        setBadge('error', '! Sync failed', t);
+        return;
+      }
+
+      let sync;
+      try { sync = JSON.parse(localStorage.getItem('dbx_last_sync') || 'null'); }
+      catch (_) { sync = null; }
+
+      if (!sync?.time) {
+        setBadge('idle', '○ Sync now', 'Dropbox подключён, синхронизация ещё не запускалась');
+        return;
+      }
+
+      const ageMinutes = Math.max(0, Math.floor((Date.now() - sync.time) / 60_000));
+      let age;
+      if (ageMinutes < 1) age = 'just now';
+      else if (ageMinutes < 60) age = `${ageMinutes} min ago`;
+      else if (ageMinutes < 1440) age = `${Math.floor(ageMinutes / 60)} h ago`;
+      else age = `${Math.floor(ageMinutes / 1440)} d ago`;
+
+      const state = ageMinutes <= 15 ? 'ok' : 'stale';
+      const fullStatus = typeof getLastSyncText === 'function' ? getLastSyncText() : t;
+      setBadge(state, `✓ Sync · ${age}`, fullStatus || `Последняя синхронизация: ${age}`);
     }
 
     setInterval(() => _updateSyncBadge(), 60_000);
