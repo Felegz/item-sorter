@@ -51,7 +51,7 @@ async function dropboxLogin() {
     code_challenge:        challenge,
     code_challenge_method: 'S256',
     token_access_type:     'offline',
-    scope:                 'files.content.write files.content.read',
+    scope:                 'files.content.write files.content.read files.metadata.read',
   });
 
   window.location.href = 'https://www.dropbox.com/oauth2/authorize?' + params.toString();
@@ -601,7 +601,9 @@ async function dropboxSmartSync() {
   } catch (err) {
     console.error('dropboxSmartSync error:', err);
     updateDropboxUI();
+  } finally {
     _syncInProgress = false;
+    if (window.SorterAiDropbox) await window.SorterAiDropbox.refreshJobs({ silent: true });
   }
 }
 

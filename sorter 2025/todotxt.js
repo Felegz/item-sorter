@@ -445,6 +445,28 @@ document.addEventListener('DOMContentLoaded', () => {
   // Кнопка "⚡ Быстрый разбор" — КОРЗИНА через SweetAlert2, без смены страницы
   document.getElementById('quick-triage-btn')?.addEventListener('click', quickTriageCurrentTask);
 
+  document.getElementById('delegate-ai-button')?.addEventListener('click', async () => {
+    const ta = document.getElementById('task-list');
+    const pos = ta.selectionStart;
+    const lines = ta.value.split('\n');
+    let offset = 0;
+    const line = lines.find(value => {
+      const containsCursor = offset + value.length + 1 > pos;
+      offset += value.length + 1;
+      return containsCursor;
+    });
+    const task = line?.trim();
+    if (!task || MARKERS.isAnyMarker(task)) {
+      Swal.fire({ title: 'Нет задачи', text: 'Поставьте курсор на строку с задачей.', icon: 'info' });
+      return;
+    }
+    await window.SorterAiDropbox.showDelegateDialog(task);
+  });
+
+  document.getElementById('ai-jobs-btn')?.addEventListener('click', () => {
+    window.SorterAiDropbox.showJobsDialog();
+  });
+
   // Кнопка "Обработать задачу" → открыть GTD-страницу
   document.getElementById('process-btn')?.addEventListener('click', () => {
     const ta = document.getElementById('task-list');

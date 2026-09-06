@@ -1,0 +1,11 @@
+{
+  "dropboxAppKey": "d1t1dje9vyjotd7",
+  "requestsPath": "/ai/requests",
+  "resultsPath": "/ai/results",
+  "longpollSeconds": 300,
+  "openclaw": {
+    "executable": "openclaw",
+    "agentId": "task-assistant",
+    "timeoutSeconds": 600
+  }
+}

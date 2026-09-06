@@ -1477,6 +1477,26 @@ button:disabled {
   }
 }
 
+/* Compact per-task state for Dropbox/OpenClaw delegation. */
+.task-ai-status {
+  display: inline-flex;
+  align-items: center;
+  min-height: 1.65rem;
+  margin-block-start: 0.32rem;
+  padding: 0.18rem 0.46rem;
+  border: 1px solid var(--border);
+  border-radius: 0.38rem;
+  background: transparent;
+  color: var(--fg-m);
+  font-size: 0.72rem;
+  line-height: 1.2;
+}
+
+.task-ai-status.ready { color: var(--primary); border-color: var(--primary); }
+.task-ai-status.error,
+.task-ai-status.upload-error { color: var(--danger); border-color: color-mix(in srgb, var(--danger) 45%, transparent); }
+.task-ai-status:hover { background: var(--bg-el); color: var(--fg); }
+
 /* Mobile list-first layout — task content owns the viewport. */
 .tasks-app { position: relative; }
 

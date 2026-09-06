@@ -77,6 +77,7 @@ Your text will be stored in browser memory even after page reload, but it's not 
               <button id="assign-priorities-btn">Присвоить приоритеты</button>
               <button id="process-btn">Обработать (GTD)</button>
               <button id="quick-triage-btn">Быстрый разбор</button>
+              <button id="delegate-ai-button">Поручить строку ИИ</button>
             </div>
           </div>
 
@@ -98,6 +99,7 @@ Your text will be stored in browser memory even after page reload, but it's not 
               <button id="dbx-save-btn" class="btn--dbx-save btn--sm" hidden>В Dropbox</button>
               <button id="dbx-load-btn" class="btn--dbx-load btn--sm" hidden>Из Dropbox</button>
               <button id="dbx-history-btn" class="btn--ghost btn--sm" hidden onclick="showSnapshots()">История</button>
+              <button id="ai-jobs-btn" class="btn--ghost btn--sm">Поручения ИИ</button>
               <button id="dbx-logout-btn" class="btn--ghost btn--sm" hidden>Выйти из Dropbox</button>
             </div>
             <div id="dbx-status"></div>
@@ -114,8 +116,10 @@ Your text will be stored in browser memory even after page reload, but it's not 
 
     <script src="markers.js?v=20260906-task-renderer"></script>
     <script src="task-format.js?v=20260906-task-renderer"></script>
+    <script src="ai-exchange.js?v=20260906-ai-bridge"></script>
     <script src="app.js?v=20260906-task-renderer"></script>
-    <script src="dropbox.js"></script>
+    <script src="dropbox.js?v=20260906-ai-bridge"></script>
+    <script src="ai-dropbox.js?v=20260906-ai-bridge"></script>
     <script src="todotxt.js?v=20260906-task-renderer"></script>
     <script>
       const _origSetDbxStatus = setDbxStatus;

@@ -4,3 +4,9 @@
 
 # Private real task list for local interface testing; never commit.
 /private-test-data/
+
+# Local Dropbox/OpenClaw bridge state and credentials (normally stored in %LOCALAPPDATA%).
+/ai-worker/credentials.json
+/ai-worker/config.json
+/ai-worker/worker-state.json
+/ai-worker/worker.lock
