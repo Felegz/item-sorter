@@ -1,0 +1,97 @@
+.task-goal,
+.task-difficulty,
+.task-advice,
+.task-source-line {
+  display: block;
+  max-width: 75ch;
+  margin-top: 5px;
+  color: var(--fg-m, #aeb8c4);
+  font-size: 0.76rem;
+  line-height: 1.45;
+}
+
+.task-goal strong,
+.task-difficulty strong,
+.task-advice strong,
+.task-source-line strong {
+  color: var(--fg, #f3f5f7);
+  font-weight: 600;
+}
+
+.task-source,
+.task-breakdown {
+  max-width: 75ch;
+  margin-top: 6px;
+  color: var(--fg-m, #aeb8c4);
+  font-size: 0.74rem;
+}
+
+.task-source summary,
+.task-breakdown summary {
+  width: max-content;
+  cursor: pointer;
+  color: var(--fg-m, #aeb8c4);
+  text-decoration: underline;
+  text-decoration-color: transparent;
+  text-underline-offset: 3px;
+}
+
+.task-source summary:hover,
+.task-breakdown summary:hover,
+.task-source summary:focus-visible,
+.task-breakdown summary:focus-visible {
+  color: var(--fg, #f3f5f7);
+  text-decoration-color: currentColor;
+}
+
+.task-source > div,
+.task-breakdown > :not(summary) {
+  margin-top: 5px;
+}
+
+.task-unparsed {
+  color: var(--warning, #f0c674);
+}
+
+.task-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin-top: 8px;
+}
+
+.t {
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
+  padding: 2px 7px;
+  border-radius: 6px;
+  background: var(--bg-el, #1d232b);
+  color: var(--fg-m, #aeb8c4);
+  font-size: 0.68rem;
+  line-height: 1.2;
+  font-weight: 600;
+}
+
+.t-ctx { color: #9dc7f0; }
+.t-proj { color: #8fd49a; }
+.t-hash { color: #efa7d7; }
+.t-meta { color: #b9a8e6; }
+.t-due { color: var(--warning, #f0c674); font-variant-numeric: tabular-nums; }
+.t-due.due-overdue { color: var(--danger, #ff8a8a); }
+.t-due.due-today { color: var(--danger, #ff8a8a); }
+.t-due.due-soon { color: var(--warning, #f0c674); }
+.t-due.due-ok { color: var(--fg-m, #aeb8c4); }
+.t-threshold { color: #a8b6c8; font-variant-numeric: tabular-nums; }
+.t-date { color: var(--fg-m, #aeb8c4); font-variant-numeric: tabular-nums; }
+
+@media (max-width: 760px) {
+  .task-goal,
+  .task-difficulty,
+  .task-advice,
+  .task-source-line,
+  .task-source,
+  .task-breakdown {
+    max-width: none;
+  }
+}

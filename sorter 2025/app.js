@@ -225,6 +225,17 @@ function compareTasks(task1, task2) {
 async function compareTasks(task1, task2, progress = null) {
   counter += 1;
   const question = userQuestion.value;
+  const parsedTask1 = TaskFormat.parseTaskLine(task1);
+  const parsedTask2 = TaskFormat.parseTaskLine(task2);
+
+  const renderChoice = (task, id) => `
+    <article class="sort-choice">
+      <button id="${id}" type="button" class="sort-choice-button">
+        ${TaskFormat.renderTaskContentHtml(task, { variant: 'choice' })}
+        ${TaskFormat.renderTaskMetaHtml(task)}
+      </button>
+      ${TaskFormat.renderTaskBreakdownHtml(task)}
+    </article>`;
 
   if (progress) progress.done++;
   const _pct       = progress ? Math.min(100, Math.round(progress.done / progress.expected * 100)) : 0;
@@ -256,13 +267,9 @@ async function compareTasks(task1, task2, progress = null) {
         <div style="text-align:left; word-wrap:break-word; margin-bottom:1rem;">
           <p>Выберите более важную задачу:</p>
         </div>
-        <div style="display:flex; flex-direction:column; gap:0.5rem;">
-          <button id="swal-btn1" class="swal2-confirm swal2-styled" style="white-space:normal; width:100%;">
-            ${task1}
-          </button>
-          <button id="swal-btn2" class="swal2-deny swal2-styled" style="white-space:normal; width:100%;">
-            ${task2}
-          </button>
+        <div class="sort-choices">
+          ${renderChoice(parsedTask1, 'swal-btn1')}
+          ${renderChoice(parsedTask2, 'swal-btn2')}
         </div>
       `,
       showConfirmButton: false,
@@ -287,30 +294,7 @@ async function compareTasks(task1, task2, progress = null) {
 }
 
 
-// НОВАЯ ХУЙНЯ С МЕРДЖЕМ СПИСКОВ::
-/**
- * 1) Разбирает единый текст на три части:
- *    - first   — до строки "NEW ARRAY"
- *    - second  — между "NEW ARRAY" и "НЕУПОРЯДОЧЕННЫЕ ЗАДАЧИ"
- *    - tail    — всё, что идёт с маркером "НЕУПОРЯДОЧЕННЫЕ ЗАДАЧИ" и дальше
- */
-function parseArrays(text) {
-  const lines = text.split(/\r?\n/);
-  const idxNew   = lines.findIndex(l => MARKERS.isNewArray(l));
-  const idxTail  = lines.findIndex(l => MARKERS.isUnordered(l));
-
-  const first  = idxNew   > -1 ? lines.slice(0, idxNew)                    : lines.slice();
-  const second = idxNew   > -1 && idxTail > -1
-                 ? lines.slice(idxNew + 1, idxTail)
-                 : idxNew > -1
-                   ? lines.slice(idxNew + 1)
-                   : [];
-  const tail   = idxTail  > -1 ? lines.slice(idxTail)                    : [];
-
-  return { first, second, tail };
-}
-
-// 2) Галоп-спуск вправо
+// Галоп-спуск вправо
 async function gallopRight(value, arr, start) {
   let lo = start, hi = start + 1;
   const n = arr.length;
@@ -329,7 +313,7 @@ async function gallopRight(value, arr, start) {
   return lo;
 }
 
-// 3) Галоп-спуск влево
+// Галоп-спуск влево
 async function gallopLeft(value, arr, start) {
   let lo = start, hi = start + 1;
   while (hi < arr.length && await compareTasks(value, arr[hi]) <= 0) {
@@ -346,54 +330,50 @@ async function gallopLeft(value, arr, start) {
   return lo;
 }
 
-// 4) Слияние с галопом
-async function mergeGalloping(first, second) {
+// Слияние двух заранее отсортированных списков
+async function mergeGalloping(sorted, inboxSorted) {
   const result = [];
   let i = 0, j = 0;
-  const lenA = first.length, lenB = second.length;
+  const lenA = sorted.length, lenB = inboxSorted.length;
   const MIN_GALLOP = 7;
   let countA = 0, countB = 0;
 
   while (i < lenA && j < lenB) {
-    if (await compareTasks(first[i], second[j]) <= 0) {
-      result.push(first[i++]);
+    if (await compareTasks(sorted[i], inboxSorted[j]) <= 0) {
+      result.push(sorted[i++]);
       countA++; countB = 0;
     } else {
-      result.push(second[j++]);
+      result.push(inboxSorted[j++]);
       countB++; countA = 0;
     }
 
     if (countA >= MIN_GALLOP) {
-      const idx = await gallopRight(first[i - 1], second, j);
-      result.push(...second.slice(j, idx));
+      const idx = await gallopRight(sorted[i - 1], inboxSorted, j);
+      result.push(...inboxSorted.slice(j, idx));
       j = idx;
       countA = countB = 0;
     } else if (countB >= MIN_GALLOP) {
-      const idx = await gallopLeft(second[j - 1], first, i);
-      result.push(...first.slice(i, idx));
+      const idx = await gallopLeft(inboxSorted[j - 1], sorted, i);
+      result.push(...sorted.slice(i, idx));
       i = idx;
       countA = countB = 0;
     }
   }
 
-  if (i < lenA) result.push(...first.slice(i));
-  if (j < lenB) result.push(...second.slice(j));
+  if (i < lenA) result.push(...sorted.slice(i));
+  if (j < lenB) result.push(...inboxSorted.slice(j));
   return result;
 }
 
-// 5) UI функция
 async function mergeArraysUI() {
   saveDataToLocalStorage();
-  const text = taskList.value;
-  const { first, second, tail } = parseArrays(text);
-  const a = first.filter(l => l.trim() && !MARKERS.isAnyMarker(l));
-  const b = second.filter(l => l.trim() && !MARKERS.isAnyMarker(l));
-  const merged = await mergeGalloping(a, b);
-  const newText = [
+  const { sorted, inboxSorted, sourceBlocks } = parseMergeTaskLists(taskList.value);
+  const merged = await mergeGalloping(sorted, inboxSorted);
+  const newText = formatTaskList([
     ...merged,
-    'NEW ARRAY',
-    ...tail
-  ].join('\n');
+    MARKERS.makeInboxSorted(),
+    ...sourceBlocks.inboxUnsorted
+  ]);
   taskList.value = newText;
   saveDataToLocalStorage();
 }
@@ -406,19 +386,19 @@ async function mergeArraysUI() {
 // Function to filter tasks based on user confirmation
 //изначальная версия с confirm
 /*function filterTasks(tasks) {
-  const tasksToSort = [];
-  const ignoredTasks = [];
+  const inboxUnsorted = [];
+  const ignored = [];
 
   tasks.forEach(task => {
     const includeTask = confirm(`Задача: ${task}\n\n❔Включать задачу в сортировку или не включать?`);
     if (includeTask) {
-      tasksToSort.push(task);
+      inboxUnsorted.push(task);
     } else {
-      ignoredTasks.push(task);
+      ignored.push(task);
     }
   });
 
-  return { tasksToSort, ignoredTasks };
+  return { inboxUnsorted, ignored };
 }*/
 
 /**
@@ -426,19 +406,19 @@ async function mergeArraysUI() {
  * Цикл ни при каких условиях не прерывается.
  */
 async function filterTasks(tasks) {
-  const tasksToSort  = [];
-  const ignoredTasks = [];
+  const inboxUnsorted = [];
+  const ignored = [];
   const total = tasks.length;
 
   for (let i = 0; i < tasks.length; i++) {
     const task = tasks[i];
     const { action, text } = await chooseWindow(task, { current: i + 1, total });
-    if (action === 'include')     tasksToSort.push(text);
-    else if (action === 'ignore') ignoredTasks.push(text);
+    if (action === 'include')     inboxUnsorted.push(text);
+    else if (action === 'ignore') ignored.push(text);
     // action === 'delete' — пропускаем
   }
 
-  return { tasksToSort, ignoredTasks };
+  return { inboxUnsorted, ignored };
 }
 
 /*
@@ -526,9 +506,9 @@ async function binaryInsert(sorted, task) {
   return low;
 }
 
-// Вставляет unsortedTasks в текущий отсортированный блок textarea (выше "ИГНОРИРУЕМЫЕ ЗАДАЧИ")
+// Вставляет inboxUnsorted в текущий отсортированный блок textarea (выше "ИГНОРИРУЕМЫЕ ЗАДАЧИ")
 // Использует бинарный поиск (await compareTasks) для минимизации сравнений.
-async function insertUnsortedTasksUI(unsortedTasks) {
+async function insertUnsortedTasksUI(inboxUnsorted) {
   try {
     saveDataToLocalStorage();
 
@@ -540,15 +520,15 @@ async function insertUnsortedTasksUI(unsortedTasks) {
     // Сохраняем маркеры (SORTED / PARTIALLY SORTED) отдельно, чтобы не сравнивать с задачами
     const markerLines = upperLines.filter(l => MARKERS.isAnyMarker(l));
     const sorted = upperLines.filter(l => l.trim() !== "" && !MARKERS.isAnyMarker(l));
-    const tail = splitIndex > -1
+    const ignoredBlock = splitIndex > -1
       ? lines.slice(splitIndex)
       : [];
 
     console.log('insertUnsortedTasksUI: current sorted length =', sorted.length);
-    console.log('insertUnsortedTasksUI: inserting', unsortedTasks.length, 'items');
+    console.log('insertUnsortedTasksUI: inserting', inboxUnsorted.length, 'items');
 
     // Для каждой новой задачи делаем бинарную вставку (сравнения через await compareTasks)
-    for (const newTask of unsortedTasks) {
+    for (const newTask of inboxUnsorted) {
       let lo = 0;
       let hi = sorted.length;
 
@@ -572,9 +552,9 @@ async function insertUnsortedTasksUI(unsortedTasks) {
       ...markerLines,
       ...sorted,
       "",
-      ...tail
+      ...ignoredBlock
     ];
-    taskList.value = resultLines.join("\n");
+    taskList.value = formatTaskList(resultLines);
     saveDataToLocalStorage();
     console.log('insertUnsortedTasksUI: done');
   } catch (err) {
@@ -631,22 +611,22 @@ async function filterTasksUI() {
   var uniqueTasks = Array.from(new Set(tasks));
 
   // 7) Редактируем и разделяем include / ignore
-  const { tasksToSort, ignoredTasks } = await filterTasks(uniqueTasks);
+  const { inboxUnsorted, ignored } = await filterTasks(uniqueTasks);
 
   // 8) Формируем заголовок с текущей датой
   const { year, month, day } = getDateParts();
-  const dateHeader = `ИГНОРИРУЕМЫЕ ЗАДАЧИ ${year}.${month}.${day}`;
+  const dateHeader = MARKERS.makeIgnored(year, month, day);
 
   // 9) Собираем итоговый массив строк
   const result = [
-    ...tasksToSort,
+    ...inboxUnsorted,
     "",
     dateHeader,
-    ...ignoredTasks
+    ...ignored
   ];
 
   // 10) Записываем его обратно в textarea
-  taskList.value = result.join("\n\n");
+  taskList.value = formatTaskList(result);
 
   saveDataToLocalStorage();
 }
@@ -683,7 +663,7 @@ async function heapifyDown(arr, heapSize, i, progress) {
  *
  * @param {string[]} tasks  — входной массив задач
  * @param {number}   n      — сколько задач извлечь
- * @returns {Promise<{sorted: string[], remaining: string[]}>}
+ * @returns {Promise<{sorted: string[], partiallySorted: string[]}>}
  */
 async function partialSortTasks(tasks, n) {
   const arr    = [...tasks];
@@ -717,70 +697,34 @@ async function partialSortTasks(tasks, n) {
     }
   }
 
-  return { sorted, remaining: arr.slice(0, heapSize) };
-}
-
-/**
- * Разбивает текст на 4 секции:
- *   newTasks        — строки ВЫШЕ маркера "SORTED (…)"
- *   sortedTasks     — строки между "SORTED (…)" и "PARTIALLY SORTED (…)"
- *   partiallySorted — строки между "PARTIALLY SORTED (…)" и "ИГНОРИРУЕМЫЕ ЗАДАЧИ"
- *   tail            — всё от "ИГНОРИРУЕМЫЕ ЗАДАЧИ" до конца
- */
-function parseAllSections(text) {
-  const lines    = text.split(/\r?\n/);
-  const iSorted  = lines.findIndex(l => /^SORTED\s*\(/i.test(l.trim()));
-  const iPartial = lines.findIndex(l => /^PARTIALLY SORTED/i.test(l.trim()));
-  const iIgnored = lines.findIndex(l => /^ИГНОРИРУЕМЫЕ ЗАДАЧИ/i.test(l.trim()));
-
-  const endSorted  = iPartial > -1 ? iPartial : (iIgnored > -1 ? iIgnored : lines.length);
-  const endPartial = iIgnored > -1 ? iIgnored : lines.length;
-
-  const isActive = l => l.trim() && !MARKERS.isAnyMarker(l) && !/^x /.test(l.trim());
-
-  const newTasks = (iSorted > -1
-    ? lines.slice(0, iSorted)
-    : lines.slice(0, endSorted)
-  ).filter(isActive);
-
-  const sortedTasks = iSorted > -1
-    ? lines.slice(iSorted + 1, endSorted).filter(isActive)
-    : [];
-
-  const partiallySorted = iPartial > -1
-    ? lines.slice(iPartial + 1, endPartial).filter(isActive)
-    : [];
-
-  const tail = iIgnored > -1 ? lines.slice(iIgnored) : [];
-
-  return { newTasks, sortedTasks, partiallySorted, tail };
+  return { sorted, partiallySorted: arr.slice(0, heapSize) };
 }
 
 /**
  * Адаптивный зонд хвоста.
  *
  * Идея: PARTIALLY SORTED отсортирован сверху вниз (важнее → менее важные).
- * Значит, если partiallySorted[0] не важнее sortedTasks[last] — дальше тоже
+ * Значит, если partiallySorted[0] не важнее sorted[last] — дальше тоже
  * не важнее, и список в порядке. Иначе — находим точную позицию вставки
  * бинарным поиском и переходим к partiallySorted[1].
  *
  * Стоимость: 1 вопрос если хвост в порядке; K + K·log₂N если K задач повышаются.
  *
- * @param {string[]} sortedTasks     — текущий список SORTED (важнейший первый)
+ * @param {string[]} sorted          — текущий список SORTED (важнейший первый)
  * @param {string[]} partiallySorted — текущий список PARTIALLY SORTED
- * @returns {{ sortedTasks, partiallySorted, promoted: number }}
+ * @returns {{ sorted, partiallySorted, promoted: number }}
  */
-async function promoteTailCandidates(sortedTasks, partiallySorted) {
-  if (sortedTasks.length === 0 || partiallySorted.length === 0) {
-    return { sortedTasks: [...sortedTasks], partiallySorted: [...partiallySorted], promoted: 0 };
+async function promotePartialCandidates(sorted, partiallySorted) {
+  if (sorted.length === 0 || partiallySorted.length === 0) {
+    return { sorted: [...sorted], partiallySorted: [...partiallySorted], promoted: 0 };
   }
 
-  const merged = [...sortedTasks];
+  const merged = [...sorted];
   let i = 0;
 
   const progress = {
     done:       0,
-    expected:   partiallySorted.length * (1 + Math.ceil(Math.log2(sortedTasks.length + 1))),
+    expected:   partiallySorted.length * (1 + Math.ceil(Math.log2(sorted.length + 1))),
     tasksDone:  0,
     tasksTotal: partiallySorted.length,
   };
@@ -805,22 +749,27 @@ async function promoteTailCandidates(sortedTasks, partiallySorted) {
     progress.tasksDone = i;
   }
 
-  return { sortedTasks: merged, partiallySorted: partiallySorted.slice(i), promoted: i };
+  return { sorted: merged, partiallySorted: partiallySorted.slice(i), promoted: i };
 }
 
 /**
  * Сортировка задач:
  * 1. (опц.) Адаптивный зонд хвоста — повышает задачи из PARTIALLY SORTED в SORTED.
  * 2. Сортируем новые задачи (выше маркера SORTED).
- * 3. Победители → в SORTED, проигравшие → в PARTIALLY SORTED.
+ * 3. Обработанная верхняя часть → в sorted, остаток → в partiallySorted.
  */
 async function sortTasks() {
   saveDataToLocalStorage();
 
   try {
-    const { newTasks, sortedTasks, partiallySorted, tail } = parseAllSections(taskList.value);
+    const {
+      inboxUnsorted,
+      sorted,
+      partiallySorted,
+      sourceBlocks,
+    } = parseSortTaskLists(taskList.value);
 
-    let currentSorted    = [...sortedTasks];
+    let currentSorted    = [...sorted];
     let workingPartially = [...partiallySorted];
 
     // Шаг 1: адаптивный зонд хвоста (только если оба списка непусты)
@@ -838,8 +787,8 @@ async function sortTasks() {
       });
 
       if (check.isConfirmed) {
-        const result = await promoteTailCandidates(currentSorted, workingPartially);
-        currentSorted    = result.sortedTasks;
+        const result = await promotePartialCandidates(currentSorted, workingPartially);
+        currentSorted    = result.sorted;
         workingPartially = result.partiallySorted;
 
         if (result.promoted > 0) {
@@ -859,32 +808,32 @@ async function sortTasks() {
     }
 
     // Шаг 2: формируем пул из новых задач
-    const pool = [...newTasks];
+    const pool = [...inboxUnsorted];
 
     // Если нет ни новых задач, ни повышений — нечего делать
-    if (pool.length === 0 && currentSorted.length === sortedTasks.length) {
+    if (pool.length === 0 && currentSorted.length === sorted.length) {
       Swal.fire('Нет задач', 'Нет новых задач. Добавьте задачи выше маркера SORTED.', 'info');
       return;
     }
 
     // Шаг 3: сортируем пул (если есть новые задачи)
-    let winners = [], losers = [];
+    let sortedFromInbox = [], partiallySortedFromInbox = [];
     if (pool.length > 0) {
       if (pool.length <= 60) {
-        winners = await mergeSort(pool);
+        sortedFromInbox = await mergeSort(pool);
       } else {
         const n = Math.min(50, Math.ceil(pool.length * 0.2));
-        ({ sorted: winners, remaining: losers } = await partialSortTasks(pool, n));
+        ({ sorted: sortedFromInbox, partiallySorted: partiallySortedFromInbox } = await partialSortTasks(pool, n));
       }
     }
 
     // Шаг 4: пересобираем секции
     const { year, month, day } = getDateParts();
-    const sortedHeader  = `SORTED (${year}.${month}.${day})`;
-    const partialHeader = `PARTIALLY SORTED (${year}.${month}.${day})`;
+    const sortedHeader  = MARKERS.makeSorted(year, month, day);
+    const partialHeader = MARKERS.makePartial(year, month, day);
 
-    const newSorted    = [...winners, ...currentSorted];
-    const newPartially = [...losers, ...workingPartially];
+    const newSorted    = [...sortedFromInbox, ...currentSorted];
+    const newPartially = [...partiallySortedFromInbox, ...workingPartially];
 
     const parts = [];
     if (newSorted.length > 0) {
@@ -896,19 +845,19 @@ async function sortTasks() {
       parts.push(partialHeader);
       parts.push(...newPartially);
     }
-    if (tail.length > 0) {
+    if (sourceBlocks.ignored.length > 0) {
       if (parts.length > 0) parts.push('');
-      parts.push(...tail);
+      parts.push(...sourceBlocks.ignored);
     }
 
-    taskList.value = parts.join('\n');
+    taskList.value = formatTaskList(parts);
     saveDataToLocalStorage();
 
     if (typeof assignPrioritiesAfterSort === 'function') assignPrioritiesAfterSort();
     if (typeof syncHighlight   === 'function') syncHighlight();
     if (typeof renderFilterBar === 'function') renderFilterBar();
-    const promoted = currentSorted.length - sortedTasks.length;
-    console.log('sortTasks: winners =', winners.length, ', promoted =', promoted, ', partially =', newPartially.length);
+    const promoted = currentSorted.length - sorted.length;
+    console.log('sortTasks: sorted from inbox =', sortedFromInbox.length, ', promoted =', promoted, ', partially =', newPartially.length);
   } catch (err) {
     console.error('sortTasks error:', err);
     if (typeof Swal !== 'undefined') {
@@ -947,7 +896,7 @@ function copyTasksToClipboard() {
     .filter(line => line !== "");
   console.log("After trimming & filtering, count:", cleanedLines.length);
 
-  const cleanedText = cleanedLines.join("\n");
+  const cleanedText = formatTaskList(cleanedLines);
   console.log("Cleaned text preview:\n", cleanedText.substring(0, 100) + (cleanedText.length>100?"…": ""));
 
   // Пробуем скопировать
@@ -993,8 +942,7 @@ function promptUnsortedTasks() {
     title: 'Вставьте неупорядоченные задачи',
     input: 'textarea',
     inputAttributes: {
-      placeholder: 'Напишите одну задачу на строку',
-      style: 'width:100%;height:200px;'
+      placeholder: 'Напишите одну задачу на строку'
     },
     showCancelButton: true,
     confirmButtonText: 'Вставить',
@@ -1122,12 +1070,12 @@ function sortTasksv1() {
   // Sort the tasks using the comparison function
   /*uniqueTasks.sort(compareTasks);*/
 
-  //const sortedTasks = quickSort(uniqueTasks);
+  //const sorted = quickSort(uniqueTasks);
 
-  const sortedTasks = mergeSort(uniqueTasks);
+  const sorted = mergeSort(uniqueTasks);
 
   // Display the sorted list of tasks in the text field
-  taskList.value = sortedTasks.join("\n");
+  taskList.value = formatTaskList(sorted);
 
   //saving
   saveDataToLocalStorage();

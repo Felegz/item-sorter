@@ -1,3 +1,6 @@
 ﻿
 # context-mode MCP internal files
 .github/context-mode/
+
+# Private real task list for local interface testing; never commit.
+/private-test-data/

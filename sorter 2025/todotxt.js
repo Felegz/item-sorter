@@ -7,79 +7,14 @@
  *   text, projects, contexts, tags
  */
 function parseTodoLine(line) {
-  const raw = line;
-  let rest = line;
-  let completed = false;
-  let priority = null;
-  let completionDate = null;
-  let creationDate = null;
-
-  // x (completed)
-  if (/^x /.test(rest)) {
-    completed = true;
-    rest = rest.slice(2).trim();
-    // completion date
-    const dMatch = rest.match(/^(\d{4}-\d{2}-\d{2}) /);
-    if (dMatch) {
-      completionDate = dMatch[1];
-      rest = rest.slice(dMatch[0].length);
-    }
-  }
-
-  // priority (only if not completed)
-  if (!completed) {
-    const pMatch = rest.match(/^\(([A-Z])\) /);
-    if (pMatch) {
-      priority = pMatch[1];
-      rest = rest.slice(pMatch[0].length);
-    }
-  }
-
-  // creation date
-  const cdMatch = rest.match(/^(\d{4}-\d{2}-\d{2}) /);
-  if (cdMatch) {
-    creationDate = cdMatch[1];
-    rest = rest.slice(cdMatch[0].length);
-  }
-
-  // Extract hidden note ⟦...⟧ before parsing text
-  const noteMatch = rest.match(/\u27e6([\s\S]*)\u27e7/);
-  const note = noteMatch ? noteMatch[1] : null;
-  const text = rest.replace(/\s*\u27e6[\s\S]*\u27e7/, '').trim();
-
-  // extract +projects, @contexts, #hashtags, key:value tags
-  const projects = [];
-  const contexts = [];
-  const hashtags = [];
-  const tags = {};
-  const words = text.split(/\s+/);
-  for (const word of words) {
-    if (word.startsWith('+') && word.length > 1) projects.push(word.slice(1));
-    else if (word.startsWith('@') && word.length > 1) contexts.push(word.slice(1));
-    else if (word.startsWith('#') && word.length > 1) hashtags.push(word.slice(1).replace(/[.,;!?]+$/, ''));
-    else {
-      const kv = word.match(/^([a-zA-Z][a-zA-Z0-9_-]*):([^\s]+)$/);
-      if (kv) tags[kv[1]] = kv[2];
-    }
-  }
-
-  return { raw, completed, priority, completionDate, creationDate, text, note, projects, contexts, hashtags, tags };
+  return TaskFormat.parseTaskLine(line);
 }
 
 /**
  * Сериализует объект задачи обратно в строку todo.txt.
  */
 function serializeTodo(todo) {
-  let parts = [];
-  if (todo.completed) {
-    parts.push('x');
-    if (todo.completionDate) parts.push(todo.completionDate);
-  } else {
-    if (todo.priority) parts.push(`(${todo.priority})`);
-  }
-  if (todo.creationDate) parts.push(todo.creationDate);
-  parts.push(todo.text);
-  return parts.join(' ');
+  return TaskFormat.serializeTaskLine(todo);
 }
 
 /**
@@ -98,8 +33,8 @@ function escHtml(str) {
 function highlightTodoLine(line) {
   if (!line.trim()) return '&nbsp;';
 
-  // Комментарии-разделители (типа "ИГНОРИРУЕМЫЕ ЗАДАЧИ..." и "NEW ARRAY")
-  if (/^(ИГНОРИРУЕМЫЕ ЗАДАЧИ|NEW ARRAY|НЕУПОРЯДОЧЕННЫЕ ЗАДАЧИ|PARTIALLY SORTED|SORTED\s*\()/i.test(line.trim())) {
+  // Комментарии-разделители из единого справочника маркеров
+  if (MARKERS.isAnyMarker(line)) {
     return `<span class="todo-section">${escHtml(line)}</span>`;
   }
 
@@ -182,8 +117,8 @@ async function showTaskEditor(lineIdx, lines) {
     title: 'Задача',
     html: `
       <div style="font-size:0.8rem;color:#888;margin-bottom:0.5rem;text-align:left">${escHtml(todo.text)}</div>
-      <div style="font-size:0.75rem;color:#888;margin-bottom:0.4rem;text-align:left">📝 Заметка</div>
-      <textarea id="task-note" rows="3" placeholder="Скрытая заметка..." style="width:100%;box-sizing:border-box;background:#1e1e1e;color:#ccc;border:1px solid #333;border-radius:6px;padding:0.5rem;font-family:inherit;font-size:0.85rem;resize:vertical;margin-bottom:0.75rem">${escHtml(todo.note || '')}</textarea>
+      <div style="font-size:0.75rem;color:#888;margin-bottom:0.4rem;text-align:left">Исходная задача</div>
+      <textarea id="task-source" rows="3" placeholder="Текст до GTD-разбора" style="width:100%;box-sizing:border-box;background:#1e1e1e;color:#ccc;border:1px solid #333;border-radius:6px;padding:0.5rem;font-family:inherit;font-size:0.85rem;resize:vertical;margin-bottom:0.75rem">${escHtml(todo.source || '')}</textarea>
       <div style="font-size:0.75rem;color:#888;margin-bottom:0.4rem;text-align:left"># Хэштеги</div>
       <div id="ht-chips" style="display:flex;flex-wrap:wrap;gap:0.4rem;margin-bottom:0.5rem;min-height:1.5rem">${chipsHtml}</div>
       <input id="ht-new" class="swal2-input" placeholder="Новый тег (без #)" style="margin:0;width:100%;box-sizing:border-box">`,
@@ -201,19 +136,16 @@ async function showTaskEditor(lineIdx, lines) {
       );
       const newTag = (document.getElementById('ht-new')?.value || '').trim().replace(/^#/, '');
       if (newTag) active.add(newTag);
-      const noteVal = (document.getElementById('task-note')?.value || '').trim();
-      return { hashtags: active, note: noteVal };
+      const source = (document.getElementById('task-source')?.value || '').trim();
+      return { hashtags: active, source };
     },
   });
 
   if (!isConfirmed) return;
 
-  // Rebuild line: strip old #tags and ⟦note⟧, apply new
-  let newLine = line.replace(/#\S+/g, '').replace(/\s*\u27e6[\s\S]*\u27e7/, '').replace(/\s{2,}/g, ' ').trim();
-  const suffix = [...result.hashtags].map(h => `#${h}`).join(' ');
-  if (suffix) newLine += ' ' + suffix;
-  if (result.note) newLine += ' \u27e6' + result.note + '\u27e7';
-  lines[lineIdx] = newLine;
+  todo.hashtags = [...result.hashtags];
+  todo.source = result.source || null;
+  lines[lineIdx] = serializeTodo(todo);
 
   const ta = document.getElementById('task-list');
   ta.value = lines.join('\n');
@@ -363,26 +295,14 @@ function applyFilter() {
   }
   fv.innerHTML = filteredLines.length
     ? filteredLines.map((l, i) => {
-        // Split ➤цель: suffix for visual rendering (it stays on one line in storage)
-        const SEP = '\u27A4\u0446\u0435\u043B\u044C:';
-        const lNoNote = l.replace(/\s*\u27e6[\s\S]*\u27e7/, '');
-        const sepIdx = lNoNote.indexOf(SEP);
-        const mainPart = sepIdx !== -1 ? lNoNote.slice(0, sepIdx).trim() : lNoNote;
-        const goalPart = sepIdx !== -1 ? lNoNote.slice(sepIdx + SEP.length).trim() : null;
-
         const enc = encodeURIComponent(l.trim());
         const todoP = parseTodoLine(l);
-        const done = todoP.done;
-        const noteHtml = todoP.note
-          ? ' <span class="frow-note-toggle" onclick="this.nextSibling.style.display=this.nextSibling.style.display===\'none\'?\'\':\'none\'">📎</span>'
-            + '<span class="frow-note" style="display:none">' + escHtml(todoP.note) + '</span>'
-          : '';
+        const done = todoP.completed;
         return '<div class="filter-row">'
-          + '<span class="filter-row-text">'
-          + highlightTodoLine(mainPart)
-          + (goalPart ? '<span class="frow-goal">\uD83C\uDFAF ' + escHtml(goalPart) + '</span>' : '')
-          + noteHtml
-          + '</span>'
+          + '<div class="filter-row-text">'
+          + TaskFormat.renderTaskContentHtml(todoP, { variant: 'list' })
+          + TaskFormat.renderTaskMetaHtml(todoP)
+          + '</div>'
           + '<span class="filter-row-actions">'
           + '<a href="process.html?task=' + enc + '" class="frow-btn" title="GTD разбор">GTD</a>'
           + '<button class="frow-btn" onclick="filterRowToggleDone(' + i + ')" title="' + (done ? 'Снять отметку' : 'Выполнено') + '">' + (done ? '\u21A9' : '\u2713') + '</button>'
@@ -422,7 +342,7 @@ function filterRowToggleDone(idx) {
   if (lineIdx === -1) return;
   const today = new Date().toISOString().slice(0, 10);
   const todo = parseTodoLine(rawLine);
-  lines[lineIdx] = todo.done
+  lines[lineIdx] = todo.completed
     ? rawLine.replace(/^x \d{4}-\d{2}-\d{2} /, '')
     : 'x ' + today + ' ' + rawLine;
   ta.value = lines.join('\n');

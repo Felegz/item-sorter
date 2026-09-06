@@ -4,13 +4,16 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Tasks</title>
-  <!-- jsTodoTxt 0.10.0 — MIT license, github.com/jmhobbs/jsTodoTxt -->
-  <script src="https://cdn.jsdelivr.net/npm/jstodotxt@0.10.0/jsTodoTxt.min.js"></script>
   <!-- vanilla-context-menu 1.6.0 — MIT license, github.com/GeorgianStan/vanilla-context-menu -->
   <script src="https://unpkg.com/vanilla-context-menu@1.6.0/dist/vanilla-context-menu.js"></script>
-  <script src="markers.js"></script>
+  <!-- date-fns 4.4.0 — MIT license, date-fns.org -->
+  <script src="https://cdn.jsdelivr.net/npm/@date-fns/cdn@4.4.0/cdn.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@date-fns/cdn@4.4.0/locale/ru/cdn.min.js"></script>
+  <script src="markers.js?v=20260906-task-renderer"></script>
+  <script src="task-format.js?v=20260906-task-renderer"></script>
   <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
   <link rel="stylesheet" href="tasks.css" />
+  <link rel="stylesheet" href="task-format.css" />
 </head>
 <body>
   <!--
@@ -139,19 +142,6 @@
   </div>
 
   <script>
-    // ➤цель:/➤сложность:/➤совет: separators (U+27A4)
-    const GOAL_SEP       = '\u27A4\u0446\u0435\u043b\u044c:';
-    const DIFFICULTY_SEP = '\u27A4\u0441\u043b\u043e\u0436\u043d\u043e\u0441\u0442\u044c:';
-    const ADVICE_SEP     = '\u27A4\u0441\u043e\u0432\u0435\u0442:';
-
-    // Extract ➤key: field from str; value ends at next ➤ or end of string
-    function parseSepField(str, sep) {
-      const i = str.indexOf(sep);
-      if (i === -1) return { rest: str, val: null };
-      const j = str.indexOf('\u27A4', i + sep.length);
-      const end = j !== -1 ? j : str.length;
-      return { rest: (str.slice(0, i) + str.slice(end)).trim(), val: str.slice(i + sep.length, end).trim() || null };
-    }
     const PRI_CHIP_CLS = { A:'pri-a', B:'pri-b', C:'pri-c' };
     const PRI_TAG_CLS  = { A:'t-pri-A', B:'t-pri-B', C:'t-pri-C' };
     const priOrd = p => p ? (p.charCodeAt(0) - 64) : 27; // A=1..Z=26, none=27
@@ -211,27 +201,20 @@
     // --- Parsing ---
 
     function parseLine(line) {
-      let work = line, goal, difficulty, advice;
-      ({ rest: work, val: goal }       = parseSepField(work, GOAL_SEP));
-      ({ rest: work, val: difficulty } = parseSepField(work, DIFFICULTY_SEP));
-      ({ rest: work, val: advice }     = parseSepField(work, ADVICE_SEP));
-      const mainLine = work;
-      let item;
-      try { item = TodoTxt.parseLine(mainLine); }
-      catch (_) {
-        item = { text: mainLine, complete: false, priority: null,
-          contexts: null, projects: null, date: null, dateString: () => null };
-      }
-      // Parse due: extension manually (jstodotxt 0.10 doesn't auto-parse extensions)
-      const dueM    = mainLine.match(/\bdue:(\d{4}-\d{2}-\d{2})\b/);
-      const threshM = mainLine.match(/\bt:(\d{4}-\d{2}-\d{2})\b/);
-      item._due       = dueM    ? dueM[1]    : null;
-      item._threshold = threshM ? threshM[1] : null;
-      item._hashtags  = (mainLine.replace(/https?:\/\/[^\s]+/g, '').match(/#([^\s⟦]+?)(?=[.,;!?]*(?:\s|$))/g) || []).map(h => h.slice(1).replace(/[.,;!?]+$/, ''));
-      item._goal       = goal;
-      item._difficulty = difficulty;
-      item._advice     = advice;
-      item._raw     = line;
+      const parsed = TaskFormat.parseTaskLine(line);
+      const item = {
+        ...parsed,
+        complete: parsed.completed,
+        date: TaskFormat.parseIsoDateLocal(parsed.creationDate),
+        dateString: () => parsed.creationDate,
+        _due: parsed.dueDate,
+        _threshold: parsed.thresholdDate,
+        _hashtags: parsed.hashtags,
+        _goal: parsed.goal,
+        _difficulty: parsed.difficulty,
+        _advice: parsed.advice,
+        _raw: line,
+      };
       item._ignored = false;
       return item;
     }
@@ -244,17 +227,20 @@
         if (!line.trim()) continue;
         const trimmed = line.trim();
         // Маркеры секций — рендерятся как заголовки, не как задачи
-        if (MARKERS.isSorted(trimmed)) {
-          items.push({ _sectionHeader: true, _raw: line, _label: trimmed, _ignored: false, complete: false, priority: null, contexts: null, projects: null });
-          continue;
-        }
-        if (MARKERS.isPartiallySorted(trimmed)) {
-          items.push({ _sectionHeader: true, _raw: line, _label: trimmed, _ignored: false, complete: false, priority: null, contexts: null, projects: null });
-          continue;
-        }
-        if (MARKERS.isIgnored(trimmed)) {
-          inIgnored = true;
-          items.push({ _sectionHeader: true, _raw: line, _label: trimmed.replace(/^#+\s*/, ''), _ignored: true, complete: false, priority: null, contexts: null, projects: null });
+        const listName = MARKERS.getListName(trimmed);
+        if (listName) {
+          inIgnored = listName === 'ignored';
+          items.push({
+            _sectionHeader: true,
+            _listName: listName,
+            _raw: line,
+            _label: trimmed.replace(/^#+\s*/, ''),
+            _ignored: inIgnored,
+            complete: false,
+            priority: null,
+            contexts: null,
+            projects: null,
+          });
           continue;
         }
         const item = parseLine(line);
@@ -265,7 +251,7 @@
     }
 
     function saveItems() {
-      localStorage.setItem('tasks', items.map(t => t._raw).join('\n'));
+      localStorage.setItem('tasks', formatTaskList(items.map(t => t._raw)));
       if (typeof scheduleAutosave === 'function') scheduleAutosave();
     }
 
@@ -370,58 +356,8 @@
 
     // --- Text helpers ---
 
-    const esc   = s => String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    const esc   = TaskFormat.escapeHtml;
     const escRe = s => s.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
-
-    // Apply search highlight to already-HTML-escaped text; terms is an array of strings
-    function applyHL(html, terms) {
-      if (!terms || !terms.length) return html;
-      let result = html;
-      for (const t of terms) {
-        result = result.replace(new RegExp('(' + escRe(esc(t)) + ')', 'gi'), '<mark>$1</mark>');
-      }
-      return result;
-    }
-
-    // Linkify URLs + apply search highlight; input is plain text, terms is an array
-    function renderText(plain, terms) {
-      const URL_RE = /https?:\/\/[^\s<>"]+/g;
-      let out = '', last = 0, m;
-      while ((m = URL_RE.exec(plain)) !== null) {
-        out += applyHL(escAndHashtags(plain.slice(last, m.index)), terms);
-        const url = m[0];
-        out += `<a class="task-link" href="${esc(url)}" target="_blank" rel="noopener noreferrer">${applyHL(esc(url), terms)}</a>`;
-        last = m.index + url.length;
-      }
-      out += applyHL(escAndHashtags(plain.slice(last)), terms);
-      return out;
-    }
-
-    function escAndHashtags(plain) {
-      return esc(plain).replace(/#([^\s<]+?)([.,;!?]*(?=\s|$|&lt;|<))/g,
-        (_, tag, punct) => `<span class="task-hashtag" onclick="event.stopPropagation();setHashtag('${tag.replace(/'/g, "\\'")}')">#${esc(tag)}</span>${punct}`);
-    }
-
-    // --- Badge helpers ---
-
-    function priTag(p) {
-      if (!p) return '';
-      const cls = PRI_TAG_CLS[p] || 't-pri-D';
-      return `<span class="t t-pri ${cls}">${esc(p)}</span>`;
-    }
-
-    function dueTag(dueStr) {
-      if (!dueStr) return '';
-      const due = new Date(dueStr + 'T00:00:00');
-      const today = new Date(); today.setHours(0, 0, 0, 0);
-      const diff = Math.round((due - today) / 86400000);
-      let cls, label;
-      if (diff < 0)        { cls = 'due-overdue'; label = `просрочено ${-diff}д`; }
-      else if (diff === 0) { cls = 'due-today';   label = 'сегодня'; }
-      else if (diff <= 3)  { cls = 'due-soon';    label = `через ${diff}д`; }
-      else                 { cls = 'due-ok';      label = dueStr; }
-      return `<span class="t t-due ${cls}">${esc(label)}</span>`;
-    }
 
     // --- Render ---
 
@@ -554,19 +490,6 @@
 </div>`;
         }
         const idx = items.indexOf(t);
-        const tags = [];
-        if (t.priority) tags.push(priTag(t.priority));
-        if (t._due)     tags.push(dueTag(t._due));
-        (t.contexts || []).forEach(c => tags.push(`<span class="t t-ctx">@${esc(c)}</span>`));
-        (t.projects || []).forEach(p => tags.push(`<span class="t t-proj">+${esc(p)}</span>`));
-        if (t.date && typeof t.dateString === 'function') {
-          const ds = t.dateString();
-          if (ds) tags.push(`<span class="t t-date">${esc(ds)}</span>`);
-        }
-
-        // Strip due: token and hidden note ⟦...⟧ from displayed text
-        const displayText = (t.text || t._raw).replace(/\bdue:\d{4}-\d{2}-\d{2}\b/g, '').replace(/\s*\u27e6[\s\S]*\u27e7/, '').trim();
-
         // ── Edit mode ──
         if (editingIdx === idx) {
           const allCtxs  = [...new Set(items.filter(i => !i._sectionHeader).flatMap(i => i.contexts || []))].sort();
@@ -604,11 +527,8 @@
         return `<div class="task-row${t.complete ? ' done' : ''}${t._ignored ? ' ignored-row' : ''}" data-idx="${idx}">
   <input type="checkbox" ${t.complete ? 'checked' : ''} onchange="toggleDone(${idx})">
   <div class="task-body">
-    <span class="task-text" onclick="editTask(${idx})" style="cursor:pointer">${renderText(displayText, terms)}</span>
-    ${t._goal ? `<span class="task-goal"><strong>Цель:</strong> ${renderText(t._goal, terms)}</span>` : ''}
-    ${t._difficulty ? `<span class="task-difficulty"><strong>Сложность:</strong> ${renderText(t._difficulty, terms)}</span>` : ''}
-    ${t._advice ? `<span class="task-advice"><strong>Совет:</strong> ${renderText(t._advice, terms)}</span>` : ''}
-    ${tags.length ? `<div class="task-tags">${tags.join('')}</div>` : ''}
+    ${TaskFormat.renderTaskContentHtml(t, { variant: 'list', terms })}
+    ${TaskFormat.renderTaskMetaHtml(t)}
   </div>
   <details class="task-actions">
     <summary aria-label="Действия" title="Действия"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="5" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="12" cy="19" r="1"/></svg></summary>
@@ -620,19 +540,28 @@
   </details>
 </div>`;
       }).join('');
+      listEl.querySelectorAll('[data-task-title]').forEach(title => {
+        title.tabIndex = 0;
+        title.setAttribute('role', 'button');
+        title.setAttribute('aria-label', 'Редактировать задачу');
+      });
     }
 
     // --- Actions ---
 
     function toggleDone(idx) {
       const t = items[idx];
-      t.complete = !t.complete;
-      if (t.complete) {
+      const willComplete = !t.complete;
+      let newRaw;
+      if (willComplete) {
         const today = new Date().toISOString().slice(0, 10);
-        t._raw = 'x ' + today + ' ' + t._raw;
+        newRaw = 'x ' + today + ' ' + t._raw;
       } else {
-        t._raw = t._raw.replace(/^x\s+\d{4}-\d{2}-\d{2}\s+/, '');
+        newRaw = t._raw.replace(/^x\s+(?:\d{4}-\d{2}-\d{2}\s+)?/, '');
       }
+      const updated = parseLine(newRaw);
+      updated._ignored = t._ignored;
+      items[idx] = updated;
       saveItems();
       render();
     }
@@ -815,6 +744,22 @@
     });
 
     // ─── Edit / Delete / Archive functions ───────────────────────────────────
+
+    const taskListElement = document.getElementById('list');
+    taskListElement.addEventListener('click', event => {
+      const title = event.target.closest('[data-task-title]');
+      if (!title || event.target.closest('a')) return;
+      const row = title.closest('.task-row');
+      if (row) editTask(Number(row.dataset.idx));
+    });
+    taskListElement.addEventListener('keydown', event => {
+      if (event.key !== 'Enter' && event.key !== ' ') return;
+      const title = event.target.closest('[data-task-title]');
+      if (!title) return;
+      event.preventDefault();
+      const row = title.closest('.task-row');
+      if (row) editTask(Number(row.dataset.idx));
+    });
 
     function editTask(idx) {
       if (editingIdx >= 0 && editingIdx !== idx) {

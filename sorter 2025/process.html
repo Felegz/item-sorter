@@ -207,6 +207,8 @@
   </div>
 </div>
 
+<script src="markers.js?v=20260906-task-renderer"></script>
+<script src="task-format.js?v=20260906-task-renderer"></script>
 <script src="flows.js"></script>
 <script>
 // ==========================================================================
@@ -485,29 +487,28 @@ function showOutput(action) {
 }
 
 function buildNextLine(t) {
-  const parts = [];
   const pri = S.priority==='red' ? '(A)' : S.priority==='green' ? '(B)' : null;
-  if (pri) parts.push(pri);
-  parts.push(t);
-  parts.push(S.action || S.task);
-  S.contexts.forEach(c => parts.push(c));
-  if (S.dueDate) parts.push('due:' + S.dueDate);
-  return parts.join(' ');
+  return TaskFormat.serializeTaskLine({
+    priority: pri ? pri.slice(1, 2) : null,
+    creationDate: t,
+    text: S.action || S.task,
+    contexts: S.contexts.map(context => context.replace(/^@/, '')),
+    dueDate: S.dueDate || null,
+  });
 }
 
 function buildMutnyLine(t) {
   const pri = S.priority==='red' ? '(A)' : S.priority==='green' ? '(B)' : null;
-  const parts = [];
-  if (pri) parts.push(pri);
-  parts.push(t);
-  parts.push((S.action || S.task).trim());
-  S.contexts.forEach(c => parts.push(c));
-  let line = parts.join(' ');
-  // Embed goal inline — renderers split on ➤цель: for visual display
-  if (S.outcome)   line += ' \u27A4\u0446\u0435\u043B\u044C:' + S.outcome.trim().replace(/\n/g,' ');
-  if (S.feelings)  line += ' \u27A4\u0441\u043B\u043E\u0436\u043D\u043E\u0441\u0442\u044C:' + S.feelings.trim().replace(/\n/g,' ');
-  if (S.advice)    line += ' \u27A4\u0441\u043E\u0432\u0435\u0442:' + S.advice.trim().replace(/\n/g,' ');
-  return line;
+  return TaskFormat.serializeTaskLine({
+    priority: pri ? pri.slice(1, 2) : null,
+    creationDate: t,
+    text: S.action || S.task,
+    contexts: S.contexts.map(context => context.replace(/^@/, '')),
+    dueDate: S.dueDate || null,
+    goal: S.outcome || null,
+    difficulty: S.feelings || null,
+    advice: S.advice || null,
+  });
 }
 
 function continueWithMutny() {
@@ -533,44 +534,21 @@ function addToList() {
   // If came from a specific task, replace it instead of prepending
   if (S.originalTask) {
     const idx = lines.findIndex(l => l.trim() === S.originalTask.trim());
-    let finalLine = line;
-    // Carry URLs from original task to new line
-    const origUrls = (S.originalTask.match(/https?:\/\/\S+/g) || []);
-    origUrls.forEach(url => {
-      if (!finalLine.includes(url)) {
-        // Insert before hidden note ⟦...⟧ if present, otherwise append
-        if (/\u27e6/.test(finalLine)) {
-          finalLine = finalLine.replace(/(\s*\u27e6)/, ' ' + url + '$1');
-        } else {
-          finalLine += ' ' + url;
-        }
-      }
-    });
-    // If task text changed, preserve original in hidden note \u27e6...\u27e7
-    const origCore = S.originalTask.replace(/\s*\u27e6[\s\S]*\u27e7/, '').trim();
-    const newCore  = line.replace(/\s*\u27e6[\s\S]*\u27e7/, '').trim();
-    if (origCore !== newCore) {
-      // Extract existing note from new line (if any), prepend original text
-      const existingNoteMatch = line.match(/\s*\u27e6([\s\S]*)\u27e7/);
-      const existingNote = existingNoteMatch ? existingNoteMatch[1] : '';
-      const origNote = '\u0438\u0441\u0445.: ' + origCore;
-      const combined = existingNote ? origNote + ' | ' + existingNote : origNote;
-      finalLine = line.replace(/\s*\u27e6[\s\S]*\u27e7/, '').trim() + ' \u27e6' + combined + '\u27e7';
-    }
+    const finalLine = TaskFormat.mergeOriginalTask(line, S.originalTask);
     if (idx !== -1) {
       lines[idx] = finalLine;
-      localStorage.setItem('tasks', lines.join('\n'));
+      localStorage.setItem('tasks', formatTaskList(lines));
       el('out-note').textContent = 'Задача обновлена!';
       el('out-note').className = 'note ok';
       return;
     }
     // Original not found — prepend
-    localStorage.setItem('tasks', finalLine + (existing ? '\n' + existing : ''));
+    localStorage.setItem('tasks', formatTaskList([finalLine, ...existing.split(/\r?\n/)]));
     el('out-note').textContent='Добавлено в список!'; el('out-note').className='note ok';
     return;
   }
   // Otherwise prepend
-  localStorage.setItem('tasks', line + (existing ? '\n' + existing : ''));
+  localStorage.setItem('tasks', formatTaskList([line, ...existing.split(/\r?\n/)]));
   el('out-note').textContent='Добавлено в список!'; el('out-note').className='note ok';
 }
 
@@ -588,9 +566,9 @@ function nextTask() {
   for (let i = start; i < lines.length; i++) {
     const l = lines[i].trim();
     if (!l) continue;
-    if (/^ИГНОРИРУЕМЫЕ\s+ЗАДАЧИ/i.test(l)) { inIgnored = true; continue; }
+    if (MARKERS.isIgnored(l)) { inIgnored = true; continue; }
     if (inIgnored) continue;
-    if (/^(SORTED\s*\(|PARTIALLY SORTED|NEW ARRAY|НЕУПОРЯДОЧЕННЫЕ ЗАДАЧИ)/i.test(l)) continue;
+    if (MARKERS.isAnyMarker(l)) continue;
     if (/^x\s/.test(l)) continue;
     if (/\+someday-maybe/.test(l)) continue;
     window.location.href = '/process?task=' + encodeURIComponent(lines[i]) + '&from=tasks';
@@ -613,9 +591,15 @@ window.addEventListener('DOMContentLoaded', () => {
   const flow = params.get('flow') || 'korz';
   if (tp) {
     const fullTask = decodeURIComponent(tp);
-    // Strip hidden note ⟦...⟧ from displayed task; keep full as originalTask for lookup
-    S.task = fullTask.replace(/\s*\u27e6[\s\S]*\u27e7/, '').trim();
+    const parsedTask = TaskFormat.parseTaskLine(fullTask);
+    S.task = parsedTask.text || fullTask;
     S.originalTask = fullTask;
+    S.outcome = parsedTask.goal || '';
+    S.feelings = parsedTask.difficulty || '';
+    S.advice = parsedTask.advice || '';
+    S.contexts = parsedTask.contexts.map(context => '@' + context);
+    S.dueDate = parsedTask.dueDate || '';
+    S.priority = parsedTask.priority === 'A' ? 'red' : parsedTask.priority ? 'green' : null;
     el('task-cap').textContent = S.task;
     show('task-cap');
     startFlow(FLOWS[flow] ? flow : 'korz');
