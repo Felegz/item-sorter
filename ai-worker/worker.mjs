@@ -9,7 +9,7 @@ const require = createRequire(import.meta.url);
 const Exchange = require('../sorter 2025/ai-exchange.js');
 const stateDirectory = process.env.ITEM_SORTER_AI_STATE_DIR || defaultStateDirectory();
 const configPath = process.env.ITEM_SORTER_AI_CONFIG || path.join(stateDirectory, 'config.json');
-const credentialsPath = path.join(stateDirectory, 'credentials.json');
+const credentialsPath = process.env.ITEM_SORTER_AI_CREDENTIALS || path.join(stateDirectory, 'credentials.json');
 const statePath = path.join(stateDirectory, 'worker-state.json');
 const lockPath = path.join(stateDirectory, 'worker.lock');
 

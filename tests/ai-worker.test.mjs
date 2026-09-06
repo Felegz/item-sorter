@@ -94,6 +94,21 @@ function jsonResponse(status, value, headers = {}) {
   const calls = [];
   const client = new DropboxClient({
     appKey: 'app-key',
+    accessToken: 'access-token',
+    fetchImpl: async (url, options) => {
+      calls.push({ url, options });
+      return jsonResponse(200, { metadata: { name: 'test.txt' } });
+    },
+  });
+  await client.deleteFile('/ai/test.txt');
+  assert.equal(calls[0].url, 'https://api.dropboxapi.com/2/files/delete_v2');
+  assert.deepEqual(JSON.parse(calls[0].options.body), { path: '/ai/test.txt' });
+}
+
+{
+  const calls = [];
+  const client = new DropboxClient({
+    appKey: 'app-key',
     refreshToken: 'refresh-token',
     fetchImpl: async (url, options) => {
       calls.push({ url, options });

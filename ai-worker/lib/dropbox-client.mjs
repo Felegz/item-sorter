@@ -172,4 +172,8 @@ export class DropboxClient {
       return response.json();
     });
   }
+
+  deleteFile(path) {
+    return this.rpc('/files/delete_v2', { path });
+  }
 }
