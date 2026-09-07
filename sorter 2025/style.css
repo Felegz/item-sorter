@@ -1186,3 +1186,55 @@ footer a {
   .primary-actions button { min-height: 38px; padding: 0 10px; font-size: 0.78rem; }
   .sync-badge { min-height: 30px; padding: 0 8px; font-size: 0.74rem; }
 }
+
+/* Focus mode uses the viewport that remains above the mobile keyboard. */
+@media (max-width: 760px) {
+  body.mobile-editor-active {
+    min-height: 0;
+    height: var(--mobile-editor-height, 100dvh);
+    overflow: hidden;
+  }
+
+  body.mobile-editor-active .app {
+    height: 100%;
+    padding: 8px;
+    gap: 0;
+  }
+
+  body.mobile-editor-active .app-header,
+  body.mobile-editor-active .list-workspace > :not(:focus-within) {
+    display: none;
+  }
+
+  body.mobile-editor-active .list-workspace {
+    min-height: 0;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    padding: 0;
+  }
+
+  body.mobile-editor-active .list-workspace > :focus-within,
+  body.mobile-editor-active .editor-surface:focus-within {
+    min-height: 0;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    margin: 0;
+    padding: 0;
+  }
+
+  body.mobile-editor-active details:focus-within > summary {
+    display: none;
+  }
+
+  body.mobile-editor-active #task-list:focus,
+  body.mobile-editor-active #user-question:focus {
+    min-height: 0;
+    height: 100%;
+    flex: 1;
+    margin: 0;
+    padding: 12px;
+    resize: none;
+  }
+}

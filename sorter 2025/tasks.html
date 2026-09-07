@@ -2,7 +2,7 @@
 <html lang="ru">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content">
   <title>Tasks</title>
   <!-- vanilla-context-menu 1.6.0 — MIT license, github.com/GeorgianStan/vanilla-context-menu -->
   <script src="https://unpkg.com/vanilla-context-menu@1.6.0/dist/vanilla-context-menu.js"></script>
@@ -10,6 +10,7 @@
   <script src="https://cdn.jsdelivr.net/npm/@date-fns/cdn@4.4.0/cdn.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@date-fns/cdn@4.4.0/locale/ru/cdn.min.js"></script>
   <script src="markers.js?v=20260906-task-renderer"></script>
+  <script src="mobile-edit-mode.js?v=20260907-keyboard-layout"></script>
   <script src="task-format.js?v=20260906-task-renderer"></script>
   <script src="task-list-operations.js?v=20260907-task-capture"></script>
   <script src="ai-exchange.js?v=20260906-ai-bridge"></script>
@@ -514,10 +515,10 @@
           }).join('');
           const currentDue = t._due || '';
           const duePicker = `<label class="tag-pick-chip due-pick-lbl" title="Дата due:">Срок <input type="date" id="due-pick-${idx}" class="due-pick-inp" value="${currentDue}" onchange="setDueOnEdit(${idx},this.value)" onclick="event.stopPropagation()"></label>`;
-          return `<div class="task-row editing" data-idx="${idx}">
+          return `<div class="task-row editing" data-idx="${idx}" data-mobile-editor-shell>
   <input type="checkbox" ${t.complete ? 'checked' : ''} onchange="toggleDone(${idx})" style="margin-top:8px;flex-shrink:0">
   <div class="task-body" style="flex:1;min-width:0">
-    <textarea id="edit-inp-${idx}" class="task-edit-input"
+    <textarea id="edit-inp-${idx}" class="task-edit-input" data-mobile-editor
       onkeydown="handleEditKey(event,${idx})" oninput="updateTagPicker(${idx})">${esc(editVal)}</textarea>
     <div class="tag-picker" id="tag-picker-${idx}">${priChips}${ctxChips}${projChips}${duePicker}</div>
     <div class="edit-hint">Enter — сохранить &nbsp;·&nbsp; Escape — отмена &nbsp;·&nbsp; клик по тегу — добавить/убрать</div>

@@ -2094,3 +2094,90 @@ button:disabled {
   .rank-choices { grid-template-columns: 1fr; }
   .rank-choice { min-height: 82px; }
 }
+
+/* While a task is edited, spend the keyboard-reduced viewport on that task only. */
+@media (max-width: 760px) {
+  body.mobile-editor-active {
+    min-height: 0;
+    height: var(--mobile-editor-height, 100dvh);
+    overflow: hidden;
+  }
+
+  body.mobile-editor-active .tasks-app {
+    min-height: 0;
+    height: 100%;
+    padding: 6px;
+  }
+
+  body.mobile-editor-active .app-header,
+  body.mobile-editor-active .mobile-taskbar,
+  body.mobile-editor-active .mobile-scrim,
+  body.mobile-editor-active .tasks-app main > :not(#list),
+  body.mobile-editor-active #list > :not(.editing) {
+    display: none !important;
+  }
+
+  body.mobile-editor-active .tasks-app main,
+  body.mobile-editor-active #list {
+    min-height: 0;
+    height: 100%;
+    padding: 0;
+    overflow: hidden;
+  }
+
+  body.mobile-editor-active .task-row.editing {
+    min-height: 0;
+    height: 100%;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    grid-template-rows: minmax(0, 1fr) auto;
+    gap: 6px;
+    margin: 0;
+    padding: 8px;
+  }
+
+  body.mobile-editor-active .task-row.editing > input[type="checkbox"] {
+    display: none;
+  }
+
+  body.mobile-editor-active .task-row.editing .task-body {
+    min-height: 0;
+    grid-column: 1 / -1;
+    display: flex;
+    flex-direction: column;
+  }
+
+  body.mobile-editor-active .task-edit-input:focus {
+    min-height: 140px;
+    height: auto;
+    flex: 1;
+    padding: 12px;
+    resize: none;
+  }
+
+  body.mobile-editor-active .tag-picker {
+    min-height: 42px;
+    flex: 0 0 auto;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    overflow-y: hidden;
+    overscroll-behavior-inline: contain;
+    scrollbar-width: thin;
+  }
+
+  body.mobile-editor-active .tag-picker .tag-pick-chip {
+    flex: 0 0 auto;
+  }
+
+  body.mobile-editor-active .edit-hint {
+    display: none;
+  }
+
+  body.mobile-editor-active .task-row.editing .edit-confirm-btn {
+    grid-column: 1;
+  }
+
+  body.mobile-editor-active .task-row.editing .edit-cancel-btn {
+    grid-column: 2;
+  }
+}

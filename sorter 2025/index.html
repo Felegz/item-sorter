@@ -3,7 +3,7 @@
 <html lang="ru">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content" />
   <title>Item Sorter</title>
   <link rel="icon" type="image/x-icon" href="data:image/x-icon;base64,AAABAAEAEBAQAAEABAAoAQAAFgAAACgAAAAQAAAAIAAAAAEABAAAAAAAgAAAAAAAAAAAAAAAEAAAAAAAAAAAAAAA/4QAAADZ/wAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAERERERERERESAAAAAAAAARIAAAAAAAABEgAAABEgAAESAAABESAAARIAABEREgABEgABESESAAESABESAREgARIBESAAESABEhESAAARIAESESAAABEQARIAAAAAARABEgAAAAABEAESAAAAAAAAARIiIiIiIiIhEREREREREREAAAAAP/4AAD/+AAA/HgAAPh4AADwOAAA4DgAAMIYAACHGAAADxgAAB8YAAD/mAAA/5gAAP/4AAAAAAAAAAAAA" />
   <link rel="stylesheet" href="style.css" />
@@ -47,6 +47,8 @@
         <textarea
           class="text-field"
           id="task-list"
+          data-mobile-editor
+          data-mobile-editor-shell
           placeholder="Enter your list of tasks here.
 Write one task per line.
 Duplicate and empty lines will be ignored automatically.
@@ -61,6 +63,8 @@ Your text will be stored in browser memory even after page reload, but it's not 
         <label class="sr-only" for="user-question">Пользовательский вопрос для сравнения задач</label>
         <textarea
           id="user-question"
+          data-mobile-editor
+          data-mobile-editor-shell
           rows="2"
           placeholder="Which task would bring more value or impact if completed first? (Enter your custom question here)"
           class="text-field"
@@ -115,6 +119,7 @@ Your text will be stored in browser memory even after page reload, but it's not 
     <script src="https://cdn.jsdelivr.net/npm/@date-fns/cdn@4.4.0/locale/ru/cdn.min.js"></script>
 
     <script src="markers.js?v=20260906-task-renderer"></script>
+    <script src="mobile-edit-mode.js?v=20260907-keyboard-layout"></script>
     <script src="task-format.js?v=20260906-task-renderer"></script>
     <script src="task-list-operations.js?v=20260907-task-capture"></script>
     <script src="ai-exchange.js?v=20260906-ai-bridge"></script>

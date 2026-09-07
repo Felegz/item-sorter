@@ -2,7 +2,7 @@
 <html lang="ru">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content" />
   <title>Помогатор</title>
   <link rel="icon" type="image/x-icon" href="data:image/x-icon;base64,AAABAAEAEBAQAAEABAAoAQAAFgAAACgAAAAQAAAAIAAAAAEABAAAAAAAgAAAAAAAAAAAAAAAEAAAAAAAAAAAAAAA/4QAAADZ/wAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAERERERERERESAAAAAAAAARIAAAAAAAABEgAAABEgAAESAAABESAAARIAABEREgABEgABESESAAESABESAREgARIBESAAESABEhESAAARIAESESAAABEQARIAAAAAARABEgAAAAABEAESAAAAAAAAARIiIiIiIiIhEREREREREREAAAAAP/4AAD/+AAA/HgAAPh4AADwOAAA4DgAAMIYAACHGAAADxgAAB8YAAD/mAAA/5gAAP/4AAAAAAAAAAAAA" />
   <style>
@@ -143,6 +143,99 @@
     .note { font-size: 0.8rem; color: var(--fg-m); margin-top: 0.5rem; }
     .note.ok { color: #86efac; }
     .hidden { display: none !important; }
+
+    /* Mobile focus mode spends the keyboard-reduced viewport on the current answer. */
+    @media (max-width: 760px) {
+      body {
+        padding: 0.75rem 0.6rem 2rem;
+      }
+
+      textarea,
+      input[type=text],
+      input[type=date] {
+        font-size: 1rem;
+      }
+
+      body.mobile-editor-active {
+        min-height: 0;
+        height: var(--mobile-editor-height, 100dvh);
+        padding: 6px;
+        overflow: hidden;
+        align-items: stretch;
+      }
+
+      body.mobile-editor-active .page {
+        min-height: 0;
+        height: 100%;
+        max-width: none;
+      }
+
+      body.mobile-editor-active header,
+      body.mobile-editor-active #task-cap,
+      body.mobile-editor-active #mode-sel,
+      body.mobile-editor-active .badge,
+      body.mobile-editor-active .step-hint,
+      body.mobile-editor-active .friend-quote {
+        display: none !important;
+      }
+
+      body.mobile-editor-active #edit-area:not(:focus-within),
+      body.mobile-editor-active #step-area:not(:focus-within),
+      body.mobile-editor-active #out-area:not(:focus-within) {
+        display: none !important;
+      }
+
+      body.mobile-editor-active #edit-area:focus-within,
+      body.mobile-editor-active #step-area:focus-within,
+      body.mobile-editor-active #out-area:focus-within,
+      body.mobile-editor-active .card:focus-within {
+        min-height: 0;
+        height: 100%;
+      }
+
+      body.mobile-editor-active .card:focus-within {
+        display: flex;
+        flex-direction: column;
+        margin: 0;
+        padding: 10px;
+        overflow: hidden;
+      }
+
+      body.mobile-editor-active .step-q {
+        flex: 0 0 auto;
+        margin-bottom: 6px;
+        font-size: 1rem;
+      }
+
+      body.mobile-editor-active textarea:focus {
+        min-height: 140px;
+        height: auto;
+        flex: 1;
+        margin: 0 0 6px;
+        padding: 12px;
+        resize: none;
+      }
+
+      body.mobile-editor-active input[type=text]:focus {
+        min-height: 52px;
+        margin-bottom: 8px;
+      }
+
+      body.mobile-editor-active .act-row {
+        flex: 0 0 auto;
+        margin-top: auto;
+      }
+
+      body.mobile-editor-active .out-card {
+        min-height: 0;
+        flex: 1;
+        overflow: auto;
+      }
+
+      body.mobile-editor-active .out-action:focus {
+        min-height: 140px;
+      }
+    }
   </style>
 </head>
 <body>
@@ -169,11 +262,11 @@
     </button>
   </div>
 
-  <div id="edit-area" class="card hidden">
+  <div id="edit-area" class="card hidden" data-mobile-editor-shell>
     <div class="badge" id="edit-badge"></div>
     <div class="step-q">Что нужно обработать?</div>
     <div class="step-hint">Отредактируй текст задачи если нужно</div>
-    <textarea id="task-input" rows="3" placeholder="Задача или идея..."></textarea>
+    <textarea id="task-input" rows="3" placeholder="Задача или идея..." data-mobile-editor></textarea>
     <div class="act-row">
       <button class="btn btn-p" onclick="afterEdit()">Дальше &#x2192;</button>
     </div>
@@ -182,11 +275,11 @@
   <div id="step-area" class="hidden"></div>
 
   <div id="out-area" class="hidden">
-    <div class="card">
+    <div class="card" data-mobile-editor-shell>
       <div class="badge">Готово</div>
       <div class="step-q" id="out-title" style="margin-bottom:0.75rem"></div>
       <div class="out-card">
-        <div class="out-action" id="out-line" contenteditable="true" spellcheck="false" title="Нажми, чтобы отредактировать"></div>
+        <div class="out-action" id="out-line" contenteditable="true" spellcheck="false" title="Нажми, чтобы отредактировать" data-mobile-editor></div>
         <div class="out-goal" id="out-goal"></div>
       </div>
       <div class="act-row">
@@ -210,6 +303,7 @@
 <script src="markers.js?v=20260906-task-renderer"></script>
 <script src="task-format.js?v=20260906-task-renderer"></script>
 <script src="flows.js"></script>
+<script src="mobile-edit-mode.js?v=20260907-keyboard-layout"></script>
 <script>
 // ==========================================================================
 //  ДВИЖОК (алгоритм — в flows.js)
@@ -269,7 +363,7 @@ function renderStep(idx) {
   const hint = step.hintFn ? step.hintFn() : (step.hint || '');
   const hintHtml = step.hintHtmlFn ? step.hintHtmlFn() : (step.hintHtml || '');
 
-  let h = '<div class="card">';
+  let h = '<div class="card" data-mobile-editor-shell>';
   h += '<div class="badge">' + mlabel + ' &mdash; шаг ' + (idx+1) + ' / ' + total + '</div>';
   h += '<div class="step-q">' + esc(step.q) + '</div>';
   if (hint) h += '<div class="step-hint">' + esc(hint) + '</div>';
@@ -291,9 +385,9 @@ function renderStep(idx) {
   } else if (step.type === 'text') {
     const val = esc(S[step.field] || '');
     if (step.multiline) {
-      h += '<textarea id="sf" placeholder="' + esc(step.placeholder||'') + '">' + val + '</textarea>';
+      h += '<textarea id="sf" data-mobile-editor placeholder="' + esc(step.placeholder||'') + '">' + val + '</textarea>';
     } else {
-      h += '<input type="text" id="sf" placeholder="' + esc(step.placeholder||'') + '" value="' + val + '" />';
+      h += '<input type="text" id="sf" data-mobile-editor placeholder="' + esc(step.placeholder||'') + '" value="' + val + '" />';
     }
     h += '<div class="act-row">';
     if (step.action)
