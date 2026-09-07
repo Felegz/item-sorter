@@ -97,8 +97,13 @@ function syncHighlight() {
   renderFilterBar();
 }
 
-// ─── Редактор хэштегов (правый клик) ────────────────────────────
+// ─── Старый редактор задачи (сейчас не вызывается) ──────────────
 
+/**
+ * Открывает старый модальный редактор исходного текста и хэштегов.
+ * Функция сохранена для будущей переработки, но её привязка к списку отключена
+ * в initHighlight(): модальное окно мешало обычному выделению и копированию текста.
+ */
 async function showTaskEditor(lineIdx, lines) {
   const Swal = window.Swal;
   if (!Swal) return;
@@ -161,19 +166,26 @@ function initHighlight() {
   if (!ta) return;
   ta.addEventListener('input', renderFilterBar);
 
-  ta.addEventListener('contextmenu', async (e) => {
-    e.preventDefault();
-    const pos = ta.selectionStart;
-    const lines = ta.value.split('\n');
-    let charCount = 0, lineIdx = 0;
-    for (let i = 0; i < lines.length; i++) {
-      if (charCount + lines[i].length >= pos) { lineIdx = i; break; }
-      charCount += lines[i].length + 1;
-    }
-    const line = lines[lineIdx]?.trim();
-    if (!line || MARKERS.isAnyMarker(line)) return;
-    await showTaskEditor(lineIdx, lines);
-  });
+  /*
+   * Намеренно отключено: этот обработчик открывал старый showTaskEditor поверх
+   * списка и мешал выделять, копировать и вырезать текст. Код оставлен рядом,
+   * чтобы редактор можно было переработать позже и вернуть только через явную
+   * кнопку, не перехватывающую клики мыши внутри textarea.
+   *
+   * ta.addEventListener('contextmenu', async (e) => {
+   *   e.preventDefault();
+   *   const pos = ta.selectionStart;
+   *   const lines = ta.value.split('\n');
+   *   let charCount = 0, lineIdx = 0;
+   *   for (let i = 0; i < lines.length; i++) {
+   *     if (charCount + lines[i].length >= pos) { lineIdx = i; break; }
+   *     charCount += lines[i].length + 1;
+   *   }
+   *   const line = lines[lineIdx]?.trim();
+   *   if (!line || MARKERS.isAnyMarker(line)) return;
+   *   await showTaskEditor(lineIdx, lines);
+   * });
+   */
 }
 
 // ─── Авто-приоритеты ─────────────────────────────────────────────
