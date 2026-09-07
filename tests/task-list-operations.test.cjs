@@ -45,6 +45,32 @@ const operations = context.TaskListOperations;
     'Старая вторая',
   ].join('\n'));
 
+  const dated = operations.assignMissingCreationDates([
+    'Без даты @дома',
+    '2026-09-01 Уже с датой #важно',
+    'SORTED (2026.09.01)',
+    'x 2026-09-06 Выполненная без даты',
+  ], '2026-09-07');
+  assert.equal(dated.changedCount, 2);
+  assert.deepEqual(Array.from(dated.lines), [
+    '2026-09-07 Без даты @дома',
+    '2026-09-01 Уже с датой #важно',
+    'SORTED (2026.09.01)',
+    'x 2026-09-06 2026-09-07 Выполненная без даты',
+  ]);
+  assert.equal(dated.text, [
+    '2026-09-07 Без даты @дома',
+    '',
+    '2026-09-01 Уже с датой #важно',
+    '',
+    'SORTED (2026.09.01)',
+    'x 2026-09-06 2026-09-07 Выполненная без даты',
+  ].join('\n'));
+  assert.throws(
+    () => operations.assignMissingCreationDates(['Без даты'], '07.09.2026'),
+    /YYYY-MM-DD/
+  );
+
   const weight = new Map([['A', 1], ['B', 2], ['C', 3], ['D', 4], ['E', 5]]);
   const compare = (candidate, existing) => weight.get(candidate) - weight.get(existing);
   const placement = await operations.insertTaskByRank(['A', 'C', 'E'], 'D', compare);

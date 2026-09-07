@@ -80,6 +80,33 @@
   }
 
   /**
+   * Assign one creation date to every task that does not have one yet.
+   * Existing dates and section markers stay byte-for-byte unchanged; changed
+   * tasks are serialized through the shared todo.txt formatter.
+   */
+  function assignMissingCreationDates(documentInput, creationDate) {
+    if (!ISO_DATE_RE.test(String(creationDate || ''))) {
+      throw new TypeError('creationDate must use YYYY-MM-DD');
+    }
+
+    let changedCount = 0;
+    const lines = documentEntries(documentInput).map(line => {
+      if (markers.isAnyMarker(line)) return line;
+      const task = taskFormat.parseTaskLine(line);
+      if (task.creationDate) return line;
+      task.creationDate = creationDate;
+      changedCount += 1;
+      return taskFormat.serializeTaskLine(task);
+    });
+
+    return Object.freeze({
+      changedCount,
+      lines: Object.freeze(lines),
+      text: formatList(lines),
+    });
+  }
+
+  /**
    * Binary-insertion formula for a list ordered from most important to least.
    * compare(candidate, existing) must resolve to a negative number when the
    * candidate belongs above the existing task, otherwise to a positive number.
@@ -167,6 +194,7 @@
     localIsoDate,
     prepareNewTask,
     insertTaskIntoInbox,
+    assignMissingCreationDates,
     findRankedInsertionIndex,
     insertTaskByRank,
     rankTaskAtIndex,

@@ -986,6 +986,17 @@ button:disabled {
   flex: 0 1 auto;
 }
 
+.bulk-date-picker {
+  min-height: 40px;
+  padding: 0 10px;
+  border: 1px solid var(--border-hover);
+  border-radius: var(--btn-radius);
+  background: var(--bg-elevated);
+  color: var(--fg);
+  color-scheme: dark;
+  font: inherit;
+}
+
 #dbx-status {
   min-height: 0;
   margin-top: 9px;
@@ -1084,6 +1095,11 @@ footer a {
 
   .btn-row button {
     flex: 1 1 calc(50% - 4px);
+  }
+
+  .bulk-date-picker {
+    flex: 1 1 calc(50% - 4px);
+    min-height: 44px;
   }
 }
 

@@ -1016,6 +1016,73 @@ document.getElementById('quick-triage-btn')?.addEventListener('click', () => {
   window.location.href = url;
 });
 
+// Reuse the native date input used elsewhere in the project. Browsers with
+// showPicker open it immediately; older/test browsers get a visible fallback.
+const assignCreationDatesButton = document.getElementById('assign-creation-dates-btn');
+const assignCreationDateInput = document.getElementById('assign-creation-date-input');
+
+assignCreationDatesButton?.addEventListener('click', () => {
+  assignCreationDateInput.value = '';
+  assignCreationDateInput.hidden = false;
+  assignCreationDateInput.focus({ preventScroll: true });
+  try {
+    if (typeof assignCreationDateInput.showPicker === 'function') assignCreationDateInput.showPicker();
+    else assignCreationDateInput.click();
+  } catch (_error) {
+    // The visible input remains usable when programmatic picker opening is blocked.
+  }
+});
+
+assignCreationDateInput?.addEventListener('change', async () => {
+  if (!assignCreationDateInput.value) return;
+  const selectedDate = assignCreationDateInput.value;
+  const result = TaskListOperations.assignMissingCreationDates(
+    taskList.value,
+    selectedDate,
+  );
+
+  if (result.changedCount === 0) {
+    await Swal.fire({
+      icon: 'info',
+      title: 'Нечего изменять',
+      text: 'У всех задач уже есть дата создания.',
+      confirmButtonText: 'Закрыть',
+    });
+    assignCreationDateInput.value = '';
+    assignCreationDateInput.hidden = true;
+    assignCreationDatesButton.focus();
+    return;
+  }
+
+  const readableDate = selectedDate.split('-').reverse().join('.');
+  const confirmation = await Swal.fire({
+    icon: 'question',
+    title: 'Заполнить даты создания?',
+    text: `${readableDate} будет добавлена задачам без даты: ${result.changedCount}.`,
+    showCancelButton: true,
+    confirmButtonText: 'Проставить',
+    cancelButtonText: 'Отмена',
+  });
+
+  if (confirmation.isConfirmed) {
+    taskList.value = result.text;
+    saveDataToLocalStorage();
+    taskList.dispatchEvent(new Event('input', { bubbles: true }));
+    await Swal.fire({
+      toast: true,
+      position: 'bottom-end',
+      icon: 'success',
+      title: `Дата добавлена: ${result.changedCount}`,
+      showConfirmButton: false,
+      timer: 2400,
+    });
+  }
+
+  assignCreationDateInput.value = '';
+  assignCreationDateInput.hidden = true;
+  assignCreationDatesButton.focus();
+});
+
 
 
 

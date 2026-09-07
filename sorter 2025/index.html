@@ -6,7 +6,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content" />
   <title>Item Sorter</title>
   <link rel="icon" type="image/x-icon" href="data:image/x-icon;base64,AAABAAEAEBAQAAEABAAoAQAAFgAAACgAAAAQAAAAIAAAAAEABAAAAAAAgAAAAAAAAAAAAAAAEAAAAAAAAAAAAAAA/4QAAADZ/wAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAERERERERERESAAAAAAAAARIAAAAAAAABEgAAABEgAAESAAABESAAARIAABEREgABEgABESESAAESABESAREgARIBESAAESABEhESAAARIAESESAAABEQARIAAAAAARABEgAAAAABEAESAAAAAAAAARIiIiIiIiIhEREREREREREAAAAAP/4AAD/+AAA/HgAAPh4AADwOAAA4DgAAMIYAACHGAAADxgAAB8YAAD/mAAA/5gAAP/4AAAAAAAAAAAAA" />
-  <link rel="stylesheet" href="style.css" />
+  <link rel="stylesheet" href="style.css?v=20260907-bulk-creation-date-v2" />
   <link rel="stylesheet" href="task-format.css" />
 </head>
 <body>
@@ -96,6 +96,14 @@ Your text will be stored in browser memory even after page reload, but it's not 
           <div class="btn-group">
             <span class="btn-group-label">Данные</span>
             <div class="btn-row">
+              <button id="assign-creation-dates-btn" type="button">Заполнить даты создания</button>
+              <input
+                id="assign-creation-date-input"
+                class="bulk-date-picker"
+                type="date"
+                aria-label="Дата создания для задач без даты"
+                hidden
+              />
               <button id="copy-button" class="btn--ghost">Copy</button>
               <button id="save-button" class="btn--ghost" onclick="saveAsTxt()">Save .txt</button>
               <button id="dbx-login-btn" class="btn--dbx-login">Войти в Dropbox</button>
@@ -121,9 +129,9 @@ Your text will be stored in browser memory even after page reload, but it's not 
     <script src="markers.js?v=20260906-task-renderer"></script>
     <script src="mobile-edit-mode.js?v=20260907-keyboard-layout"></script>
     <script src="task-format.js?v=20260906-task-renderer"></script>
-    <script src="task-list-operations.js?v=20260907-task-capture"></script>
+    <script src="task-list-operations.js?v=20260907-bulk-creation-date-v2"></script>
     <script src="ai-exchange.js?v=20260906-ai-bridge"></script>
-    <script src="app.js?v=20260906-task-renderer"></script>
+    <script src="app.js?v=20260907-bulk-creation-date-v3"></script>
     <script src="dropbox.js?v=20260906-ai-bridge"></script>
     <script src="ai-dropbox.js?v=20260906-ai-bridge"></script>
     <script src="todotxt.js?v=20260906-task-renderer"></script>
