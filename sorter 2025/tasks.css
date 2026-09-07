@@ -49,7 +49,7 @@ h1 { flex: 1; font-size: 1.25rem; font-weight: 600; }
   margin-bottom: 0.65rem;
 }
 .add-input-wrap { position: relative; flex: 1; }
-.add-bar input {
+.add-bar :is(input, textarea) {
   width: 100%;
   background: var(--bg-card);
   color: var(--fg);
@@ -61,8 +61,8 @@ h1 { flex: 1; font-size: 1.25rem; font-weight: 600; }
   outline: none;
   transition: border-color 0.15s;
 }
-.add-bar input:focus { border-color: var(--primary); }
-.add-bar input::placeholder { color: var(--fg-m); }
+.add-bar :is(input, textarea):focus { border-color: var(--primary); }
+.add-bar :is(input, textarea)::placeholder { color: var(--fg-m); }
 /* Autocomplete dropdown */
 .ac-drop {
   position: absolute;
@@ -845,7 +845,7 @@ button:disabled {
   flex: 1;
 }
 
-.add-bar input {
+.add-bar :is(input, textarea) {
   width: 100%;
   min-height: 48px;
   padding: 0 16px;
@@ -856,18 +856,25 @@ button:disabled {
   caret-color: var(--primary);
   font-size: 0.95rem;
   outline: none;
+  resize: none;
   box-shadow: 0 8px 28px rgba(0, 0, 0, 0.16);
 }
 
-.add-bar input:hover { border-color: var(--border-h); }
-.add-bar input:focus {
+.add-bar :is(input, textarea):hover { border-color: var(--border-h); }
+.add-bar :is(input, textarea):focus {
   border-color: var(--primary);
   outline: 3px solid rgba(120, 214, 163, 0.24);
   outline-offset: 1px;
 }
 
-.add-bar input::placeholder,
+.add-bar :is(input, textarea)::placeholder,
 .search-bar input::placeholder { color: #96a2af; }
+
+.add-bar textarea {
+  padding-block: 12px;
+  overflow: hidden;
+  line-height: 1.45;
+}
 
 .add-bar button {
   min-width: 112px;
@@ -1378,7 +1385,7 @@ button:disabled {
     margin-bottom: 13px;
   }
 
-  .add-bar input,
+  .add-bar :is(input, textarea),
   .search-bar input,
   .task-edit-input { font-size: 1rem; }
 
@@ -1692,7 +1699,7 @@ button:disabled {
     gap: 7px;
   }
 
-  .add-bar input,
+  .add-bar :is(input, textarea),
   .search-bar input {
     min-height: 40px;
     font-size: 0.95rem;
@@ -2100,6 +2107,7 @@ button:disabled {
   body.mobile-editor-active {
     min-height: 0;
     height: var(--mobile-editor-height, 100dvh);
+    padding-bottom: 0;
     overflow: hidden;
   }
 
@@ -2109,23 +2117,24 @@ button:disabled {
     padding: 6px;
   }
 
-  body.mobile-editor-active .app-header,
-  body.mobile-editor-active .mobile-taskbar,
-  body.mobile-editor-active .mobile-scrim,
-  body.mobile-editor-active .tasks-app main > :not(#list),
-  body.mobile-editor-active #list > :not(.editing) {
+  body.mobile-editor-active[data-mobile-editor-layout="task"] .app-header,
+  body.mobile-editor-active[data-mobile-editor-layout="task"] .mobile-taskbar,
+  body.mobile-editor-active[data-mobile-editor-layout="task"] .mobile-scrim,
+  body.mobile-editor-active[data-mobile-editor-layout="task"] .task-add-fab,
+  body.mobile-editor-active[data-mobile-editor-layout="task"] .tasks-app main > :not(#list),
+  body.mobile-editor-active[data-mobile-editor-layout="task"] #list > :not(.editing) {
     display: none !important;
   }
 
-  body.mobile-editor-active .tasks-app main,
-  body.mobile-editor-active #list {
+  body.mobile-editor-active[data-mobile-editor-layout="task"] .tasks-app main,
+  body.mobile-editor-active[data-mobile-editor-layout="task"] #list {
     min-height: 0;
     height: 100%;
     padding: 0;
     overflow: hidden;
   }
 
-  body.mobile-editor-active .task-row.editing {
+  body.mobile-editor-active[data-mobile-editor-layout="task"] .task-row.editing {
     min-height: 0;
     height: 100%;
     display: grid;
@@ -2136,18 +2145,18 @@ button:disabled {
     padding: 8px;
   }
 
-  body.mobile-editor-active .task-row.editing > input[type="checkbox"] {
+  body.mobile-editor-active[data-mobile-editor-layout="task"] .task-row.editing > input[type="checkbox"] {
     display: none;
   }
 
-  body.mobile-editor-active .task-row.editing .task-body {
+  body.mobile-editor-active[data-mobile-editor-layout="task"] .task-row.editing .task-body {
     min-height: 0;
     grid-column: 1 / -1;
     display: flex;
     flex-direction: column;
   }
 
-  body.mobile-editor-active .task-edit-input:focus {
+  body.mobile-editor-active[data-mobile-editor-layout="task"] .task-edit-input:focus {
     min-height: 140px;
     height: auto;
     flex: 1;
@@ -2155,7 +2164,7 @@ button:disabled {
     resize: none;
   }
 
-  body.mobile-editor-active .tag-picker {
+  body.mobile-editor-active[data-mobile-editor-layout="task"] .tag-picker {
     min-height: 42px;
     flex: 0 0 auto;
     flex-wrap: nowrap;
@@ -2165,19 +2174,130 @@ button:disabled {
     scrollbar-width: thin;
   }
 
-  body.mobile-editor-active .tag-picker .tag-pick-chip {
+  body.mobile-editor-active[data-mobile-editor-layout="task"] .tag-picker .tag-pick-chip {
     flex: 0 0 auto;
   }
 
-  body.mobile-editor-active .edit-hint {
+  body.mobile-editor-active[data-mobile-editor-layout="task"] .edit-hint {
     display: none;
   }
 
-  body.mobile-editor-active .task-row.editing .edit-confirm-btn {
+  body.mobile-editor-active[data-mobile-editor-layout="task"] .task-row.editing .edit-confirm-btn {
     grid-column: 1;
   }
 
-  body.mobile-editor-active .task-row.editing .edit-cancel-btn {
+  body.mobile-editor-active[data-mobile-editor-layout="task"] .task-row.editing .edit-cancel-btn {
     grid-column: 2;
+  }
+}
+
+.task-add-fab { display: none; }
+.add-bar .add-cancel { display: none; }
+
+/* Mobile capture is a reusable mobile-editor layout, not a separate form. */
+@media (max-width: 760px) {
+  .task-add-fab {
+    width: 54px;
+    height: 54px;
+    min-height: 54px;
+    position: fixed;
+    right: max(14px, env(safe-area-inset-right));
+    bottom: calc(72px + env(safe-area-inset-bottom));
+    z-index: 101;
+    display: grid;
+    place-items: center;
+    padding: 0;
+    border: 0;
+    border-radius: 50%;
+    background: var(--primary);
+    color: #0c1812;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+  }
+
+  .task-add-fab svg {
+    width: 24px;
+    height: 24px;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 2;
+    stroke-linecap: round;
+  }
+
+  .task-add-fab[aria-expanded="true"] {
+    background: var(--primary-h);
+  }
+
+  .mobile-taskbar {
+    grid-template-columns: repeat(2, 52px);
+    justify-content: center;
+  }
+
+  body.mobile-editor-active[data-mobile-editor-layout="capture"] .app-header,
+  body.mobile-editor-active[data-mobile-editor-layout="capture"] .mobile-taskbar,
+  body.mobile-editor-active[data-mobile-editor-layout="capture"] .mobile-scrim,
+  body.mobile-editor-active[data-mobile-editor-layout="capture"] .task-add-fab,
+  body.mobile-editor-active[data-mobile-editor-layout="capture"] .tasks-app main > :not(.add-bar) {
+    display: none !important;
+  }
+
+  body.mobile-editor-active[data-mobile-editor-layout="capture"] .tasks-app main {
+    min-height: 0;
+    height: 100%;
+    padding: 0;
+  }
+
+  body.mobile-editor-active[data-mobile-editor-layout="capture"] .add-bar {
+    min-height: 0;
+    height: 100%;
+    position: static;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    grid-template-rows: minmax(0, 1fr) auto;
+    gap: 7px;
+    margin: 0;
+    padding: 8px;
+    border: 0;
+    border-radius: 0;
+    background: var(--bg);
+    box-shadow: none;
+    opacity: 1;
+    visibility: visible;
+    pointer-events: auto;
+    transform: none;
+  }
+
+  body.mobile-editor-active[data-mobile-editor-layout="capture"] .add-input-wrap {
+    min-height: 0;
+    grid-column: 1 / -1;
+    display: flex;
+  }
+
+  body.mobile-editor-active[data-mobile-editor-layout="capture"] .add-bar textarea {
+    min-height: 160px;
+    height: 100%;
+    padding: 14px;
+    overflow: auto;
+    font-size: 1rem;
+    line-height: 1.5;
+  }
+
+  body.mobile-editor-active[data-mobile-editor-layout="capture"] .add-bar button {
+    width: 100%;
+    min-height: 46px;
+  }
+
+  body.mobile-editor-active[data-mobile-editor-layout="capture"] .add-bar .add-cancel {
+    display: inline-flex;
+    border: 1px solid var(--border-h);
+    background: transparent;
+    color: var(--fg-m);
+  }
+
+  body.mobile-editor-active[data-mobile-editor-layout="capture"] .ac-drop {
+    top: auto;
+    right: 8px;
+    bottom: 8px;
+    left: 8px;
+    max-height: min(32vh, 180px);
   }
 }

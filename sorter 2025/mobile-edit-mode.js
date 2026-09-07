@@ -1,6 +1,12 @@
 (function initMobileEditMode() {
   'use strict';
 
+  /*
+   * Reusable contract:
+   * - data-mobile-editor opts a field into keyboard-aware focus mode;
+   * - data-mobile-editor-shell marks the smallest layout that must stay visible;
+   * - data-mobile-editor-layout selects page-specific CSS without new JS branches.
+   */
   const EDITOR_SELECTOR = '[data-mobile-editor]';
   const ACTIVE_CLASS = 'mobile-editor-active';
   let activeShell = null;
@@ -18,6 +24,7 @@
 
   function activateEditor(editor) {
     document.body.classList.add(ACTIVE_CLASS);
+    document.body.dataset.mobileEditorLayout = editor.dataset.mobileEditorLayout || 'default';
     editor.classList.add('mobile-editor-focus');
     activeShell = editor.closest('[data-mobile-editor-shell]') || editor;
     syncVisibleHeight();
@@ -32,6 +39,7 @@
     const focused = document.activeElement;
     if (activeShell?.isConnected && activeShell.contains(focused)) return;
     document.body?.classList.remove(ACTIVE_CLASS);
+    delete document.body?.dataset.mobileEditorLayout;
     activeShell = null;
     document.querySelectorAll('.mobile-editor-focus').forEach(element => {
       element.classList.remove('mobile-editor-focus');

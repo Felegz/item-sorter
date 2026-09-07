@@ -41,12 +41,13 @@
   <main>
 
   <!-- Quick add -->
-  <div class="add-bar">
+  <div class="add-bar" data-mobile-editor-shell>
     <div class="add-input-wrap">
       <label class="sr-only" for="add-input">Новая задача</label>
-      <input id="add-input" type="text" placeholder="Новая задача… (A) +проект @контекст due:2026-04-10">
+      <textarea id="add-input" rows="1" data-mobile-editor data-mobile-editor-layout="capture" placeholder="Новая задача… (A) +проект @контекст due:2026-04-10"></textarea>
       <div id="ac-drop" class="ac-drop" style="display:none"></div>
     </div>
+    <button type="button" id="add-cancel" class="add-cancel">Отмена</button>
     <button id="add-btn" title="Добавить (Enter)">Добавить</button>
   </div>
 
@@ -128,12 +129,12 @@
 
   </main>
 
+  <button type="button" class="task-add-fab" data-mobile-panel="add" aria-controls="add-input" aria-expanded="false" aria-label="Добавить задачу" title="Добавить задачу">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+  </button>
+
   <button type="button" class="mobile-scrim" aria-label="Закрыть панель" data-mobile-close hidden></button>
   <nav class="mobile-taskbar" aria-label="Действия со списком">
-    <button type="button" class="mobile-taskbar-add" data-mobile-panel="add" aria-controls="add-input" aria-expanded="false">
-      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
-      <span>Добавить</span>
-    </button>
     <button type="button" class="mobile-taskbar-action" data-mobile-panel="search" aria-controls="search" aria-expanded="false">
       <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="m16 16 4 4"/></svg>
       <span>Поиск</span>
@@ -518,7 +519,7 @@
           return `<div class="task-row editing" data-idx="${idx}" data-mobile-editor-shell>
   <input type="checkbox" ${t.complete ? 'checked' : ''} onchange="toggleDone(${idx})" style="margin-top:8px;flex-shrink:0">
   <div class="task-body" style="flex:1;min-width:0">
-    <textarea id="edit-inp-${idx}" class="task-edit-input" data-mobile-editor
+    <textarea id="edit-inp-${idx}" class="task-edit-input" data-mobile-editor data-mobile-editor-layout="task"
       onkeydown="handleEditKey(event,${idx})" oninput="updateTagPicker(${idx})">${esc(editVal)}</textarea>
     <div class="tag-picker" id="tag-picker-${idx}">${priChips}${ctxChips}${projChips}${duePicker}</div>
     <div class="edit-hint">Enter — сохранить &nbsp;·&nbsp; Escape — отмена &nbsp;·&nbsp; клик по тегу — добавить/убрать</div>
@@ -812,21 +813,34 @@
       button.addEventListener('click', () => setMobilePanel(''));
     });
     document.addEventListener('keydown', event => {
-      if (event.key === 'Escape' && document.body.dataset.mobilePanel) setMobilePanel('');
+      if (event.key !== 'Escape' || !document.body.dataset.mobilePanel) return;
+      if (document.body.dataset.mobilePanel === 'add') closeQuickAdd();
+      else setMobilePanel('');
     });
 
     // Quick-add: the list operation adds a todo.txt creation date and inserts into inbox.
     const addInput = document.getElementById('add-input');
+    function closeQuickAdd() {
+      setMobilePanel('');
+      document.activeElement?.blur();
+    }
+
     function submitQuickAdd() {
       if (!addInput.value.trim()) return;
       addTask(addInput.value);
       addInput.value = '';
-      if (window.matchMedia('(max-width: 760px)').matches) setMobilePanel('');
+      if (window.matchMedia('(max-width: 760px)').matches) {
+        closeQuickAdd();
+      }
     }
     document.getElementById('add-btn').onclick = submitQuickAdd;
     addInput.onkeydown = e => {
-      if (e.key === 'Enter') submitQuickAdd();
+      if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) {
+        e.preventDefault();
+        submitQuickAdd();
+      }
     };
+    document.getElementById('add-cancel').onclick = closeQuickAdd;
 
     // Keyboard shortcuts
     document.addEventListener('keydown', e => {
