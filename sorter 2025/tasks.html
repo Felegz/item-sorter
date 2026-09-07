@@ -11,6 +11,7 @@
   <script src="https://cdn.jsdelivr.net/npm/@date-fns/cdn@4.4.0/locale/ru/cdn.min.js"></script>
   <script src="markers.js?v=20260906-task-renderer"></script>
   <script src="task-format.js?v=20260906-task-renderer"></script>
+  <script src="task-list-operations.js?v=20260907-task-capture"></script>
   <script src="ai-exchange.js?v=20260906-ai-bridge"></script>
   <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
   <link rel="stylesheet" href="tasks.css" />
@@ -259,20 +260,20 @@
 
     // --- Quick add ---
 
-    function addTask(text) {
-      text = text.trim();
-      if (!text) return;
-      const item = parseLine(text);
-      item._ignored = false;
-      // Вставляем новую задачу перед маркером ИГНОРИРУЕМЫЕ (если есть), чтобы она не попала в ignored секцию
-      const ignoredHeaderIdx = items.findIndex(t => t._sectionHeader && t._ignored);
-      if (ignoredHeaderIdx > -1) {
-        items.splice(ignoredHeaderIdx, 0, item);
-      } else {
-        items.push(item);
-      }
-      saveItems();
-      render();
+    function replaceTaskDocument(text) {
+      localStorage.setItem('tasks', text);
+      if (typeof scheduleAutosave === 'function') scheduleAutosave();
+      loadItems();
+    }
+
+    function addTask(text, options = {}) {
+      const result = TaskListOperations.insertTaskIntoInbox(
+        items.map(item => item._raw),
+        text,
+        options,
+      );
+      replaceTaskDocument(result.text);
+      return result;
     }
 
     // --- Filter & sort ---
@@ -542,6 +543,7 @@
     <div class="task-actions-menu">
       <button class="edit-btn" onclick="editTask(${idx})">Редактировать</button>
       <button class="proc-btn" onclick="openProcess(${idx})">Обработать</button>
+      ${!t.complete && !t._ignored ? `<button class="rank-btn" onclick="rankTask(${idx})">Отсортировать</button>` : ''}
       <button class="ai-btn" onclick="delegateTaskToAi(${idx})">Поручить ИИ</button>
       <button class="del-btn" onclick="deleteTask(${idx})">Удалить</button>
     </div>
@@ -576,6 +578,84 @@
 
     function openProcess(idx) {
       window.location.href = '/process?task=' + encodeURIComponent(items[idx]._raw) + '&from=tasks';
+    }
+
+    function compareTaskRank(candidateRaw, existingRaw, progress) {
+      const candidate = TaskFormat.parseTaskLine(candidateRaw);
+      const existing = TaskFormat.parseTaskLine(existingRaw);
+      const step = progress?.maxComparisons
+        ? `Сравнение ${progress.comparison} из максимум ${progress.maxComparisons}`
+        : 'Выберите, что нужно сделать раньше';
+      let settled = false;
+
+      return new Promise((resolve, reject) => {
+        const choose = relation => {
+          if (settled) return;
+          settled = true;
+          resolve(relation);
+          Swal.close();
+        };
+        Swal.fire({
+          title: 'Что делать раньше?',
+          html: `<p class="rank-progress">${esc(step)}</p>
+            <div class="rank-choices">
+              <button type="button" id="rank-candidate" class="rank-choice">
+                ${TaskFormat.renderTaskContentHtml(candidate, { variant: 'choice' })}
+                ${TaskFormat.renderTaskMetaHtml(candidate)}
+              </button>
+              <button type="button" id="rank-existing" class="rank-choice">
+                ${TaskFormat.renderTaskContentHtml(existing, { variant: 'choice' })}
+                ${TaskFormat.renderTaskMetaHtml(existing)}
+              </button>
+            </div>`,
+          showConfirmButton: false,
+          showCancelButton: true,
+          cancelButtonText: 'Отмена',
+          buttonsStyling: false,
+          allowOutsideClick: false,
+          customClass: { popup: 'rank-dialog', cancelButton: 'rank-cancel' },
+          didOpen: () => {
+            document.getElementById('rank-candidate')?.addEventListener('click', () => choose(-1));
+            document.getElementById('rank-existing')?.addEventListener('click', () => choose(1));
+          },
+          willClose: () => {
+            if (settled) return;
+            settled = true;
+            const error = new Error('Ranking cancelled');
+            error.name = 'AbortError';
+            reject(error);
+          },
+        });
+      });
+    }
+
+    async function rankTask(idx) {
+      const details = document.querySelector(`.task-row[data-idx="${idx}"] .task-actions`);
+      if (details) details.open = false;
+      const item = items[idx];
+      if (!item || item._sectionHeader || item.complete || item._ignored) return;
+
+      try {
+        const result = await TaskListOperations.rankTaskAtIndex(
+          items.map(entry => entry._raw),
+          idx,
+          compareTaskRank,
+        );
+        replaceTaskDocument(result.text);
+        await Swal.fire({
+          toast: true,
+          position: 'bottom-end',
+          icon: 'success',
+          title: `Задача помещена в SORTED · позиция ${result.sortedPosition + 1}`,
+          showConfirmButton: false,
+          timer: 2400,
+          timerProgressBar: true,
+        });
+      } catch (error) {
+        if (error?.name === 'AbortError') return;
+        console.error('rankTask failed', error);
+        await Swal.fire('Не удалось отсортировать задачу', error?.message || String(error), 'error');
+      }
     }
 
     async function delegateTaskToAi(idx) {
@@ -658,6 +738,7 @@
           { label: '✏ Редактировать', callback: () => { if (rightClickedIdx >= 0) editTask(rightClickedIdx); } },
           { label: '✓ Отметить выполненной', callback: () => { if (rightClickedIdx >= 0) toggleDone(rightClickedIdx); } },
           { label: '⚙ Обработать (GTD)', callback: () => { if (rightClickedIdx >= 0) openProcess(rightClickedIdx); } },
+          { label: '↕ Отсортировать', callback: () => { if (rightClickedIdx >= 0) rankTask(rightClickedIdx); } },
           { label: 'Поручить ИИ', callback: () => { if (rightClickedIdx >= 0) delegateTaskToAi(rightClickedIdx); } },
           'hr',
           { label: '🚫 В игнорируемые', callback: () => { if (rightClickedIdx >= 0 && !items[rightClickedIdx]._ignored) moveToIgnored(rightClickedIdx); } },
@@ -733,7 +814,7 @@
       if (event.key === 'Escape' && document.body.dataset.mobilePanel) setMobilePanel('');
     });
 
-    // Quick-add
+    // Quick-add: the list operation adds a todo.txt creation date and inserts into inbox.
     const addInput = document.getElementById('add-input');
     function submitQuickAdd() {
       if (!addInput.value.trim()) return;

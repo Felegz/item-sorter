@@ -527,24 +527,11 @@ async function insertUnsortedTasksUI(inboxUnsorted) {
     console.log('insertUnsortedTasksUI: current sorted length =', sorted.length);
     console.log('insertUnsortedTasksUI: inserting', inboxUnsorted.length, 'items');
 
-    // Для каждой новой задачи делаем бинарную вставку (сравнения через await compareTasks)
+    // Для каждой новой задачи используем общую формулу бинарной вставки.
     for (const newTask of inboxUnsorted) {
-      let lo = 0;
-      let hi = sorted.length;
-
-      while (lo < hi) {
-        const mid = Math.floor((lo + hi) / 2);
-        // compareTasks(a,b) возвращает -1 если a важнее b
-        const cmp = await compareTasks(newTask, sorted[mid]);
-        if (cmp === -1) {
-          hi = mid;
-        } else {
-          lo = mid + 1;
-        }
-      }
-
-      sorted.splice(lo, 0, newTask);
-      console.log(`Inserted "${newTask}" at index`, lo);
+      const placement = await TaskListOperations.insertTaskByRank(sorted, newTask, compareTasks);
+      sorted.splice(0, sorted.length, ...placement.tasks);
+      console.log(`Inserted "${newTask}" at index`, placement.index);
     }
 
     // Собираем назад и записываем в textarea

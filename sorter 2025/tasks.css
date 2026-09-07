@@ -2044,3 +2044,53 @@ button:disabled {
     grid-template-columns: minmax(0, 1fr) 48px 48px;
   }
 }
+
+/* Pairwise ranking reuses the same dense task renderer as the list. */
+.rank-dialog {
+  width: min(720px, calc(100vw - 28px)) !important;
+  border: 1px solid var(--border-h) !important;
+  border-radius: 16px !important;
+  background: var(--bg-card) !important;
+  color: var(--fg) !important;
+}
+
+.rank-dialog .swal2-title { color: var(--fg); font-size: 1.15rem; }
+.rank-dialog .swal2-html-container { margin: 14px 18px 0; color: var(--fg); }
+.rank-dialog .swal2-actions { margin-top: 12px; }
+.rank-dialog .rank-cancel {
+  min-height: 38px;
+  padding: 0 14px;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  background: transparent;
+  color: var(--fg-m);
+}
+.rank-dialog .rank-cancel:hover { border-color: var(--border-h); color: var(--fg); }
+.rank-progress { margin: 0 0 10px; color: var(--fg-m); font-size: 0.76rem; }
+.rank-choices { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+
+.rank-choice {
+  min-width: 0;
+  min-height: 104px;
+  display: block;
+  padding: 14px;
+  border: 1px solid var(--border-h);
+  border-radius: 12px;
+  background: var(--bg);
+  color: var(--fg);
+  text-align: left;
+}
+
+.rank-choice:hover,
+.rank-choice:focus-visible {
+  border-color: var(--primary);
+  background: var(--bg-el);
+}
+
+.rank-choice .task-text { cursor: pointer; }
+.rank-choice .task-tags { margin-top: 8px; }
+
+@media (max-width: 760px) {
+  .rank-choices { grid-template-columns: 1fr; }
+  .rank-choice { min-height: 82px; }
+}
