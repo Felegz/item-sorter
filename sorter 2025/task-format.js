@@ -106,6 +106,35 @@
     return { main: raw.slice(0, matches[0].index).trim(), fields, duplicates };
   }
 
+  /**
+   * Старый формат допускает служебные todo.txt-теги после блока ⟦исх.: …⟧.
+   * stripLegacySource() называет весь этот фрагмент хвостом, поэтому здесь мы
+   * забираем из него только известные даты, не теряя действительно неизвестный текст.
+   */
+  function extractKnownTailDates(rawTail) {
+    let dueDate = null;
+    let thresholdDate = null;
+    const unparsedParts = [];
+    const words = cleanInline(rawTail).split(/\s+/).filter(Boolean);
+
+    for (const originalWord of words) {
+      const token = originalWord.replace(/[.,;!?]+$/, '');
+      const tagMatch = token.match(/^(due|t):(.+)$/);
+      if (tagMatch && ISO_DATE_RE.test(tagMatch[2])) {
+        if (tagMatch[1] === 'due') dueDate = tagMatch[2];
+        else thresholdDate = tagMatch[2];
+        continue;
+      }
+      unparsedParts.push(originalWord);
+    }
+
+    return {
+      dueDate,
+      thresholdDate,
+      unparsed: cleanInline(unparsedParts.join(' ')) || null,
+    };
+  }
+
   function parseTaskLine(line) {
     const raw = String(line == null ? '' : line).trim();
     const legacy = stripLegacySource(raw);
@@ -186,6 +215,9 @@
     const source = legacy.source || canonicalSource;
     const duplicateSources = structured.duplicates.filter(item => item.field === 'source').map(item => item.value);
     const sourceHistory = unique([legacy.source, canonicalSource, ...duplicateSources]).filter(value => value !== source);
+    const tailDates = extractKnownTailDates(legacy.unparsed);
+    if (tailDates.dueDate) dueDate = tailDates.dueDate;
+    if (tailDates.thresholdDate) thresholdDate = tailDates.thresholdDate;
 
     return {
       raw,
@@ -207,7 +239,7 @@
       source,
       sourceHistory,
       duplicateFields: structured.duplicates,
-      unparsed: legacy.unparsed,
+      unparsed: tailDates.unparsed,
     };
   }
 

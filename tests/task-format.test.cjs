@@ -70,4 +70,16 @@ assert.match(meta, /@дома/);
 assert.match(meta, /#здоровье/);
 assert.match(meta, /Создано/);
 
+const legacyTailDates = TaskFormat.parseTaskLine(
+  '2026-09-07 Найти адрес ⟦исх.: Найти организацию.⟧ заметка due:2026-09-14 t:2026-09-10'
+);
+assert.equal(legacyTailDates.dueDate, '2026-09-14');
+assert.equal(legacyTailDates.thresholdDate, '2026-09-10');
+assert.equal(legacyTailDates.unparsed, 'заметка');
+const tailMeta = TaskFormat.renderTaskMetaHtml(legacyTailDates, { now: fixedNow, dateFns: fakeDateFns });
+assert.match(tailMeta, /Срок/);
+assert.match(tailMeta, /Старт/);
+const tailContent = TaskFormat.renderTaskContentHtml(legacyTailDates, { variant: 'list' });
+assert.doesNotMatch(tailContent, /Хвост строки: due:/);
+
 console.log('task-format tests passed');
