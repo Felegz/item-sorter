@@ -50,12 +50,19 @@ const fakeDateFns = {
   locale: { ru: {} },
   formatRelative() { return 'в следующую среду в 00:00'; },
   format() { return '18 сент.'; },
+  formatDistance() { return '2 месяца назад'; },
 };
 const fixedNow = new Date(2026, 8, 6, 10, 0, 0);
 assert.equal(TaskFormat.formatCalendarDate('2026-09-06', { now: fixedNow, dateFns: fakeDateFns }), 'сегодня');
 assert.equal(TaskFormat.formatCalendarDate('2026-09-08', { now: fixedNow, dateFns: fakeDateFns }), 'послезавтра');
 assert.equal(TaskFormat.formatCalendarDate('2026-09-09', { now: fixedNow, dateFns: fakeDateFns }), 'в следующую среду');
 assert.equal(TaskFormat.formatTaskDate('2026-09-09', { now: fixedNow, dateFns: fakeDateFns, kind: 'due' }), 'Срок · в следующую среду');
+assert.equal(TaskFormat.formatRelativeAge('2026-09-04', { now: fixedNow, dateFns: fakeDateFns }), 'позавчера');
+assert.equal(TaskFormat.formatRelativeAge('2026-07-06', { now: fixedNow, dateFns: fakeDateFns }), '2 месяца назад');
+assert.match(
+  TaskFormat.formatVersionMoment('2026-07-06T12:30:00+02:00', { now: fixedNow, dateFns: fakeDateFns }),
+  /6 июля 2026.*12:30.*2 месяца назад/
+);
 
 const unsafe = TaskFormat.parseTaskLine('<img src=x onerror=alert(1)> ➤цель:<script>alert(1)</script> ➤исходное:<b>старое</b>');
 const rendered = TaskFormat.renderTaskContentHtml(unsafe, { variant: 'list' });

@@ -33,6 +33,10 @@ assert.equal(MARKERS.getListName('PARTIALLY SORTED (2026.09.05)'), 'partiallySor
 assert.equal(MARKERS.getListName('НЕУПОРЯДОЧЕННЫЕ ЗАДАЧИ'), 'inboxUnsorted');
 assert.equal(MARKERS.getListName('ИГНОРИРУЕМЫЕ ЗАДАЧИ 2026.09.05'), 'ignored');
 assert.equal(MARKERS.getListName('ordinary task'), null);
+assert.equal(MARKERS.getDate('SORTED (2026.09.05)'), '2026-09-05');
+assert.equal(MARKERS.getDate('PARTIALLY SORTED (2025.12.31)'), '2025-12-31');
+assert.equal(MARKERS.getDate('ИГНОРИРУЕМЫЕ ЗАДАЧИ 2026.01.02'), '2026-01-02');
+assert.equal(MARKERS.getDate('NEW ARRAY'), null);
 
 const sortDocument = [
   'raw one',

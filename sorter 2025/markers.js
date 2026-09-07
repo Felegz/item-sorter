@@ -38,6 +38,13 @@ const MARKERS = {
     return null;
   },
 
+  // Extract the persisted marker date without changing the raw todo.txt line.
+  // Human-readable ages are a rendering concern and must never be serialized.
+  getDate(line) {
+    const match = String(line || '').trim().match(/(?:\(|\s)(\d{4})\.(\d{2})\.(\d{2})\)?/);
+    return match ? `${match[1]}-${match[2]}-${match[3]}` : null;
+  },
+
   // Любой маркер секции (включая NEW ARRAY / НЕУПОРЯДОЧЕННЫЕ ЗАДАЧИ)
   isAnyMarker(line) {
     return MARKERS.getListName(line) !== null;

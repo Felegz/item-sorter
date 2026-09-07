@@ -155,7 +155,7 @@ async function showTaskEditor(lineIdx, lines) {
   const ta = document.getElementById('task-list');
   ta.value = lines.join('\n');
   syncHighlight();
-  localStorage.setItem('tasks', ta.value);
+  saveDataToLocalStorage();
   renderFilterBar();
 }
 
@@ -228,7 +228,7 @@ function assignPrioritiesAfterSort() {
 
   ta.value = result.join('\n');
   syncHighlight();
-  localStorage.setItem('tasks', ta.value);
+  saveDataToLocalStorage();
 }
 
 // ─── Отметить выполненным / снять отметку ────────────────────────
@@ -260,7 +260,7 @@ function toggleDoneCurrentLine() {
 
   ta.value = lines.join('\n');
   syncHighlight();
-  localStorage.setItem('tasks', ta.value);
+  saveDataToLocalStorage();
 }
 
 // ─── Фильтр строк ────────────────────────────────────────────────
@@ -358,7 +358,7 @@ function filterRowToggleDone(idx) {
     ? rawLine.replace(/^x \d{4}-\d{2}-\d{2} /, '')
     : 'x ' + today + ' ' + rawLine;
   ta.value = lines.join('\n');
-  localStorage.setItem('tasks', ta.value);
+  saveDataToLocalStorage();
   applyFilter();
 }
 
@@ -569,6 +569,6 @@ async function quickTriageCurrentTask() {
 
 function _updateTaskArea(ta, lines) {
   ta.value = lines.join('\n');
-  localStorage.setItem('tasks', ta.value);
+  saveDataToLocalStorage();
   renderFilterBar();
 }

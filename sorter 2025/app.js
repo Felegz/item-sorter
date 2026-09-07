@@ -138,13 +138,17 @@ userQuestion.addEventListener("blur", function () {
 
 // Add an event listener to the task list to save its value in localStorage when the user leaves the page
 taskList.addEventListener("blur", function () {
-  localStorage.setItem("tasks", taskList.value);
+  saveDataToLocalStorage();
 });
 
 // Function to save both the user's question and task list in local storage
 function saveDataToLocalStorage() {
+  const previousTasks = localStorage.getItem("tasks");
   localStorage.setItem("question", userQuestion.value);
   localStorage.setItem("tasks", taskList.value);
+  if (previousTasks !== taskList.value && typeof dbxRecordLocalTasksChange === 'function') {
+    dbxRecordLocalTasksChange();
+  }
 }
 
 // Quicksort algorithm to sort tasks in ascending order:

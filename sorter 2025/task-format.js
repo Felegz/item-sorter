@@ -382,6 +382,64 @@
     return formatAbsoluteDate(target, base, options);
   }
 
+  function parseDateValue(value) {
+    if (typeof value === 'string' && ISO_DATE_RE.test(value)) return parseIsoDateLocal(value);
+    const date = value instanceof Date ? new Date(value) : new Date(value);
+    return Number.isNaN(date.getTime()) ? null : date;
+  }
+
+  /**
+   * Human-readable age backed by date-fns in the browser. Date-only values use
+   * calendar days, so today's section marker cannot become "12 hours ago".
+   */
+  function formatRelativeAge(value, options = {}) {
+    const target = parseDateValue(value);
+    if (!target) return '';
+    const base = new Date(options.now || new Date());
+    const dateOnly = typeof value === 'string' && ISO_DATE_RE.test(value);
+
+    if (dateOnly) {
+      const diff = calendarDayDifference(target, startOfLocalDay(base));
+      if (Math.abs(diff) <= 6) {
+        return new Intl.RelativeTimeFormat('ru-RU', { numeric: 'auto', style: 'long' }).format(diff, 'day');
+      }
+      target.setHours(0, 0, 0, 0);
+      base.setHours(0, 0, 0, 0);
+    }
+
+    const dateFns = getDateFns(options);
+    const locale = getRussianLocale(dateFns);
+    if (dateFns && typeof dateFns.formatDistance === 'function' && locale) {
+      return dateFns.formatDistance(target, base, { addSuffix: true, locale });
+    }
+
+    const deltaSeconds = (target.getTime() - base.getTime()) / 1000;
+    const absoluteSeconds = Math.abs(deltaSeconds);
+    let divisor = 1;
+    let unit = 'second';
+    if (absoluteSeconds >= 31557600) { divisor = 31557600; unit = 'year'; }
+    else if (absoluteSeconds >= 2629800) { divisor = 2629800; unit = 'month'; }
+    else if (absoluteSeconds >= 86400) { divisor = 86400; unit = 'day'; }
+    else if (absoluteSeconds >= 3600) { divisor = 3600; unit = 'hour'; }
+    else if (absoluteSeconds >= 60) { divisor = 60; unit = 'minute'; }
+    const amount = Math.round(deltaSeconds / divisor);
+    return new Intl.RelativeTimeFormat('ru-RU', { numeric: 'auto', style: 'long' }).format(amount, unit);
+  }
+
+  function formatVersionMoment(value, options = {}) {
+    const target = parseDateValue(value);
+    if (!target) return '';
+    const absolute = new Intl.DateTimeFormat('ru-RU', {
+      day: 'numeric',
+      month: 'long',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    }).format(target);
+    const relative = formatRelativeAge(target, options);
+    return relative ? `${absolute} · ${relative}` : absolute;
+  }
+
   function formatTaskDate(isoDate, options = {}) {
     const kind = options.kind || 'date';
     const value = formatCalendarDate(isoDate, options);
@@ -474,6 +532,8 @@
     mergeOriginalTask,
     parseIsoDateLocal,
     formatCalendarDate,
+    formatRelativeAge,
+    formatVersionMoment,
     formatTaskDate,
     renderRichText,
     renderTaskContentHtml,

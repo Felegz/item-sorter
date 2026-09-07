@@ -618,6 +618,14 @@ function copyOut() {
   });
 }
 
+// process.html does not load dropbox.js, so it records the same local-version
+// timestamp directly whenever GTD processing changes the shared task document.
+function saveProcessedTaskDocument(text) {
+  const previous = localStorage.getItem('tasks');
+  localStorage.setItem('tasks', text);
+  if (previous !== text) localStorage.setItem('dbx_local_version_time', String(Date.now()));
+}
+
 function addToList() {
   const line = el('out-line').textContent.trim();
   if (!line || line.startsWith('# УДАЛЕНО')) {
@@ -631,18 +639,18 @@ function addToList() {
     const finalLine = TaskFormat.mergeOriginalTask(line, S.originalTask);
     if (idx !== -1) {
       lines[idx] = finalLine;
-      localStorage.setItem('tasks', formatTaskList(lines));
+      saveProcessedTaskDocument(formatTaskList(lines));
       el('out-note').textContent = 'Задача обновлена!';
       el('out-note').className = 'note ok';
       return;
     }
     // Original not found — prepend
-    localStorage.setItem('tasks', formatTaskList([finalLine, ...existing.split(/\r?\n/)]));
+    saveProcessedTaskDocument(formatTaskList([finalLine, ...existing.split(/\r?\n/)]));
     el('out-note').textContent='Добавлено в список!'; el('out-note').className='note ok';
     return;
   }
   // Otherwise prepend
-  localStorage.setItem('tasks', formatTaskList([line, ...existing.split(/\r?\n/)]));
+  saveProcessedTaskDocument(formatTaskList([line, ...existing.split(/\r?\n/)]));
   el('out-note').textContent='Добавлено в список!'; el('out-note').className='note ok';
 }
 

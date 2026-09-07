@@ -143,6 +143,35 @@ function dropboxLogout() {
 //   dbx_last_sync   — { type:'save'|'load'|'check', time:ms, detail:str }   (для строки "5 мин назад · причина")
 //   dbx_last_rev    — rev-хэш Dropbox после последней синхронизации
 //   dbx_last_tasks  — текст задач в момент последней синхронизации
+//   dbx_local_version_time — время последнего локального изменения списка
+
+const DBX_LOCAL_VERSION_TIME_KEY = 'dbx_local_version_time';
+
+function dbxSetLocalVersionTime(value) {
+  const time = value instanceof Date ? value.getTime() : new Date(value).getTime();
+  if (Number.isFinite(time)) localStorage.setItem(DBX_LOCAL_VERSION_TIME_KEY, String(time));
+}
+
+// All local task writers call this so conflict UI can date the local version.
+function dbxRecordLocalTasksChange() {
+  dbxSetLocalVersionTime(Date.now());
+}
+
+function dbxConflictVersionsHtml(meta) {
+  const localTime = Number(localStorage.getItem(DBX_LOCAL_VERSION_TIME_KEY));
+  const remoteTime = meta && (meta.client_modified || meta.server_modified);
+  const format = value => {
+    const label = value ? TaskFormat.formatVersionMoment(value) : '';
+    return label ? TaskFormat.escapeHtml(label) : '';
+  };
+  const localLabel = format(localTime || null);
+  const remoteLabel = format(remoteTime);
+  return `<p class="version-conflict-note">Файл изменён на другом устройстве.</p>
+    <div class="version-compare">
+      <div class="version-card"><strong>На этом устройстве</strong>${localLabel ? `<span>${localLabel}</span>` : ''}</div>
+      <div class="version-card"><strong>В Dropbox</strong>${remoteLabel ? `<span>${remoteLabel}</span>` : ''}</div>
+    </div>`;
+}
 
 function dbxTimestamp(type, detail = '') {
   localStorage.setItem('dbx_last_sync', JSON.stringify({ type, time: Date.now(), detail }));
@@ -226,6 +255,7 @@ async function showSnapshots() {
   const ta = document.getElementById('task-list');
   if (ta) ta.value = snap.text;
   localStorage.setItem('tasks', snap.text);
+  dbxRecordLocalTasksChange();
   if (typeof window._onDbxLoad === 'function') window._onDbxLoad();
   if (typeof syncHighlight   === 'function') syncHighlight();
   if (typeof renderFilterBar === 'function') renderFilterBar();
@@ -349,6 +379,7 @@ async function dbxAutoDownload(detail = '') {
       const ta = document.getElementById('task-list');
       if (ta) ta.value = text;
       localStorage.setItem('tasks', text);
+      dbxSetLocalVersionTime(apiResult.client_modified || apiResult.server_modified || Date.now());
       if (typeof window._onDbxLoad === 'function') window._onDbxLoad();
       _dbxSaveSyncState(text, apiResult.rev);
       dbxTimestamp('load', detail);
@@ -416,15 +447,15 @@ async function dbxAutoUpload(detail = '') {
     if (resp.ok) {
       const data = await resp.json();
       _dbxSaveSyncState(content, data.rev);
+      dbxSetLocalVersionTime(data.client_modified || data.server_modified || Date.now());
       dbxTimestamp('save', detail);
       updateDropboxUI();
 
     } else if (resp.status === 409) {
       const meta   = await dbxGetMetadata();
-      const modStr = meta ? new Date(meta.server_modified).toLocaleString('ru') : '?';
       const choice = await Swal.fire({
         title:             '⚠ Конфликт версий',
-        html:              `Файл изменён на другом устройстве.<br><small style="color:#8888ab">Серверная версия: ${modStr}</small>`,
+        html:              dbxConflictVersionsHtml(meta),
         icon:              'warning',
         showCancelButton:  true,
         showDenyButton:    true,
@@ -489,10 +520,9 @@ async function autoSyncOnFocus(silent = false) {
     }
 
     // Оба изменились → конфликт
-    const modStr = new Date(meta.server_modified).toLocaleString('ru');
     const choice = await Swal.fire({
       title:             '⚠ Конфликт версий',
-      html:              `Файл изменён на другом устройстве.<br><small style="color:#8888ab">Серверная версия: ${modStr}</small>`,
+      html:              dbxConflictVersionsHtml(meta),
       icon:              'warning',
       showCancelButton:  true,
       showDenyButton:    true,
@@ -582,10 +612,9 @@ async function dropboxSmartSync() {
     }
 
     // Оба изменились → конфликт
-    const modStr = meta ? new Date(meta.server_modified).toLocaleString('ru') : '?';
     const choice = await Swal.fire({
       title:             '⚠ Конфликт версий',
-      html:              `Файл изменён на другом устройстве.<br><small style="color:#8888ab">Серверная версия: ${modStr}</small>`,
+      html:              dbxConflictVersionsHtml(meta),
       icon:              'warning',
       showCancelButton:  true,
       showDenyButton:    true,
@@ -638,15 +667,15 @@ async function dropboxSave() {
     if (resp.ok) {
       const data = await resp.json();
       _dbxSaveSyncState(content, data.rev);
+      dbxSetLocalVersionTime(data.client_modified || data.server_modified || Date.now());
       dbxTimestamp('save', 'вручную');
       updateDropboxUI();
       Swal.fire({ title: 'Сохранено в Dropbox!', icon: 'success', timer: 1500, showConfirmButton: false });
     } else if (resp.status === 409) {
       const meta   = await dbxGetMetadata();
-      const modStr = meta ? new Date(meta.server_modified).toLocaleString('ru') : '?';
       const choice = await Swal.fire({
         title:             '⚠ Конфликт версий',
-        html:              `Файл изменён на другом устройстве.<br><small style="color:#8888ab">Серверная версия: ${modStr}</small>`,
+        html:              dbxConflictVersionsHtml(meta),
         icon:              'warning',
         showCancelButton:  true,
         showDenyButton:    true,
@@ -748,7 +777,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Автосохранение при изменении textarea
   const ta = document.getElementById('task-list');
-  if (ta) ta.addEventListener('input', scheduleAutosave);
+  if (ta) {
+    ta.addEventListener('input', () => {
+      dbxRecordLocalTasksChange();
+      scheduleAutosave();
+    });
+  }
 
   // Автопроверка при возврате на вкладку
   document.addEventListener('visibilitychange', () => {

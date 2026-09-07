@@ -9,14 +9,14 @@
   <!-- date-fns 4.4.0 — MIT license, date-fns.org -->
   <script src="https://cdn.jsdelivr.net/npm/@date-fns/cdn@4.4.0/cdn.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@date-fns/cdn@4.4.0/locale/ru/cdn.min.js"></script>
-  <script src="markers.js?v=20260906-task-renderer"></script>
+  <script src="markers.js?v=20260907-relative-section-dates"></script>
   <script src="mobile-edit-mode.js?v=20260907-keyboard-layout"></script>
-  <script src="task-format.js?v=20260906-task-renderer"></script>
+  <script src="task-format.js?v=20260907-version-dates"></script>
   <script src="task-list-operations.js?v=20260907-task-capture"></script>
   <script src="ai-exchange.js?v=20260906-ai-bridge"></script>
   <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-  <link rel="stylesheet" href="tasks.css" />
-  <link rel="stylesheet" href="task-format.css" />
+  <link rel="stylesheet" href="tasks.css?v=20260907-relative-section-dates" />
+  <link rel="stylesheet" href="task-format.css?v=20260907-version-dates" />
 </head>
 <body>
   <!--
@@ -256,14 +256,19 @@
     }
 
     function saveItems() {
-      localStorage.setItem('tasks', formatTaskList(items.map(t => t._raw)));
+      const text = formatTaskList(items.map(t => t._raw));
+      const previous = localStorage.getItem('tasks');
+      localStorage.setItem('tasks', text);
+      if (previous !== text && typeof dbxRecordLocalTasksChange === 'function') dbxRecordLocalTasksChange();
       if (typeof scheduleAutosave === 'function') scheduleAutosave();
     }
 
     // --- Quick add ---
 
     function replaceTaskDocument(text) {
+      const previous = localStorage.getItem('tasks');
       localStorage.setItem('tasks', text);
+      if (previous !== text && typeof dbxRecordLocalTasksChange === 'function') dbxRecordLocalTasksChange();
       if (typeof scheduleAutosave === 'function') scheduleAutosave();
       loadItems();
     }
@@ -488,9 +493,12 @@
           }
           const collapsed = collapsedSections.has(t._raw);
           const safeRaw = t._raw.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+          const markerDate = MARKERS.getDate(t._raw);
+          const markerAge = markerDate ? TaskFormat.formatRelativeAge(markerDate) : '';
           return `<div class="section-header" onclick="toggleSection('${safeRaw}')">
   <span class="section-toggle${collapsed?' collapsed':''}" aria-hidden="true"></span>
-  ${esc(t._label)}
+  <span class="section-label">${esc(t._label)}</span>
+  ${markerAge ? `<span class="section-age">${esc(markerAge)}</span>` : ''}
   <span class="section-count">${count}</span>
 </div>`;
         }
@@ -1145,7 +1153,7 @@
     initContextMenu();
     initAutocomplete();
   </script>
-  <script src="dropbox.js?v=20260906-ai-bridge"></script>
+  <script src="dropbox.js?v=20260907-version-dates"></script>
   <script src="ai-dropbox.js?v=20260906-ai-bridge"></script>
   <script>
     // \u2500\u2500 Dropbox \u0438\u043d\u0442\u0435\u0433\u0440\u0430\u0446\u0438\u044f \u0434\u043b\u044f tasks.html \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
