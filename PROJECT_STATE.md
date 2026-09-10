@@ -31,24 +31,26 @@
 
 ## Восстановленные функции
 
-Из `99cf747` дословно возвращены тела функций:
+Из `99cf747` дословно возвращены тела 16 действующих функций:
 
-- `quickSort`, `mergeSort`, `merge`, `compareTasks`;
+- `mergeSort`, `merge`, `compareTasks`;
 - `parseArrays`, `gallopRight`, `gallopLeft`, `mergeGalloping`,
   `mergeArraysUI`;
 - `filterTasks`, `filterTasksUI`;
-- `binaryInsert`, `insertUnsortedTasksUI`;
+- `insertUnsortedTasksUI`;
 - `heapifyDown`, `partialSortTasks`, `parseAllSections`,
-  `promoteTailCandidates`, `sortTasks`;
-- неиспользуемая старая `sortTasksv1` также возвращена, чтобы восстановить весь
-  существовавший сортировочный код до последующей пофункциональной адаптации.
+  `promoteTailCandidates`, `sortTasks`.
+
+Подтверждённо мёртвые и некорректные `quickSort`, `binaryInsert` и
+`sortTasksv1` удалены с прямого разрешения владельца. Они не входили в дерево
+вызовов даже в `99cf747` и самом первом коммите `09fa69b`.
 
 Более поздние функции добавления задач, дат создания, Dropbox и страницы задач
 не откатывались.
 
 ## Выполненные проверки
 
-- Все 19 восстановленных тел функций программно сравнены с `99cf747` — каждое
+- Все 16 оставшихся восстановленных тел функций программно сравнены с `99cf747` — каждое
   совпадает посимвольно.
 - `node --check "sorter 2025/app.js"` — пройден.
 - `node tests/format-task-list.test.cjs` — пройден.
@@ -69,11 +71,11 @@
   `mergeRankedLists`, локальный `heapifyDown`, `extractTopRanked`,
   `sortIncomingIntoMain`, `promotePartialIntoSorted`, `mergeInboxSorted`,
   `insertTasksIntoSorted`, `getFilterCandidates` и `rebuildAfterFilter`.
-- После удаления параллельного контура все 19 функций в `sorter 2025/app.js`
+- После удаления параллельного контура все 16 действующих функций в `sorter 2025/app.js`
   повторно сравнены с `99cf747`; все тела по-прежнему совпадают посимвольно.
 - Создан обязательный источник истины
   `docs/SORTING_BEHAVIOR_SOURCE_OF_TRUTH.md`: он описывает эталонный коммит,
-  дерево вызовов, все 19 функций, точные контракты четырёх команд, исторические
+  дерево вызовов, все 16 функций, точные контракты четырёх команд, исторические
   ограничения и порядок будущей пофункциональной адаптации.
 - `AGENTS.md` направляет агента сначала в источник истины, затем в правила
   безопасного изменения.

@@ -25,7 +25,6 @@ function extractFunction(name) {
 }
 
 const restoredNames = [
-  'quickSort',
   'mergeSort',
   'merge',
   'compareTasks',
@@ -35,7 +34,6 @@ const restoredNames = [
   'mergeGalloping',
   'mergeArraysUI',
   'filterTasks',
-  'binaryInsert',
   'insertUnsortedTasksUI',
   'filterTasksUI',
   'heapifyDown',
@@ -43,7 +41,6 @@ const restoredNames = [
   'parseAllSections',
   'promoteTailCandidates',
   'sortTasks',
-  'sortTasksv1',
 ];
 
 function createRuntime() {

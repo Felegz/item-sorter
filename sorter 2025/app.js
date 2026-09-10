@@ -151,27 +151,6 @@ function saveDataToLocalStorage() {
   }
 }
 
-// Quicksort algorithm to sort tasks in ascending order:
-function quickSort(tasks) {
-  if (tasks.length <= 1) {
-    return tasks;
-  }
-
-  const pivot = tasks[0];
-  const left = [];
-  const right = [];
-
-  for (let i = 1; i < tasks.length; i++) {
-    if (compareTasks(tasks[i], pivot) === -1) {
-      left.push(tasks[i]);
-    } else {
-      right.push(tasks[i]);
-    }
-  }
-
-  return [...quickSort(left), pivot, ...quickSort(right)];
-}
-
 // Асинхронная сортировка задач от наиболее важной к наименее важной
 async function mergeSort(tasks) {
   if (tasks.length <= 1) return tasks;
@@ -504,31 +483,6 @@ const formattedDate = `${year}-${month}-${day}_${hours}-${minutes}-${seconds}`;
 }
 
 
-
-/**
- * Выполняет бинарный поиск позиции вставки task в уже упорядоченный массив sorted,
- * используя compareTasks для минимизации сравнений.
- * @param {string[]} sorted — упорядоченный массив задач
- * @param {string} task — новая задача для вставки
- * @returns {Promise<number>} — индекс, куда вставить
- */
-async function binaryInsert(sorted, task) {
-  let low = 0;
-  let high = sorted.length;
-  while (low < high) {
-    const mid = Math.floor((low + high) / 2);
-    // сравниваем новую задачу и элемент mid
-    const cmp = compareTasks(task, sorted[mid]);
-    if (cmp <= 0) {
-      // task важнее или равен — ищем слева
-      high = mid;
-    } else {
-      // task менее важен — ищем справа
-      low = mid + 1;
-    }
-  }
-  return low;
-}
 
 // Вставляет unsortedTasks в текущий отсортированный блок textarea (выше "ИГНОРИРУЕМЫЕ ЗАДАЧИ")
 // Использует бинарный поиск (await compareTasks) для минимизации сравнений.
@@ -1139,58 +1093,3 @@ assignCreationDateInput?.addEventListener('change', async () => {
   assignCreationDateInput.hidden = true;
   assignCreationDatesButton.focus();
 });
-
-
-
-
-//==============================================================================================
-//OLDER VERSION
-function sortTasksv1() {
-  saveDataToLocalStorage();
-  // Get the input from the user and split it into an array
-  const input = taskList.value;
-  var tasks = input.split("\n");
-  
-  
-  
-  
-  
-  
-  tasks = tasks.filter((task) => task.trim() !== "");
-
-  // Use a Set to remove duplicates
-  var uniqueTasks = Array.from(new Set(tasks));
-
-  /*
-  // Define the function to compare two tasks and ask the user to select the more important one
-  function compareTasks(task1, task2) {
-    const confirmMsg = `Which task should I do first?\n\nДА. ${task1}\n\nНЕТ. ${task2}`;
-    const isTask1MoreImportant = confirm(confirmMsg);
-    if (isTask1MoreImportant) {
-      return -1;
-    } else {
-      return 1;
-    }
-  }
-  */
-
-  // Sort the tasks using the comparison function
-  //tasks.sort(compareTasks);
-
-  // Sort the tasks using the comparison function
-  /*uniqueTasks.sort(compareTasks);*/
-
-  //const sortedTasks = quickSort(uniqueTasks);
-
-  const sortedTasks = mergeSort(uniqueTasks);
-
-  // Display the sorted list of tasks in the text field
-  taskList.value = sortedTasks.join("\n");
-
-  //saving
-  saveDataToLocalStorage();
-  
-  
-  
-  
-}
