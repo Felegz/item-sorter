@@ -4,17 +4,64 @@
     typeof MARKERS !== 'undefined' ? MARKERS : root && root.MARKERS,
     typeof TaskFormat !== 'undefined' ? TaskFormat : root && root.TaskFormat,
     typeof formatTaskList !== 'undefined' ? formatTaskList : root && root.formatTaskList,
+    typeof parseTaskDocument !== 'undefined' ? parseTaskDocument : root && root.parseTaskDocument,
+    typeof serializeTaskDocument !== 'undefined' ? serializeTaskDocument : root && root.serializeTaskDocument,
   );
   if (typeof module === 'object' && module.exports) module.exports = api;
   if (root) root.TaskListOperations = api;
-})(typeof globalThis !== 'undefined' ? globalThis : this, function taskListOperationsFactory(markers, taskFormat, formatList) {
+})(typeof globalThis !== 'undefined' ? globalThis : this, function taskListOperationsFactory(
+  markers,
+  taskFormat,
+  formatList,
+  parseDocument,
+  serializeDocument,
+) {
   'use strict';
 
-  if (!markers || !taskFormat || typeof formatList !== 'function') {
+  if (
+    !markers ||
+    !taskFormat ||
+    typeof formatList !== 'function' ||
+    typeof parseDocument !== 'function' ||
+    typeof serializeDocument !== 'function'
+  ) {
     throw new Error('TaskListOperations requires markers.js and task-format.js');
   }
 
   const ISO_DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+
+  const isCompleted = line => /^x\s+/i.test(String(line || '').trim());
+  const activeTasks = lines => lines.filter(line => !isCompleted(line));
+  const completedTasks = lines => lines.filter(isCompleted);
+
+  function mutableDocument(documentInput) {
+    const parsed = parseDocument(documentInput);
+    return {
+      inboxUnsorted: [...parsed.inboxUnsorted],
+      inboxSorted: [...parsed.inboxSorted],
+      sorted: [...parsed.sorted],
+      partiallySorted: [...parsed.partiallySorted],
+      ignored: [...parsed.ignored],
+      markers: { ...parsed.markers },
+    };
+  }
+
+  function dateMarker(markersApi, listName, isoDate) {
+    const [year, month, day] = markerDateParts(isoDate);
+    if (listName === 'sorted') return markersApi.makeSorted(year, month, day);
+    if (listName === 'partiallySorted') return markersApi.makePartial(year, month, day);
+    if (listName === 'ignored') return markersApi.makeIgnored(year, month, day);
+    if (listName === 'inboxSorted') return markersApi.makeInboxSorted();
+    return null;
+  }
+
+  async function checkedCompare(compare, left, right, progress) {
+    const relation = Number(await compare(left, right, progress));
+    if (!Number.isFinite(relation) || relation === 0) {
+      throw new TypeError('compare must return a non-zero number');
+    }
+    return relation;
+  }
 
   function localIsoDate(value = new Date()) {
     if (typeof value === 'string' && ISO_DATE_RE.test(value)) return value;
@@ -111,7 +158,7 @@
    * compare(candidate, existing) must resolve to a negative number when the
    * candidate belongs above the existing task, otherwise to a positive number.
    */
-  async function findRankedInsertionIndex(orderedTasks, candidate, compare) {
+  async function findRankedInsertionIndex(orderedTasks, candidate, compare, progress = null) {
     if (!Array.isArray(orderedTasks)) throw new TypeError('orderedTasks must be an array');
     if (typeof compare !== 'function') throw new TypeError('compare must be a function');
     let low = 0;
@@ -121,16 +168,14 @@
 
     while (low < high) {
       const middle = Math.floor((low + high) / 2);
-      const relation = Number(await compare(candidate, orderedTasks[middle], {
+      const comparisonContext = Object.assign(progress || {}, {
         low,
         high,
         middle,
         comparison: comparisons + 1,
         maxComparisons,
-      }));
-      if (!Number.isFinite(relation) || relation === 0) {
-        throw new TypeError('compare must return a non-zero number');
-      }
+      });
+      const relation = await checkedCompare(compare, candidate, orderedTasks[middle], comparisonContext);
       comparisons += 1;
       if (relation < 0) high = middle;
       else low = middle + 1;
@@ -155,38 +200,32 @@
    * is safe. No document mutation is returned until all comparisons complete.
    */
   async function rankTaskAtIndex(documentInput, sourceIndex, compare, options = {}) {
-    const lines = documentEntries(documentInput);
-    if (!Number.isInteger(sourceIndex) || sourceIndex < 0 || sourceIndex >= lines.length) {
+    const parsed = parseDocument(documentInput);
+    const sourceEntry = parsed.entries[sourceIndex];
+    if (!Number.isInteger(sourceIndex) || !sourceEntry) {
       throw new RangeError('sourceIndex is outside the document');
     }
-    const candidate = lines[sourceIndex];
-    if (markers.isAnyMarker(candidate)) throw new TypeError('A section marker cannot be ranked');
+    if (sourceEntry.kind !== 'task') throw new TypeError('A section marker cannot be ranked');
+    if (isCompleted(sourceEntry.line)) throw new TypeError('A completed task cannot be ranked');
 
-    lines.splice(sourceIndex, 1);
-    let sortedMarkerIndex = lines.findIndex(line => markers.isSorted(line));
-    let markerCreated = false;
-    if (sortedMarkerIndex < 0) {
-      const today = localIsoDate(options.today || options.now);
-      lines.unshift(markers.makeSorted(...markerDateParts(today)));
-      sortedMarkerIndex = 0;
-      markerCreated = true;
-    }
-
-    let sortedEnd = lines.findIndex((line, index) => index > sortedMarkerIndex && markers.isAnyMarker(line));
-    if (sortedEnd < 0) sortedEnd = lines.length;
-    const rankedPeers = lines.slice(sortedMarkerIndex + 1, sortedEnd);
+    const model = mutableDocument(documentInput);
+    const candidate = model[sourceEntry.listName].splice(sourceEntry.listIndex, 1)[0];
+    const rankedPeers = activeTasks(model.sorted);
     const placement = await findRankedInsertionIndex(rankedPeers, candidate, compare);
-    const documentIndex = sortedMarkerIndex + 1 + placement.index;
-    lines.splice(documentIndex, 0, candidate);
+    rankedPeers.splice(placement.index, 0, candidate);
+    model.sorted = [...rankedPeers, ...completedTasks(model.sorted)];
+    const markerCreated = !model.markers.sorted;
+    const today = localIsoDate(options.today || options.now);
+    model.markers.sorted = model.markers.sorted || dateMarker(markers, 'sorted', today);
+    const text = serializeDocument(model, { today });
 
     return Object.freeze({
       task: candidate,
       markerCreated,
       sortedPosition: placement.index,
-      documentIndex,
       comparisons: placement.comparisons,
-      lines: Object.freeze(lines),
-      text: formatList(lines),
+      lines: Object.freeze(documentEntries(text)),
+      text,
     });
   }
 

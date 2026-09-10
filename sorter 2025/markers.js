@@ -2,7 +2,8 @@
 //
 // Единая модель списков:
 //   inboxUnsorted  — новые задачи без внутреннего порядка
-//   inboxSorted    — новая отсортированная партия перед слиянием
+//   inboxSorted    — отдельная партия из старого/manual NEW ARRAY сценария;
+//                    обычный Sort Tasks этот список не создаёт
 //   sorted         — основной отсортированный список
 //   partiallySorted — частично отсортированный остаток
 //   ignored        — исключённые задачи
@@ -52,7 +53,8 @@ const MARKERS = {
 
   // Маркеры, завершающие блок SORTED (всё, что идёт ниже — уже не SORTED)
   isSortedEnd(line) {
-    return MARKERS.isPartiallySorted(line) || MARKERS.isIgnored(line);
+    const listName = MARKERS.getListName(line);
+    return listName !== null && listName !== 'sorted';
   },
 
   // ── Генерация строк маркеров ────────────────────────────────────────
@@ -63,88 +65,88 @@ const MARKERS = {
   makeInboxUnsorted: () => 'НЕУПОРЯДОЧЕННЫЕ ЗАДАЧИ',
 };
 
-function taskLines(lines, { activeOnly = false } = {}) {
-  return lines.filter(line => {
-    const trimmed = line.trim();
-    if (!trimmed || MARKERS.isAnyMarker(trimmed)) return false;
-    return !activeOnly || !/^x /.test(trimmed);
+/**
+ * Parse the complete todo.txt document into the five business lists.
+ *
+ * The current canonical layout keeps inboxUnsorted above SORTED. Older files
+ * may instead contain `sorted / NEW ARRAY / inboxSorted / НЕУПОРЯДОЧЕННЫЕ
+ * ЗАДАЧИ / inboxUnsorted`; that legacy layout is accepted so it can be safely
+ * rewritten without losing tasks. Completed tasks stay in their source list —
+ * filtering them out here used to delete them during the next rebuild.
+ */
+function parseTaskDocument(text) {
+  const sourceLines = Array.isArray(text) ? text : String(text || '').split(/\r?\n/);
+  const rawLines = sourceLines
+    .map(line => String(line).trimEnd())
+    .filter(line => line.trim());
+  const lists = createTaskLists();
+  const sectionMarkers = Object.fromEntries(TASK_LIST_NAMES.map(name => [name, null]));
+  const entries = [];
+  const isLegacyMergeLayout =
+    !rawLines.some(line => MARKERS.isSorted(line)) &&
+    rawLines.some(line => MARKERS.isNewArray(line));
+  let currentList = isLegacyMergeLayout ? 'sorted' : 'inboxUnsorted';
+
+  for (const line of rawLines) {
+    const markerList = MARKERS.getListName(line);
+    if (markerList) {
+      currentList = markerList;
+      if (!sectionMarkers[markerList]) sectionMarkers[markerList] = line;
+      entries.push(Object.freeze({ kind: 'marker', line, listName: markerList }));
+      continue;
+    }
+
+    const listIndex = lists[currentList].length;
+    lists[currentList].push(line);
+    entries.push(Object.freeze({ kind: 'task', line, listName: currentList, listIndex }));
+  }
+
+  return Object.freeze({
+    ...lists,
+    markers: Object.freeze(sectionMarkers),
+    entries: Object.freeze(entries),
+    legacyMergeLayout: isLegacyMergeLayout,
   });
 }
 
 /**
- * Разбирает документ для команды Merge Arrays.
- * До NEW ARRAY лежит sorted, после него — inboxSorted. Блок от
- * НЕУПОРЯДОЧЕННЫЕ ЗАДАЧИ сохраняется без изменений в sourceBlocks.
+ * Serialize all five lists in one canonical order. inboxUnsorted deliberately
+ * has no heading and therefore remains at the very top. Legacy
+ * НЕУПОРЯДОЧЕННЫЕ ЗАДАЧИ input is normalized to that top inbox on a rebuild.
+ * No operation may assemble a complete document without this function and
+ * formatTaskList().
  */
-function parseMergeTaskLists(text) {
-  const lines = String(text || '').split(/\r?\n/);
-  const inboxSortedIndex = lines.findIndex(line => MARKERS.isNewArray(line));
-  const inboxUnsortedIndex = lines.findIndex(line => MARKERS.isUnordered(line));
+function serializeTaskDocument(documentModel, options = {}) {
+  const model = documentModel || {};
+  const sectionMarkers = model.markers || {};
+  const today = String(options.today || '').match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  const dateParts = today ? today.slice(1) : ['0000', '00', '00'];
+  const lists = Object.fromEntries(
+    TASK_LIST_NAMES.map(name => [name, Array.isArray(model[name]) ? model[name] : []])
+  );
+  const lines = [...lists.inboxUnsorted];
 
-  const sortedLines = inboxSortedIndex > -1
-    ? lines.slice(0, inboxSortedIndex)
-    : lines.slice();
-  const inboxSortedLines = inboxSortedIndex > -1 && inboxUnsortedIndex > -1
-    ? lines.slice(inboxSortedIndex + 1, inboxUnsortedIndex)
-    : inboxSortedIndex > -1
-      ? lines.slice(inboxSortedIndex + 1)
-      : [];
-  const inboxUnsortedBlock = inboxUnsortedIndex > -1
-    ? lines.slice(inboxUnsortedIndex)
-    : [];
-  const ignoredIndex = inboxUnsortedBlock.findIndex(line => MARKERS.isIgnored(line));
-  const inboxUnsortedLines = ignoredIndex > -1
-    ? inboxUnsortedBlock.slice(0, ignoredIndex)
-    : inboxUnsortedBlock;
-  const ignoredLines = ignoredIndex > -1
-    ? inboxUnsortedBlock.slice(ignoredIndex)
-    : [];
+  const hasSortedBoundary = Boolean(
+    sectionMarkers.sorted || lists.sorted.length || lists.inboxSorted.length || lists.partiallySorted.length
+  );
+  if (hasSortedBoundary) {
+    lines.push(sectionMarkers.sorted || MARKERS.makeSorted(...dateParts));
+    lines.push(...lists.sorted);
+  }
+  if (lists.inboxSorted.length || sectionMarkers.inboxSorted) {
+    lines.push(sectionMarkers.inboxSorted || MARKERS.makeInboxSorted());
+    lines.push(...lists.inboxSorted);
+  }
+  if (lists.partiallySorted.length || sectionMarkers.partiallySorted) {
+    lines.push(sectionMarkers.partiallySorted || MARKERS.makePartial(...dateParts));
+    lines.push(...lists.partiallySorted);
+  }
+  if (lists.ignored.length || sectionMarkers.ignored) {
+    lines.push(sectionMarkers.ignored || MARKERS.makeIgnored(...dateParts));
+    lines.push(...lists.ignored);
+  }
 
-  return {
-    ...createTaskLists(),
-    sorted: taskLines(sortedLines),
-    inboxSorted: taskLines(inboxSortedLines),
-    inboxUnsorted: taskLines(inboxUnsortedLines),
-    ignored: taskLines(ignoredLines),
-    sourceBlocks: { inboxUnsorted: inboxUnsortedBlock },
-  };
-}
-
-/**
- * Разбирает документ для команды Sort Tasks.
- * Начальные строки — inboxUnsorted; остальные списки начинаются со своих
- * маркеров. Полный ignored-блок сохраняется для обратной совместимости.
- */
-function parseSortTaskLists(text) {
-  const lines = String(text || '').split(/\r?\n/);
-  const sortedIndex = lines.findIndex(line => MARKERS.isSorted(line));
-  const partiallySortedIndex = lines.findIndex(line => MARKERS.isPartiallySorted(line));
-  const ignoredIndex = lines.findIndex(line => MARKERS.isIgnored(line));
-
-  const sortedEnd = partiallySortedIndex > -1
-    ? partiallySortedIndex
-    : ignoredIndex > -1 ? ignoredIndex : lines.length;
-  const partiallySortedEnd = ignoredIndex > -1 ? ignoredIndex : lines.length;
-
-  const inboxUnsortedLines = sortedIndex > -1
-    ? lines.slice(0, sortedIndex)
-    : lines.slice(0, sortedEnd);
-  const sortedLines = sortedIndex > -1
-    ? lines.slice(sortedIndex + 1, sortedEnd)
-    : [];
-  const partiallySortedLines = partiallySortedIndex > -1
-    ? lines.slice(partiallySortedIndex + 1, partiallySortedEnd)
-    : [];
-  const ignoredBlock = ignoredIndex > -1 ? lines.slice(ignoredIndex) : [];
-
-  return {
-    ...createTaskLists(),
-    inboxUnsorted: taskLines(inboxUnsortedLines, { activeOnly: true }),
-    sorted: taskLines(sortedLines, { activeOnly: true }),
-    partiallySorted: taskLines(partiallySortedLines, { activeOnly: true }),
-    ignored: taskLines(ignoredBlock),
-    sourceBlocks: { ignored: ignoredBlock },
-  };
+  return formatTaskList(lines);
 }
 
 /**
