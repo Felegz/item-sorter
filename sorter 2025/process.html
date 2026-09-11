@@ -300,7 +300,8 @@
   </div>
 </div>
 
-<script src="markers.js?v=20260911-inbox-sorted"></script>
+<script src="runtime-mode.js?v=20260911-developer-mode"></script>
+<script src="markers.js?v=20260911-ignored-filter"></script>
 <script src="task-format.js?v=20260906-task-renderer"></script>
 <script src="flows.js"></script>
 <script src="mobile-edit-mode.js?v=20260907-keyboard-layout"></script>
@@ -621,9 +622,11 @@ function copyOut() {
 // process.html does not load dropbox.js, so it records the same local-version
 // timestamp directly whenever GTD processing changes the shared task document.
 function saveProcessedTaskDocument(text) {
-  const previous = localStorage.getItem('tasks');
-  localStorage.setItem('tasks', text);
-  if (previous !== text) localStorage.setItem('dbx_local_version_time', String(Date.now()));
+  const previous = SorterRuntime.getTasks();
+  SorterRuntime.setTasks(text);
+  if (previous !== text && !SorterRuntime.isDeveloperMode) {
+    localStorage.setItem('dbx_local_version_time', String(Date.now()));
+  }
 }
 
 function addToList() {
@@ -631,7 +634,7 @@ function addToList() {
   if (!line || line.startsWith('# УДАЛЕНО')) {
     el('out-note').textContent='Помечено как удалённое \u2014 в список не добавляется.'; return;
   }
-  const existing = localStorage.getItem('tasks') || '';
+  const existing = SorterRuntime.getTasks();
   const lines = existing ? existing.split('\n') : [];
   // If came from a specific task, replace it instead of prepending
   if (S.originalTask) {
@@ -661,7 +664,7 @@ function resetAll() {
 }
 
 function nextTask() {
-  const lines = (localStorage.getItem('tasks') || '').split('\n');
+  const lines = SorterRuntime.getTasks().split('\n');
   const curIdx = lines.findIndex(l => l.trim() === (S.originalTask || '').trim());
   const start = curIdx !== -1 ? curIdx + 1 : 0;
   let inIgnored = false;
@@ -673,7 +676,9 @@ function nextTask() {
     if (MARKERS.isAnyMarker(l)) continue;
     if (/^x\s/.test(l)) continue;
     if (/\+someday-maybe/.test(l)) continue;
-    window.location.href = '/process?task=' + encodeURIComponent(lines[i]) + '&from=tasks';
+    window.location.href = SorterRuntime.withMode(
+      '/process?task=' + encodeURIComponent(lines[i]) + '&from=tasks',
+    );
     return;
   }
   el('out-note').textContent = 'Больше задач для обработки нет!';

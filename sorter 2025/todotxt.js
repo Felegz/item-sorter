@@ -308,6 +308,7 @@ function applyFilter() {
   fv.innerHTML = filteredLines.length
     ? filteredLines.map((l, i) => {
         const enc = encodeURIComponent(l.trim());
+        const processHref = SorterRuntime.withMode('process.html?task=' + enc);
         const todoP = parseTodoLine(l);
         const done = todoP.completed;
         return '<div class="filter-row">'
@@ -316,7 +317,7 @@ function applyFilter() {
           + TaskFormat.renderTaskMetaHtml(todoP)
           + '</div>'
           + '<span class="filter-row-actions">'
-          + '<a href="process.html?task=' + enc + '" class="frow-btn" title="GTD разбор">GTD</a>'
+          + '<a href="' + processHref + '" class="frow-btn" title="GTD разбор">GTD</a>'
           + '<button class="frow-btn" onclick="filterRowToggleDone(' + i + ')" title="' + (done ? 'Снять отметку' : 'Выполнено') + '">' + (done ? '\u21A9' : '\u2713') + '</button>'
           + '</span></div>';
       }).join('')
@@ -491,7 +492,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     const taskText = lines[lineIdx].trim();
     const encoded = encodeURIComponent(taskText);
-    window.location.href = `process.html?task=${encoded}`;
+    window.location.href = SorterRuntime.withMode(`process.html?task=${encoded}`);
   });
 });
 
@@ -563,7 +564,7 @@ async function quickTriageCurrentTask() {
     _updateTaskArea(ta, lines);
   } else {
     // Подробный разбор на странице GTD
-    window.location.href = 'process.html?task=' + encodeURIComponent(task);
+    window.location.href = SorterRuntime.withMode('process.html?task=' + encodeURIComponent(task));
   }
 }
 

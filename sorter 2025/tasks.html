@@ -4,18 +4,19 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content">
   <title>Tasks</title>
+  <script src="runtime-mode.js?v=20260911-developer-mode"></script>
   <!-- vanilla-context-menu 1.6.0 — MIT license, github.com/GeorgianStan/vanilla-context-menu -->
   <script src="https://unpkg.com/vanilla-context-menu@1.6.0/dist/vanilla-context-menu.js"></script>
   <!-- date-fns 4.4.0 — MIT license, date-fns.org -->
   <script src="https://cdn.jsdelivr.net/npm/@date-fns/cdn@4.4.0/cdn.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@date-fns/cdn@4.4.0/locale/ru/cdn.min.js"></script>
-  <script src="markers.js?v=20260911-inbox-sorted"></script>
+  <script src="markers.js?v=20260911-ignored-filter"></script>
   <script src="mobile-edit-mode.js?v=20260907-keyboard-layout"></script>
   <script src="task-format.js?v=20260907-version-dates"></script>
-  <script src="task-list-operations.js?v=20260909-sorting-pipeline"></script>
+  <script src="task-list-operations.js?v=20260911-ignored-filter"></script>
   <script src="ai-exchange.js?v=20260906-ai-bridge"></script>
   <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-  <link rel="stylesheet" href="tasks.css?v=20260907-relative-section-dates" />
+  <link rel="stylesheet" href="tasks.css?v=20260911-developer-mode" />
   <link rel="stylesheet" href="task-format.css?v=20260907-version-dates" />
 </head>
 <body>
@@ -225,7 +226,7 @@
     }
 
     function loadItems() {
-      const raw = (localStorage.getItem('tasks') || '').split('\n');
+      const raw = SorterRuntime.getTasks().split('\n');
       items = [];
       let inIgnored = false;
       for (const line of raw) {
@@ -257,8 +258,8 @@
 
     function saveItems() {
       const text = formatTaskList(items.map(t => t._raw));
-      const previous = localStorage.getItem('tasks');
-      localStorage.setItem('tasks', text);
+      const previous = SorterRuntime.getTasks();
+      SorterRuntime.setTasks(text);
       if (previous !== text && typeof dbxRecordLocalTasksChange === 'function') dbxRecordLocalTasksChange();
       if (typeof scheduleAutosave === 'function') scheduleAutosave();
     }
@@ -266,8 +267,8 @@
     // --- Quick add ---
 
     function replaceTaskDocument(text) {
-      const previous = localStorage.getItem('tasks');
-      localStorage.setItem('tasks', text);
+      const previous = SorterRuntime.getTasks();
+      SorterRuntime.setTasks(text);
       if (previous !== text && typeof dbxRecordLocalTasksChange === 'function') dbxRecordLocalTasksChange();
       if (typeof scheduleAutosave === 'function') scheduleAutosave();
       loadItems();
@@ -587,7 +588,9 @@
     }
 
     function openProcess(idx) {
-      window.location.href = '/process?task=' + encodeURIComponent(items[idx]._raw) + '&from=tasks';
+      window.location.href = SorterRuntime.withMode(
+        '/process?task=' + encodeURIComponent(items[idx]._raw) + '&from=tasks',
+      );
     }
 
     function compareTaskRank(candidateRaw, existingRaw, progress) {
@@ -1153,7 +1156,7 @@
     initContextMenu();
     initAutocomplete();
   </script>
-  <script src="dropbox.js?v=20260907-version-dates"></script>
+  <script src="dropbox.js?v=20260911-developer-mode"></script>
   <script src="ai-dropbox.js?v=20260906-ai-bridge"></script>
   <script>
     // \u2500\u2500 Dropbox \u0438\u043d\u0442\u0435\u0433\u0440\u0430\u0446\u0438\u044f \u0434\u043b\u044f tasks.html \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
@@ -1177,6 +1180,11 @@
         badge.title = title;
         badge.setAttribute('aria-label', `${title}. Нажмите, чтобы синхронизировать`);
       };
+
+      if (SorterRuntime.isDeveloperMode) {
+        setBadge('developer', 'DEV · Dropbox off', 'Developer-список изолирован; Dropbox полностью отключён');
+        return;
+      }
 
       if (typeof getToken !== 'function' || !getToken()) {
         setBadge('off', '○ Sync off', 'Dropbox не подключён');

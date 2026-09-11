@@ -5,6 +5,8 @@ const vm = require('node:vm');
 const FIXTURE_PATH = 'private-test-data/default-tasks.txt';
 const appSource = fs.readFileSync('sorter 2025/app.js', 'utf8');
 const markersSource = fs.readFileSync('sorter 2025/markers.js', 'utf8');
+const taskFormatSource = fs.readFileSync('sorter 2025/task-format.js', 'utf8');
+const taskOperationsSource = fs.readFileSync('sorter 2025/task-list-operations.js', 'utf8');
 
 function ensure(condition, code) {
   if (!condition) throw new Error(`real-list smoke failed: ${code}`);
@@ -60,13 +62,24 @@ const supportNames = ['applyTaskListMutation'];
 
 function createRuntime() {
   const storage = new Map();
+  const localStorage = {
+    getItem(key) { return storage.has(key) ? storage.get(key) : null; },
+    setItem(key, value) { storage.set(key, String(value)); },
+    removeItem(key) { storage.delete(key); },
+  };
   const context = vm.createContext({
     // Several historical functions log complete task strings. Suppress those
     // logs so the private fixture can never leak into CI or terminal output.
     console: { log() {}, error() {} },
-    localStorage: {
-      getItem(key) { return storage.has(key) ? storage.get(key) : null; },
-      setItem(key, value) { storage.set(key, String(value)); },
+    localStorage,
+    SorterRuntime: {
+      isDeveloperMode: false,
+      storageKey: key => key,
+      getItem: key => localStorage.getItem(key),
+      setItem: (key, value) => localStorage.setItem(key, value),
+      getTasks: () => localStorage.getItem('tasks') || '',
+      setTasks: value => localStorage.setItem('tasks', value),
+      withMode: value => value,
     },
     Event: class Event {
       constructor(type, options) {
@@ -76,6 +89,8 @@ function createRuntime() {
     },
   });
   vm.runInContext(markersSource, context, { filename: 'markers.js' });
+  vm.runInContext(taskFormatSource, context, { filename: 'task-format.js' });
+  vm.runInContext(taskOperationsSource, context, { filename: 'task-list-operations.js' });
   vm.runInContext([
     ...restoredNames.map(extractFunction),
     ...supportNames.map(extractFunction),
@@ -104,6 +119,10 @@ function installDeterministicComparator(context, counters) {
 
 function activeSections(parsed) {
   return [...parsed.newTasks, ...parsed.sortedTasks, ...parsed.partiallySorted];
+}
+
+function meaningfulLines(lines) {
+  return lines.map(line => line.trimEnd()).filter(line => line.trim());
 }
 
 (async function run() {
@@ -146,9 +165,12 @@ function activeSections(parsed) {
     'sort-changed-active-task-multiset',
   );
   ensure(
-    digest(afterSort.tail.join('\n')) === digest(beforeSort.tail.join('\n')),
-    'sort-changed-ignored-tail',
+    digest(meaningfulLines(afterSort.tail).filter(line => !markers.isAnyMarker(line)).join('\n')) ===
+      digest(meaningfulLines(beforeSort.tail).filter(line => !markers.isAnyMarker(line)).join('\n')),
+    'sort-changed-ignored-tail-content',
   );
+  ensure(afterSort.tail.filter(line => markers.isIgnored(line)).every(line => /^IGNORED TASKS \(/.test(line)),
+    'sort-left-legacy-ignored-marker');
   const expectedWinnerCount = beforeActive.length <= 60
     ? beforeActive.length
     : Math.min(50, Math.ceil(beforeActive.length * 0.2));
@@ -219,23 +241,29 @@ function activeSections(parsed) {
     'insert-changed-ignored-tail',
   );
 
-  // Exercise Filter Tasks without subjective edits: keep every active task.
-  const originalNonMarkerTasks = realText.split(/\r?\n|\t/)
-    .filter(line => line.trim() && !markers.isAnyMarker(line) && !/^x /.test(line.trim()));
-  const expectedUniqueTasks = Array.from(new Set(originalNonMarkerTasks));
+  // Exercise the current no-loss Filter Tasks path: keep every active task.
+  // Completed and ignored tasks must bypass the dialog and remain in place;
+  // duplicate occurrences are counted and preserved independently.
+  const beforeFilter = parseDocument(realText);
+  const filterCandidateCount = beforeFilter.entries.filter(entry =>
+    entry.kind === 'task' &&
+    entry.listName !== 'ignored' &&
+    !/^x\s/i.test(entry.line.trim())
+  ).length;
   context.chooseWindow = async task => {
     counters.filterDecisions += 1;
     return { action: 'include', text: task };
   };
   context.taskList.value = realText;
   await sorting.filterTasksUI();
-  const filteredTasks = context.taskList.value.split(/\r?\n/)
-    .filter(line => line.trim() && !markers.isAnyMarker(line));
-  ensure(
-    orderedBagDigest(filteredTasks) === orderedBagDigest(expectedUniqueTasks),
-    'filter-output-does-not-match-historical-contract',
-  );
-  ensure(counters.filterDecisions === expectedUniqueTasks.length,
+  const afterFilter = parseDocument(context.taskList.value);
+  for (const listName of ['inboxUnsorted', 'sorted', 'inboxSorted', 'partiallySorted', 'ignored']) {
+    ensure(
+      digest(JSON.stringify(afterFilter[listName])) === digest(JSON.stringify(beforeFilter[listName])),
+      `filter-changed-${listName}`,
+    );
+  }
+  ensure(counters.filterDecisions === filterCandidateCount,
     'filter-decision-count-mismatch');
 
   const realBytesAfter = fs.readFileSync(FIXTURE_PATH);

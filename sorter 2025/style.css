@@ -986,6 +986,31 @@ button:disabled {
   flex: 0 1 auto;
 }
 
+/* Four Filter Tasks outcomes form one action group; mobile uses a compact 2×2 grid. */
+.swal2-actions.filter-task-actions {
+  display: grid !important;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.5rem;
+  width: calc(100% - 2rem);
+  margin-inline: 1rem;
+}
+
+.filter-task-actions .swal2-styled {
+  min-width: 0;
+  margin: 0;
+  padding-inline: 0.75rem;
+}
+
+.filter-task-actions .filter-done-button {
+  background-color: #3f7f63 !important;
+}
+
+@media (max-width: 600px) {
+  .swal2-actions.filter-task-actions {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
 .bulk-date-picker {
   min-height: 40px;
   padding: 0 10px;
@@ -1168,6 +1193,7 @@ footer a {
 .sync-badge[data-state="ok"] { border-color: rgba(74, 222, 128, 0.42); background: rgba(74, 222, 128, 0.1); color: #86efac; }
 .sync-badge[data-state="loading"] { border-color: rgba(96, 165, 250, 0.45); background: rgba(96, 165, 250, 0.1); color: #93c5fd; }
 .sync-badge[data-state="error"] { border-color: rgba(248, 113, 113, 0.5); background: rgba(248, 113, 113, 0.1); color: #fca5a5; }
+.sync-badge[data-state="developer"] { border-color: rgba(251, 191, 36, 0.45); background: rgba(251, 191, 36, 0.1); color: #fcd34d; cursor: default; opacity: 1; }
 .sync-badge[data-state="stale"],
 .sync-badge[data-state="idle"],
 .sync-badge[data-state="off"] { border-color: var(--border); background: var(--bg-card); color: var(--fg-muted); }

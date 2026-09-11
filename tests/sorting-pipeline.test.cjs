@@ -4,6 +4,8 @@ const vm = require('node:vm');
 
 const appSource = fs.readFileSync('sorter 2025/app.js', 'utf8');
 const markersSource = fs.readFileSync('sorter 2025/markers.js', 'utf8');
+const taskFormatSource = fs.readFileSync('sorter 2025/task-format.js', 'utf8');
+const taskOperationsSource = fs.readFileSync('sorter 2025/task-list-operations.js', 'utf8');
 const indexSource = fs.readFileSync('sorter 2025/index.html', 'utf8');
 
 // Load only the restored declarations. Running app.js as a whole would attach
@@ -51,11 +53,22 @@ const supportNames = [
 
 function createRuntime() {
   const storage = new Map();
+  const localStorage = {
+    getItem(key) { return storage.has(key) ? storage.get(key) : null; },
+    setItem(key, value) { storage.set(key, String(value)); },
+    removeItem(key) { storage.delete(key); },
+  };
   const context = vm.createContext({
     console: { log() {}, error: console.error },
-    localStorage: {
-      getItem(key) { return storage.has(key) ? storage.get(key) : null; },
-      setItem(key, value) { storage.set(key, String(value)); },
+    localStorage,
+    SorterRuntime: {
+      isDeveloperMode: false,
+      storageKey: key => key,
+      getItem: key => localStorage.getItem(key),
+      setItem: (key, value) => localStorage.setItem(key, value),
+      getTasks: () => localStorage.getItem('tasks') || '',
+      setTasks: value => localStorage.setItem('tasks', value),
+      withMode: value => value,
     },
     Event: class Event {
       constructor(type, options) {
@@ -65,11 +78,14 @@ function createRuntime() {
     },
   });
   vm.runInContext(markersSource, context, { filename: 'markers.js' });
+  vm.runInContext(taskFormatSource, context, { filename: 'task-format.js' });
+  vm.runInContext(taskOperationsSource, context, { filename: 'task-list-operations.js' });
   vm.runInContext([
     ...restoredNames.map(extractFunction),
     ...supportNames.map(extractFunction),
     `globalThis.__sorting = { ${restoredNames.join(', ')} };`,
     `globalThis.__support = { ${supportNames.join(', ')} };`,
+    'globalThis.__markers = MARKERS;',
   ].join('\n\n'), context, { filename: 'restored-sorting-functions.js' });
   return { context, sorting: context.__sorting, support: context.__support, storage };
 }
@@ -112,7 +128,7 @@ function installComparator(context, ranks, trace) {
   assert.equal(context.taskList.value, 'task NEW ARRAY text\nINBOX SORTED\nranked batch');
   assert.equal(storage.get('tasks'), context.taskList.value);
   assert.deepEqual(plain(migrationSnapshots), [{
-    reason: 'перед заменой NEW ARRAY на INBOX SORTED',
+    reason: 'перед миграцией маркеров секций',
     text: 'task NEW ARRAY text\nNEW ARRAY\nranked batch',
   }]);
 
@@ -151,14 +167,14 @@ function installComparator(context, ranks, trace) {
     'x 2026-09-01 completed sorted',
     'PARTIALLY SORTED (2026.09.01)',
     'E partial',
-    'ИГНОРИРУЕМЫЕ ЗАДАЧИ 2026.09.01',
+    'IGNORED TASKS (2026.09.01)',
     'I ignored',
   ].join('\n'));
   assert.deepEqual(plain(parsedSort), {
     newTasks: ['B new'],
     sortedTasks: ['C old'],
     partiallySorted: ['E partial'],
-    tail: ['ИГНОРИРУЕМЫЕ ЗАДАЧИ 2026.09.01', 'I ignored'],
+    tail: ['IGNORED TASKS (2026.09.01)', 'I ignored'],
   });
 
   const parsedMerge = sorting.parseArrays([
@@ -219,7 +235,7 @@ function installComparator(context, ranks, trace) {
     'D old',
     'PARTIALLY SORTED (2026.09.01)',
     'E partial',
-    'ИГНОРИРУЕМЫЕ ЗАДАЧИ 2026.09.01',
+    'IGNORED TASKS (2026.09.01)',
     'I ignored',
   ].join('\n') };
   context.saveDataToLocalStorage = () => {};
@@ -233,17 +249,28 @@ function installComparator(context, ranks, trace) {
   assert.equal(context.taskList.value, [
     'SORTED (2026.09.10)',
     'A new',
+    '',
     'B new',
+    '',
     'C old',
+    '',
     'D old',
     '',
     'PARTIALLY SORTED (2026.09.10)',
     'E partial',
     '',
-    'ИГНОРИРУЕМЫЕ ЗАДАЧИ 2026.09.01',
+    'IGNORED TASKS (2026.09.01)',
     'I ignored',
   ].join('\n'));
   assert.deepEqual(trace, [['B new', 'A new']]);
+  assert.equal(
+    context.taskList.value.split('\n').filter((line, index, lines) =>
+      line && index > 0 && lines[index - 1] &&
+      !context.__markers.isAnyMarker(line) && !context.__markers.isAnyMarker(lines[index - 1])
+    ).length,
+    0,
+    'Sort Tasks must leave one empty line between neighboring task rows',
+  );
 
   // Merge Arrays combines only sorted + inboxSorted in the five-list model.
   // It removes the consumed marker and preserves all three untouched lists.
@@ -261,7 +288,7 @@ function installComparator(context, ranks, trace) {
     'PARTIALLY SORTED (2026.09.02)',
     'G',
     'x 2026-09-02 completed partial',
-    'ИГНОРИРУЕМЫЕ ЗАДАЧИ 2026.09.03',
+    'IGNORED TASKS (2026.09.03)',
     'I ignored',
   ].join('\n'), dispatchEvent() {} };
   await sorting.mergeArraysUI();
@@ -284,7 +311,7 @@ function installComparator(context, ranks, trace) {
     '',
     'x 2026-09-02 completed partial',
     '',
-    'ИГНОРИРУЕМЫЕ ЗАДАЧИ 2026.09.03',
+    'IGNORED TASKS (2026.09.03)',
     'I ignored',
   ].join('\n'));
   assert.deepEqual(trace, [['A', 'B'], ['C', 'B'], ['C', 'D']]);
@@ -339,7 +366,7 @@ function installComparator(context, ranks, trace) {
     'E',
     'PARTIALLY SORTED (2026.09.01)',
     'G',
-    'ИГНОРИРУЕМЫЕ ЗАДАЧИ 2026.09.01',
+    'IGNORED TASKS (2026.09.01)',
     'ignored',
   ].join('\n');
   await sorting.insertUnsortedTasksUI(['B', 'F']);
@@ -353,30 +380,75 @@ function installComparator(context, ranks, trace) {
     'F',
     'G',
     '',
-    'ИГНОРИРУЕМЫЕ ЗАДАЧИ 2026.09.01',
+    'IGNORED TASKS (2026.09.01)',
     'ignored',
   ].join('\n'));
 
-  // Filter Tasks deduplicates active lines and rebuilds the document using the
-  // historical double-newline join. Completed lines do not survive this path.
+  // Filter Tasks preserves section membership, duplicate occurrences and
+  // already completed tasks. New ignored tasks are prepended; only an explicit
+  // delete decision removes an occurrence.
   context.taskList.value = [
-    'A',
+    'Inbox keep',
     'SORTED (2026.09.01)',
-    'A',
-    'B',
-    'x 2026-09-01 completed',
-    'C',
+    '(A) Keep',
+    '(B) Ignore',
+    '(C) Done',
+    '(D) Delete',
+    '(E) Duplicate',
+    '(E) Duplicate',
+    'x 2026-09-01 Existing completed',
+    'PARTIALLY SORTED (2026.09.02)',
+    '(F) Partial keep',
+    'ИГНОРИРУЕМЫЕ ЗАДАЧИ 2026.09.03',
+    '(G) Existing ignored',
   ].join('\n');
+  const filterActions = [
+    'include', 'include', 'ignore', 'done', 'delete', 'include', 'ignore', 'include',
+  ];
+  const filteredTasks = [];
   context.chooseWindow = async task => {
-    if (task === 'A') return { action: 'include', text: 'A edited' };
-    if (task === 'B') return { action: 'ignore', text: 'B ignored' };
-    return { action: 'delete', text: task };
+    filteredTasks.push(task);
+    return { action: filterActions.shift(), text: task };
   };
   await sorting.filterTasksUI();
-  assert.equal(
-    context.taskList.value,
-    'A edited\n\n\n\nИГНОРИРУЕМЫЕ ЗАДАЧИ 2026.09.10\n\nB ignored',
-  );
+  assert.deepEqual(filteredTasks, [
+    'Inbox keep', '(A) Keep', '(B) Ignore', '(C) Done', '(D) Delete',
+    '(E) Duplicate', '(E) Duplicate', '(F) Partial keep',
+  ]);
+  assert.equal(context.taskList.value, [
+    'Inbox keep',
+    '',
+    'SORTED (2026.09.01)',
+    '(A) Keep',
+    '',
+    'x 2026-09-10 (C) Done',
+    '',
+    '(E) Duplicate',
+    '',
+    'x 2026-09-01 Existing completed',
+    '',
+    'PARTIALLY SORTED (2026.09.02)',
+    '(F) Partial keep',
+    '',
+    'IGNORED TASKS (2026.09.03)',
+    '(B) Ignore',
+    '',
+    '(E) Duplicate',
+    '',
+    '(G) Existing ignored',
+  ].join('\n'));
+
+  const unsupportedDocument = [
+    'A',
+    'IGNORED TASKS (2026.09.01)',
+    'B',
+    'ИГНОРИРУЕМЫЕ ЗАДАЧИ 2026.09.02',
+    'C',
+  ].join('\n');
+  context.taskList.value = unsupportedDocument;
+  context.Swal = { fire: async () => ({ isConfirmed: true }) };
+  await sorting.filterTasksUI();
+  assert.equal(context.taskList.value, unsupportedDocument);
 
   console.log('restored sorting characterization: passed');
 })().catch(error => {

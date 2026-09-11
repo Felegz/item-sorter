@@ -5,8 +5,9 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content" />
   <title>Item Sorter</title>
+  <script src="runtime-mode.js?v=20260911-developer-mode"></script>
   <link rel="icon" type="image/x-icon" href="data:image/x-icon;base64,AAABAAEAEBAQAAEABAAoAQAAFgAAACgAAAAQAAAAIAAAAAEABAAAAAAAgAAAAAAAAAAAAAAAEAAAAAAAAAAAAAAA/4QAAADZ/wAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAERERERERERESAAAAAAAAARIAAAAAAAABEgAAABEgAAESAAABESAAARIAABEREgABEgABESESAAESABESAREgARIBESAAESABEhESAAARIAESESAAABEQARIAAAAAARABEgAAAAABEAESAAAAAAAAARIiIiIiIiIhEREREREREREAAAAAP/4AAD/+AAA/HgAAPh4AADwOAAA4DgAAMIYAACHGAAADxgAAB8YAAD/mAAA/5gAAP/4AAAAAAAAAAAAA" />
-  <link rel="stylesheet" href="style.css?v=20260911-sorting-actions" />
+  <link rel="stylesheet" href="style.css?v=20260911-filter-actions" />
   <link rel="stylesheet" href="task-format.css?v=20260907-version-dates" />
 </head>
 <body>
@@ -120,15 +121,15 @@ Your text will be stored in browser memory even after page reload, but it's not 
     <script src="https://cdn.jsdelivr.net/npm/@date-fns/cdn@4.4.0/cdn.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@date-fns/cdn@4.4.0/locale/ru/cdn.min.js"></script>
 
-    <script src="markers.js?v=20260911-inbox-sorted"></script>
+    <script src="markers.js?v=20260911-ignored-filter"></script>
     <script src="mobile-edit-mode.js?v=20260907-keyboard-layout"></script>
     <script src="task-format.js?v=20260907-version-dates"></script>
-    <script src="task-list-operations.js?v=20260909-sorting-pipeline"></script>
+    <script src="task-list-operations.js?v=20260911-ignored-filter"></script>
     <script src="ai-exchange.js?v=20260906-ai-bridge"></script>
-    <script src="app.js?v=20260911-inbox-sorted"></script>
-    <script src="dropbox.js?v=20260907-version-dates"></script>
+    <script src="app.js?v=20260911-ignored-filter"></script>
+    <script src="dropbox.js?v=20260911-developer-mode"></script>
     <script src="ai-dropbox.js?v=20260906-ai-bridge"></script>
-    <script src="todotxt.js?v=20260907-version-dates"></script>
+    <script src="todotxt.js?v=20260911-developer-mode"></script>
     <script>
       const _origSetDbxStatus = setDbxStatus;
       setDbxStatus = function(text) {
@@ -146,6 +147,11 @@ Your text will be stored in browser memory even after page reload, but it's not 
           badge.title = title;
           badge.setAttribute('aria-label', `${title}. Нажмите, чтобы синхронизировать`);
         };
+
+        if (SorterRuntime.isDeveloperMode) {
+          setBadge('developer', 'DEV · Dropbox off', 'Developer-список изолирован; Dropbox полностью отключён');
+          return;
+        }
 
         if (typeof getToken !== 'function' || !getToken()) {
           setBadge('off', '○ Sync off', 'Dropbox не подключён');

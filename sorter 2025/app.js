@@ -40,22 +40,22 @@ function chooseFour(title, options) {
  * @returns {Promise<string|null>}
  */
 /**
- * Выбор из 3-х вариантов одним кликом.
+ * Выбор действия для одной задачи во время Filter Tasks.
  * @param {string} title — заголовок окна
- * @returns {Promise<'include'|'ignore'|'delete'>}
+ * @returns {Promise<'include'|'ignore'|'done'|'delete'>}
  */
 
 /**
- * Открывает SweetAlert2 с собственным textarea и тремя кнопками.
+ * Открывает SweetAlert2 с textarea и четырьмя действиями.
  * Всегда возвращает { action, text } и никогда не ломает promise.
  */
 /**
- * Показывает окно с textarea и тремя кнопками.
+ * Показывает окно с textarea и четырьмя кнопками.
  * Использует returnInputValueOnDeny, чтобы при любом клике
  * (Confirm, Deny или Cancel) вернуть введённый текст.
  *
  * @param {string} task — исходный текст задачи
- * @returns {Promise<{ action: 'include'|'ignore'|'delete', text: string }>}
+ * @returns {Promise<{ action: 'include'|'ignore'|'done'|'delete', text: string }>}
  */
  /**
  * Возвращает текущие части даты/времени, все в формате двух цифр.
@@ -76,6 +76,8 @@ function getDateParts() {
  
  
 function chooseWindow(task, progress) {
+  let doneResult = null;
+  let latestText = task;
   const progressBar = progress
     ? `<div style="margin-bottom:0.5rem">
         <div style="display:flex;justify-content:space-between;font-size:0.72rem;color:#888;margin-bottom:4px">
@@ -94,15 +96,39 @@ function chooseWindow(task, progress) {
     inputValue: task,
     showDenyButton: true,
     showCancelButton: true,
-    confirmButtonText: '\u2705 \u0412\u043A\u043B\u044E\u0447\u0438\u0442\u044C',
-    denyButtonText:    '\u274C \u0418\u0433\u043D\u043E\u0440\u0438\u0440\u043E\u0432\u0430\u0442\u044C',
-    cancelButtonText:  '\uD83D\uDDD1 \u0423\u0434\u0430\u043B\u0438\u0442\u044C',
+    confirmButtonText: 'Оставить',
+    denyButtonText:    'Игнорировать',
+    cancelButtonText:  'Удалить',
     returnInputValueOnDeny: true,
+    allowOutsideClick: false,
+    allowEscapeKey: false,
+    didOpen: () => {
+      const input = Swal.getInput();
+      if (input) {
+        latestText = input.value;
+        input.addEventListener('input', () => { latestText = input.value; });
+      }
+      const actions = document.querySelector('.swal2-actions');
+      const deleteButton = document.querySelector('.swal2-cancel');
+      const doneButton = document.createElement('button');
+      doneButton.type = 'button';
+      doneButton.id = 'filter-done-button';
+      doneButton.className = 'swal2-confirm swal2-styled filter-done-button';
+      doneButton.textContent = 'Сделано';
+      doneButton.addEventListener('click', () => {
+        const text = (Swal.getInput()?.value || '').trim() || task;
+        doneResult = { action: 'done', text };
+        Swal.close();
+      });
+      if (actions) {
+        actions.classList.add('filter-task-actions');
+        actions.insertBefore(doneButton, deleteButton || null);
+      }
+    },
     preConfirm: text => ({ action: 'include', text: text.trim() || task }),
     preDeny:    text => ({ action: 'ignore',  text: text.trim() || task }),
-    preCancel:  text => ({ action: 'delete',  text: text.trim() || task })
   }).then(res => {
-    return res.value || { action: 'delete', text: task };
+    return doneResult || res.value || { action: 'delete', text: latestText.trim() || task };
   });
 }
 
@@ -111,14 +137,14 @@ function chooseWindow(task, progress) {
 
 // Get the task list element and its value from localStorage, if it exists
 const taskList = document.getElementById("task-list");
-const savedTasks = localStorage.getItem("tasks");
+const savedTasks = SorterRuntime.getTasks();
 if (savedTasks) {
   taskList.value = savedTasks;
 }
 
 // Get the user question element and its value from localStorage, if it exists
 const userQuestion = document.getElementById("user-question");
-const savedQuestion = localStorage.getItem("question");
+const savedQuestion = SorterRuntime.getItem("question");
 if (savedQuestion) {
   userQuestion.value = savedQuestion;
 }
@@ -131,7 +157,7 @@ if (!userQuestion.value.trim()) {
 
 // Add an event listener to the user question to save its value in localStorage when the user leaves the page
 userQuestion.addEventListener("blur", function () {
-  localStorage.setItem("question", userQuestion.value);
+  SorterRuntime.setItem("question", userQuestion.value);
 });
 
 //questionToAsk = userQuestion
@@ -143,20 +169,20 @@ taskList.addEventListener("blur", function () {
 
 // Function to save both the user's question and task list in local storage
 function saveDataToLocalStorage() {
-  const previousTasks = localStorage.getItem("tasks");
+  const previousTasks = SorterRuntime.getTasks();
   const tasksBeforeMarkerMigration = taskList.value;
   const canonicalTasks = canonicalizeTaskDocumentMarkers(tasksBeforeMarkerMigration);
 
   if (canonicalTasks !== tasksBeforeMarkerMigration) {
-    // Preserve the exact pre-migration text. Only the marker name changes, but
-    // this makes the automatic migration recoverable through History.
-    localStorage.setItem("tasks", tasksBeforeMarkerMigration);
-    if (typeof saveSnapshot === 'function') saveSnapshot('перед заменой NEW ARRAY на INBOX SORTED');
-    else localStorage.setItem('tasks_marker_migration_backup', tasksBeforeMarkerMigration);
+    // Preserve the exact pre-migration text. Only exact marker lines change,
+    // but the automatic migration must remain recoverable through History.
+    SorterRuntime.setTasks(tasksBeforeMarkerMigration);
+    if (typeof saveSnapshot === 'function') saveSnapshot('перед миграцией маркеров секций');
+    else SorterRuntime.setItem('tasks_marker_migration_backup', tasksBeforeMarkerMigration);
     taskList.value = canonicalTasks;
   }
-  localStorage.setItem("question", userQuestion.value);
-  localStorage.setItem("tasks", taskList.value);
+  SorterRuntime.setItem("question", userQuestion.value);
+  SorterRuntime.setTasks(taskList.value);
   if (previousTasks !== taskList.value && typeof dbxRecordLocalTasksChange === 'function') {
     dbxRecordLocalTasksChange();
   }
@@ -272,9 +298,9 @@ async function compareTasks(task1, task2, progress = null) {
  */
 function applyTaskListMutation(result, reason) {
   if (!result?.changed) return false;
-  localStorage.setItem('tasks', taskList.value);
+  SorterRuntime.setTasks(taskList.value);
   if (typeof saveSnapshot === 'function') saveSnapshot(reason);
-  else localStorage.setItem('tasks_sorting_backup', taskList.value);
+  else SorterRuntime.setItem('tasks_sorting_backup', taskList.value);
   taskList.value = result.text;
   saveDataToLocalStorage();
   taskList.dispatchEvent(new Event('input', { bubbles: true }));
@@ -452,17 +478,21 @@ async function mergeArraysUI() {
 async function filterTasks(tasks) {
   const tasksToSort  = [];
   const ignoredTasks = [];
+  const completedTasks = [];
+  const decisions = [];
   const total = tasks.length;
 
   for (let i = 0; i < tasks.length; i++) {
     const task = tasks[i];
     const { action, text } = await chooseWindow(task, { current: i + 1, total });
+    decisions.push({ action, text });
     if (action === 'include')     tasksToSort.push(text);
     else if (action === 'ignore') ignoredTasks.push(text);
-    // action === 'delete' — пропускаем
+    else if (action === 'done')   completedTasks.push(text);
+    // action === 'delete' is the only explicit data-removal decision.
   }
 
-  return { tasksToSort, ignoredTasks };
+  return { tasksToSort, ignoredTasks, completedTasks, decisions };
 }
 
 /*
@@ -597,57 +627,73 @@ async function insertUnsortedTasksUI(unsortedTasks) {
  * 7) вставляет заголовок с датой и игнорируемые задачи,
  * 8) сохраняет в localStorage.
  */
+/**
+ * Filter active task occurrences without flattening the five-list document.
+ * Existing completed and ignored tasks bypass the dialog. Ignore moves the
+ * exact occurrence to the front of the single ignored block; delete is the
+ * only action allowed to remove it.
+ */
 async function filterTasksUI() {
+  const ignoredMarkerCount = taskList.value
+    .split(/\r?\n/)
+    .filter(line => MARKERS.isIgnored(line)).length;
+  if (ignoredMarkerCount > 1) {
+    await Swal.fire({
+      icon: 'warning',
+      title: 'Несколько ignored-блоков',
+      text: 'Filter Tasks пока поддерживает только один ignored-блок. Список не изменён.',
+    });
+    return;
+  }
+
   saveDataToLocalStorage();
 
-  // 1) Берём содержимое
-  const input = taskList.value;
+  const parsed = parseTaskDocument(taskList.value);
+  const candidates = parsed.entries.filter(entry =>
+    entry.kind === 'task' &&
+    entry.listName !== 'ignored' &&
+    !TaskFormat.parseTaskLine(entry.line).completed
+  );
+  if (!candidates.length) {
+    await Swal.fire('Нет задач', 'Нет активных задач для фильтрации.', 'info');
+    return;
+  }
 
-  // 2) Разбиваем на строки (по переводу строки или табу)
-  var tasks = input.split(/[\r\n\t]+/);
-
-  // 3) Убираем маркеры секций и устаревшие форматные строки
-  const formatRegexes = [
-    /^\([A-Z]\)$/gm,
-    /^added .* ago$/gm,
-    /^added yesterday/gm,
-    /^Due[\d\w\s]*$/gm
-  ];
-
-  // 4) Игорируем строки, подходящие под MARKERS или форматные регулярки
-  tasks = tasks.filter(task => {
-    if (MARKERS.isAnyMarker(task)) return false;
-    for (const regex of formatRegexes) {
-      if (regex.test(task)) return false;
-    }
-    return true;
-  });
-
-  // 5) Убираем полностью пустые строки и выполненные задачи (x ...)
-  tasks = tasks.filter(task => task.trim() !== "" && !/^x /.test(task.trim()));
-
-  // 6) Уникализация
-  var uniqueTasks = Array.from(new Set(tasks));
-
-  // 7) Редактируем и разделяем include / ignore
-  const { tasksToSort, ignoredTasks } = await filterTasks(uniqueTasks);
-
-  // 8) Формируем заголовок с текущей датой
+  const { decisions } = await filterTasks(candidates.map(entry => entry.line));
   const { year, month, day } = getDateParts();
-  const dateHeader = `ИГНОРИРУЕМЫЕ ЗАДАЧИ ${year}.${month}.${day}`;
+  const today = `${year}-${month}-${day}`;
+  const decisionsByEntry = new Map(candidates.map((entry, index) => [
+    `${entry.listName}:${entry.listIndex}`,
+    decisions[index],
+  ]));
+  const newlyIgnored = [];
+  const model = {
+    markers: { ...parsed.markers },
+  };
 
-  // 9) Собираем итоговый массив строк
-  const result = [
-    ...tasksToSort,
-    "",
-    dateHeader,
-    ...ignoredTasks
-  ];
+  for (const listName of ['inboxUnsorted', 'sorted', 'inboxSorted', 'partiallySorted']) {
+    model[listName] = parsed[listName].flatMap((line, listIndex) => {
+      const decision = decisionsByEntry.get(`${listName}:${listIndex}`);
+      if (!decision) return [line]; // completed tasks never enter the dialog
+      if (decision.action === 'include') return [decision.text];
+      if (decision.action === 'done') {
+        return [TaskListOperations.setTaskCompletion(decision.text, true, { completionDate: today })];
+      }
+      if (decision.action === 'ignore') newlyIgnored.push(decision.text);
+      return []; // ignore moves the task; delete is an explicit removal
+    });
+  }
 
-  // 10) Записываем его обратно в textarea
-  taskList.value = result.join("\n\n");
+  model.ignored = [...newlyIgnored, ...parsed.ignored];
+  if (newlyIgnored.length && !model.markers.ignored) {
+    model.markers.ignored = MARKERS.makeIgnored(year, month, day);
+  }
 
-  saveDataToLocalStorage();
+  const newText = serializeTaskDocument(model, { today });
+  applyTaskListMutation(
+    { changed: newText !== taskList.value, text: newText },
+    'перед Filter Tasks',
+  );
 }
 
 /**
@@ -730,7 +776,7 @@ function parseAllSections(text) {
   const lines    = text.split(/\r?\n/);
   const iSorted  = lines.findIndex(l => /^SORTED\s*\(/i.test(l.trim()));
   const iPartial = lines.findIndex(l => /^PARTIALLY SORTED/i.test(l.trim()));
-  const iIgnored = lines.findIndex(l => /^ИГНОРИРУЕМЫЕ ЗАДАЧИ/i.test(l.trim()));
+  const iIgnored = lines.findIndex(l => MARKERS.isIgnored(l));
 
   const endSorted  = iPartial > -1 ? iPartial : (iIgnored > -1 ? iIgnored : lines.length);
   const endPartial = iIgnored > -1 ? iIgnored : lines.length;
@@ -900,7 +946,10 @@ async function sortTasks() {
       parts.push(...tail);
     }
 
-    taskList.value = parts.join('\n');
+    // Sort Tasks changes order and therefore rebuilds the complete document.
+    // Keep its comparison algorithm intact, but always serialize the result
+    // through the shared contract: one empty line between neighboring tasks.
+    taskList.value = formatTaskList(parts);
     saveDataToLocalStorage();
 
     if (typeof assignPrioritiesAfterSort === 'function') assignPrioritiesAfterSort();
@@ -1052,7 +1101,7 @@ document.getElementById('process-btn')?.addEventListener('click', () => {
   const task = currentLine.trim();
   if (!task || /^x /.test(task)) return;
   const url = 'process.html?task=' + encodeURIComponent(task) + '&from=sorter';
-  window.location.href = url;
+  window.location.href = SorterRuntime.withMode(url);
 });
 
 // ⚡ Быстрый разбор — первая необработанная задача → process.html
@@ -1065,7 +1114,7 @@ document.getElementById('quick-triage-btn')?.addEventListener('click', () => {
   });
   if (!first) { alert('Нет необработанных задач!'); return; }
   const url = 'process.html?task=' + encodeURIComponent(first.trim()) + '&flow=korz&from=sorter';
-  window.location.href = url;
+  window.location.href = SorterRuntime.withMode(url);
 });
 
 // Reuse the native date input used elsewhere in the project. Browsers with

@@ -18,6 +18,32 @@
 - Run only checks relevant to the changed behavior. After those checks pass,
   stop unless a failure or unresolved risk gives a concrete reason to expand.
 
+## Локальная проверка после значимых изменений
+
+- После любого значимого изменения кода или пользовательского интерфейса перед
+  итоговым ответом убедиться, что локальный сервер проекта работает на
+  `http://127.0.0.1:4173/`. Если сервер остановлен — запустить его из папки
+  `sorter 2025` автоматически, не ожидая отдельной просьбы владельца.
+- Проверить HTTP-ответ обеих основных страниц: `/` и `/tasks.html`. Не заявлять,
+  что результат готов к проверке, пока обе страницы недоступны локально.
+- Запуск сервера не заменяет функциональные тесты и визуальную проверку, когда
+  они требуются задачей.
+
+## Изолированный developer mode
+
+- Для ручной локальной проверки открывай `/?mode=developer` и
+  `/tasks.html?mode=developer`. Этот режим разрешён только на `localhost` и
+  `127.0.0.1`; production не должен уметь его включать.
+- Developer mode использует те же функции и алгоритмы, что и обычный режим.
+  Отличается только слой хранения: вместо рабочего `tasks` используется
+  `sorter_dev_tasks`, а Dropbox полностью заблокирован.
+- Никогда не заменяй рабочий список или облачный `/tasks.txt` тестовыми данными.
+  Начальный developer-список из десяти задач-числительных задаётся только в
+  `sorter 2025/runtime-mode.js` и создаётся лишь при отсутствии developer-ключа.
+- Все внутренние переходы между `/`, `/tasks.html` и `/process.html` обязаны
+  сохранять `mode=developer`, иначе тестовая операция может попасть в рабочий
+  список.
+
 ## Questions and decisions
 
 - When the user needs to choose from a finite list of options, use the available structured question UI so the choices appear as clickable buttons and the selected answer is inserted into the chat input.
@@ -35,6 +61,15 @@
   convert them in bulk. Migrate only one function at a time after its old output
   and comparison sequence are locked by a characterization test.
 - The required layout is exactly one empty line between neighboring tasks and exactly one empty line before a new section marker. A section marker stays directly adjacent to the first task in that section.
+- New tasks are prepended to `inboxUnsorted`; newly ignored tasks are prepended
+  to the ignored list. Do not append them after older tasks.
+- Sorting and filtering must preserve completed tasks, duplicate task strings,
+  and every other existing task occurrence. Reformatting or moving a task does
+  not authorize silently dropping it.
+- The canonical ignored marker is `IGNORED TASKS (YYYY.MM.DD)`. Continue reading
+  the legacy Russian marker, preserve its date, and never create a new Russian
+  marker. Multiple ignored blocks are deferred; fail without writing rather
+  than merging them.
 - Line-level edits may preserve the existing array with `join('\n')` only when they do not discard or reconstruct its blank separator lines.
 - Before finishing a change to list assembly, run `node tests/format-task-list.test.cjs` and the JavaScript syntax checks for every changed script.
 - The owner's real task list is stored only at `private-test-data/default-tasks.txt`. The directory is ignored by Git. It is the default local fixture for realistic testing and must never be committed, uploaded, quoted, or included in screenshots.

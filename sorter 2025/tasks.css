@@ -2021,6 +2021,7 @@ button:disabled {
 .sync-badge[data-state="ok"] { border-color: rgba(74, 222, 128, 0.42); background: rgba(74, 222, 128, 0.1); color: #86efac; }
 .sync-badge[data-state="loading"] { border-color: rgba(96, 165, 250, 0.45); background: rgba(96, 165, 250, 0.1); color: #93c5fd; }
 .sync-badge[data-state="error"] { border-color: rgba(248, 113, 113, 0.5); background: rgba(248, 113, 113, 0.1); color: #fca5a5; }
+.sync-badge[data-state="developer"] { border-color: rgba(251, 191, 36, 0.45); background: rgba(251, 191, 36, 0.1); color: #fcd34d; cursor: default; opacity: 1; }
 .sync-badge[data-state="stale"],
 .sync-badge[data-state="idle"],
 .sync-badge[data-state="off"] { border-color: var(--border); background: var(--bg-card); color: var(--fg-muted); }

@@ -35,6 +35,8 @@ assert.equal(MARKERS.getListName('SORTED (2026.09.05)'), 'sorted');
 assert.equal(MARKERS.getListName('PARTIALLY SORTED (2026.09.05)'), 'partiallySorted');
 assert.equal(MARKERS.getListName('НЕУПОРЯДОЧЕННЫЕ ЗАДАЧИ'), 'inboxUnsorted');
 assert.equal(MARKERS.getListName('ИГНОРИРУЕМЫЕ ЗАДАЧИ 2026.09.05'), 'ignored');
+assert.equal(MARKERS.getListName('IGNORED TASKS (2026.09.05)'), 'ignored');
+assert.equal(MARKERS.makeIgnored('2026', '09', '05'), 'IGNORED TASKS (2026.09.05)');
 assert.equal(MARKERS.getListName('ordinary task'), null);
 assert.equal(MARKERS.isSortedEnd('NEW ARRAY'), true);
 assert.equal(MARKERS.isSortedEnd('INBOX SORTED'), true);
@@ -42,11 +44,16 @@ assert.equal(MARKERS.isSortedEnd('PARTIALLY SORTED (2026.09.05)'), true);
 assert.equal(MARKERS.getDate('SORTED (2026.09.05)'), '2026-09-05');
 assert.equal(MARKERS.getDate('PARTIALLY SORTED (2025.12.31)'), '2025-12-31');
 assert.equal(MARKERS.getDate('ИГНОРИРУЕМЫЕ ЗАДАЧИ 2026.01.02'), '2026-01-02');
+assert.equal(MARKERS.getDate('IGNORED TASKS (2026.01.02)'), '2026-01-02');
 assert.equal(MARKERS.getDate('NEW ARRAY'), null);
 assert.equal(MARKERS.getDate('INBOX SORTED'), null);
 assert.equal(
   canonicalizeTaskDocumentMarkers('task NEW ARRAY text\n  NEW ARRAY  \nother'),
   'task NEW ARRAY text\nINBOX SORTED\nother',
+);
+assert.equal(
+  canonicalizeTaskDocumentMarkers('ИГНОРИРУЕМЫЕ ЗАДАЧИ 2026.09.05\nignored'),
+  'IGNORED TASKS (2026.09.05)\nignored',
 );
 
 const documentText = [
@@ -86,6 +93,8 @@ assert.deepEqual(Array.from(legacy.ignored), ['ignored one']);
 const roundTrip = serializeTaskDocument(lists, { today: '2026-09-09' });
 assert.match(roundTrip, /(?:^|\n)INBOX SORTED(?:\n|$)/);
 assert.doesNotMatch(roundTrip, /(?:^|\n)NEW ARRAY(?:\n|$)/);
+assert.match(roundTrip, /(?:^|\n)IGNORED TASKS \(2026\.09\.05\)(?:\n|$)/);
+assert.doesNotMatch(roundTrip, /ИГНОРИРУЕМЫЕ ЗАДАЧИ/);
 const reparsed = parseTaskDocument(roundTrip);
 for (const name of TASK_LIST_NAMES) {
   assert.deepEqual(Array.from(reparsed[name]), Array.from(lists[name]));

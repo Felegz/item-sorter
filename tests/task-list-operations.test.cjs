@@ -71,6 +71,19 @@ const operations = context.TaskListOperations;
     /YYYY-MM-DD/
   );
 
+  assert.equal(
+    operations.setTaskCompletion('(B) 2026-09-01 Позвонить @телефон', true, { today: '2026-09-11' }),
+    'x 2026-09-11 (B) 2026-09-01 Позвонить @телефон',
+  );
+  assert.equal(
+    operations.setTaskCompletion('x 2026-09-09 (B) 2026-09-01 Позвонить @телефон', true, { today: '2026-09-11' }),
+    'x 2026-09-09 (B) 2026-09-01 Позвонить @телефон',
+  );
+  assert.equal(
+    operations.setTaskCompletion('x 2026-09-09 (B) 2026-09-01 Позвонить @телефон', false),
+    '(B) 2026-09-01 Позвонить @телефон',
+  );
+
   const weight = new Map([['A', 1], ['B', 2], ['C', 3], ['D', 4], ['E', 5]]);
   const compare = (candidate, existing) => weight.get(candidate) - weight.get(existing);
   const placement = await operations.insertTaskByRank(['A', 'C', 'E'], 'D', compare);

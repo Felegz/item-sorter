@@ -24,7 +24,8 @@ const MARKERS = {
   // ── Проверка строки ─────────────────────────────────────────────────
   isSorted:          line => /^SORTED\s*\(/i.test(line.trim()),
   isPartiallySorted: line => /^PARTIALLY SORTED/i.test(line.trim()),
-  isIgnored:         line => /^ИГНОРИРУЕМЫЕ\s+ЗАДАЧИ/i.test(line.trim()),
+  // Both spellings remain readable, but new writes use IGNORED TASKS (date).
+  isIgnored: line => /^(?:IGNORED TASKS|ИГНОРИРУЕМЫЕ\s+ЗАДАЧИ)(?:\s*\(\d{4}\.\d{2}\.\d{2}\)|\s+\d{4}\.\d{2}\.\d{2})?\s*$/i.test(line.trim()),
   isInboxSorted:     line => /^(?:INBOX SORTED|NEW ARRAY)$/i.test(line.trim()),
   // Legacy-only predicate. NEW ARRAY remains readable, but all canonical
   // writes use INBOX SORTED so existing documents migrate without data loss.
@@ -63,7 +64,7 @@ const MARKERS = {
   // ── Генерация строк маркеров ────────────────────────────────────────
   makeSorted:  (year, month, day) => `SORTED (${year}.${month}.${day})`,
   makePartial: (year, month, day) => `PARTIALLY SORTED (${year}.${month}.${day})`,
-  makeIgnored: (year, month, day) => `ИГНОРИРУЕМЫЕ ЗАДАЧИ ${year}.${month}.${day}`,
+  makeIgnored: (year, month, day) => `IGNORED TASKS (${year}.${month}.${day})`,
   makeInboxSorted:   () => 'INBOX SORTED',
   makeInboxUnsorted: () => 'НЕУПОРЯДОЧЕННЫЕ ЗАДАЧИ',
 };
@@ -74,10 +75,14 @@ const MARKERS = {
  * reorder the complete task document.
  */
 function canonicalizeTaskDocumentMarkers(input) {
-  return String(input || '').replace(
-    /^[\t ]*NEW ARRAY[\t ]*$/gim,
-    MARKERS.makeInboxSorted(),
-  );
+  return String(input || '')
+    .replace(/^[\t ]*NEW ARRAY[\t ]*$/gim, MARKERS.makeInboxSorted())
+    .replace(
+      /^[\t ]*ИГНОРИРУЕМЫЕ\s+ЗАДАЧИ(?:\s*\(?(\d{4})\.(\d{2})\.(\d{2})\)?)?[\t ]*$/gim,
+      (_line, year, month, day) => year
+        ? MARKERS.makeIgnored(year, month, day)
+        : 'IGNORED TASKS',
+    );
 }
 
 /**
@@ -159,7 +164,11 @@ function serializeTaskDocument(documentModel, options = {}) {
     lines.push(...lists.partiallySorted);
   }
   if (lists.ignored.length || sectionMarkers.ignored) {
-    lines.push(sectionMarkers.ignored || MARKERS.makeIgnored(...dateParts));
+    const existingIgnoredDate = MARKERS.getDate(sectionMarkers.ignored);
+    const ignoredDateParts = existingIgnoredDate
+      ? existingIgnoredDate.split('-')
+      : dateParts;
+    lines.push(MARKERS.makeIgnored(...ignoredDateParts));
     lines.push(...lists.ignored);
   }
 
