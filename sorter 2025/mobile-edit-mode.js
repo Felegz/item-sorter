@@ -10,6 +10,7 @@
   const EDITOR_SELECTOR = '[data-mobile-editor]';
   const ACTIVE_CLASS = 'mobile-editor-active';
   let activeShell = null;
+  let pointerActionInsideShell = false;
 
   /**
    * Android and iOS expose the space above the keyboard through visualViewport.
@@ -36,6 +37,10 @@
   }
 
   function deactivateIfFocusLeftEditors() {
+    // On touch browsers focusout can run between pointerdown and click. Keep the
+    // compact editor stable until its Save/Cancel action has actually fired;
+    // otherwise the button moves and the first tap is lost.
+    if (pointerActionInsideShell) return;
     const focused = document.activeElement;
     if (activeShell?.isConnected && activeShell.contains(focused)) return;
     document.body?.classList.remove(ACTIVE_CLASS);
@@ -57,8 +62,31 @@
     queueMicrotask(deactivateIfFocusLeftEditors);
   });
 
+  document.addEventListener('pointerdown', event => {
+    pointerActionInsideShell = Boolean(
+      activeShell?.isConnected && activeShell.contains(event.target),
+    );
+  }, true);
+
+  document.addEventListener('pointerup', () => {
+    // click is dispatched before this task; delaying the layout release keeps
+    // the original tap target in place through the complete activation.
+    setTimeout(() => {
+      pointerActionInsideShell = false;
+      deactivateIfFocusLeftEditors();
+    }, 0);
+  }, true);
+
+  document.addEventListener('pointercancel', () => {
+    pointerActionInsideShell = false;
+    queueMicrotask(deactivateIfFocusLeftEditors);
+  }, true);
+
   // Inline action handlers may replace the whole editor shell after a tap.
-  document.addEventListener('click', () => queueMicrotask(deactivateIfFocusLeftEditors));
+  document.addEventListener('click', () => {
+    pointerActionInsideShell = false;
+    queueMicrotask(deactivateIfFocusLeftEditors);
+  });
 
   window.visualViewport?.addEventListener('resize', syncVisibleHeight, { passive: true });
   window.visualViewport?.addEventListener('scroll', syncVisibleHeight, { passive: true });

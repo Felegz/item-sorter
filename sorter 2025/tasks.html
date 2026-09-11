@@ -12,7 +12,7 @@
   <script src="https://cdn.jsdelivr.net/npm/@date-fns/cdn@4.4.0/cdn.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@date-fns/cdn@4.4.0/locale/ru/cdn.min.js"></script>
   <script src="markers.js?v=20260911-ignored-filter"></script>
-  <script src="mobile-edit-mode.js?v=20260907-keyboard-layout"></script>
+  <script src="mobile-edit-mode.js?v=20260911-edit-return"></script>
   <script src="task-format.js?v=20260907-version-dates"></script>
   <script src="task-list-operations.js?v=20260911-ignored-filter"></script>
   <script src="ai-exchange.js?v=20260906-ai-bridge"></script>
@@ -967,6 +967,28 @@
       if (e.key === 'Escape') { cancelEdit(); }
     }
 
+    /**
+     * A full render replaces every row. Find the edited instance again after
+     * the keyboard layout collapses so Save/Cancel returns to the user's task,
+     * not to the beginning of a long list.
+     */
+    function keepTaskVisibleAfterEdit(idx) {
+      const reveal = () => {
+        const row = document.querySelector(`.task-row[data-idx="${idx}"]`);
+        if (!row) return;
+        const rect = row.getBoundingClientRect();
+        const viewportHeight = window.visualViewport?.height || window.innerHeight;
+        if (rect.top < 12 || rect.bottom > viewportHeight - 12) {
+          row.scrollIntoView({ block: 'center', inline: 'nearest' });
+        }
+      };
+
+      requestAnimationFrame(() => requestAnimationFrame(reveal));
+      window.visualViewport?.addEventListener('resize', () => {
+        requestAnimationFrame(reveal);
+      }, { once: true });
+    }
+
     function saveEdit(idx) {
       const inp    = document.getElementById('edit-inp-' + idx);
       const newRaw = (inp ? inp.value : editingTempValue || '').trim();
@@ -979,12 +1001,15 @@
       editingIdx = -1;
       editingTempValue = null;
       render();
+      keepTaskVisibleAfterEdit(idx);
     }
 
     function cancelEdit() {
+      const idx = editingIdx;
       editingIdx = -1;
       editingTempValue = null;
       render();
+      if (idx >= 0) keepTaskVisibleAfterEdit(idx);
     }
 
     // Обновляет подсветку чипов тегов без полного перерендера
