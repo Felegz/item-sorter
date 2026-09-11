@@ -4,6 +4,7 @@ const vm = require('node:vm');
 
 const appSource = fs.readFileSync('sorter 2025/app.js', 'utf8');
 const markersSource = fs.readFileSync('sorter 2025/markers.js', 'utf8');
+const indexSource = fs.readFileSync('sorter 2025/index.html', 'utf8');
 
 // Load only the restored declarations. Running app.js as a whole would attach
 // browser listeners and mix this contract test with unrelated page behavior.
@@ -43,16 +44,34 @@ const restoredNames = [
   'sortTasks',
 ];
 
+const supportNames = [
+  'saveDataToLocalStorage',
+  'applyTaskListMutation',
+];
+
 function createRuntime() {
+  const storage = new Map();
   const context = vm.createContext({
     console: { log() {}, error: console.error },
+    localStorage: {
+      getItem(key) { return storage.has(key) ? storage.get(key) : null; },
+      setItem(key, value) { storage.set(key, String(value)); },
+    },
+    Event: class Event {
+      constructor(type, options) {
+        this.type = type;
+        this.options = options;
+      }
+    },
   });
   vm.runInContext(markersSource, context, { filename: 'markers.js' });
   vm.runInContext([
     ...restoredNames.map(extractFunction),
+    ...supportNames.map(extractFunction),
     `globalThis.__sorting = { ${restoredNames.join(', ')} };`,
+    `globalThis.__support = { ${supportNames.join(', ')} };`,
   ].join('\n\n'), context, { filename: 'restored-sorting-functions.js' });
-  return { context, sorting: context.__sorting };
+  return { context, sorting: context.__sorting, support: context.__support, storage };
 }
 
 function plain(value) {
@@ -68,7 +87,34 @@ function installComparator(context, ranks, trace) {
 }
 
 (async function run() {
-  const { context, sorting } = createRuntime();
+  // The four original sorting commands must remain permanently visible rather
+  // than being moved back into the collapsed secondary-tools panel.
+  const primaryActions = indexSource.match(/<div class="primary-actions"[\s\S]*?<\/div>/)?.[0] || '';
+  for (const id of ['insert-button', 'sort-button', 'filter-button', 'merge-button']) {
+    assert.equal((indexSource.match(new RegExp(`id="${id}"`, 'g')) || []).length, 1,
+      `${id} must exist exactly once`);
+    assert.match(primaryActions, new RegExp(`id="${id}"`), `${id} must stay in primary-actions`);
+  }
+  assert.match(primaryActions, /id="merge-button">Merge Arrays<\/button>/);
+
+  const { context, sorting, support, storage } = createRuntime();
+
+  // An ordinary save performs only the approved marker rename. It does not
+  // rebuild or reorder the document, and it snapshots the exact old text.
+  const migrationSnapshots = [];
+  context.taskList = { value: 'task NEW ARRAY text\nNEW ARRAY\nranked batch' };
+  context.userQuestion = { value: 'question' };
+  context.saveSnapshot = reason => migrationSnapshots.push({
+    reason,
+    text: context.localStorage.getItem('tasks'),
+  });
+  support.saveDataToLocalStorage();
+  assert.equal(context.taskList.value, 'task NEW ARRAY text\nINBOX SORTED\nranked batch');
+  assert.equal(storage.get('tasks'), context.taskList.value);
+  assert.deepEqual(plain(migrationSnapshots), [{
+    reason: 'перед заменой NEW ARRAY на INBOX SORTED',
+    text: 'task NEW ARRAY text\nNEW ARRAY\nranked batch',
+  }]);
 
   // The restored comparison window returns the selected side and renders the
   // historical raw task strings. Rendering will be adapted in a separate step.
@@ -199,31 +245,88 @@ function installComparator(context, ranks, trace) {
   ].join('\n'));
   assert.deepEqual(trace, [['B new', 'A new']]);
 
-  // Merge Arrays keeps an empty NEW ARRAY marker and the untouched unordered
-  // tail after merging the two already ranked arrays.
+  // Merge Arrays combines only sorted + inboxSorted in the five-list model.
+  // It removes the consumed marker and preserves all three untouched lists.
   trace = [];
   installComparator(context, ranks, trace);
-  context.taskList.value = [
+  context.taskList = { value: [
+    'U inbox',
+    'x 2026-09-01 completed inbox',
+    'SORTED (2026.09.01)',
+    'A',
+    'C',
+    'INBOX SORTED',
+    'B',
+    'D',
+    'PARTIALLY SORTED (2026.09.02)',
+    'G',
+    'x 2026-09-02 completed partial',
+    'ИГНОРИРУЕМЫЕ ЗАДАЧИ 2026.09.03',
+    'I ignored',
+  ].join('\n'), dispatchEvent() {} };
+  await sorting.mergeArraysUI();
+  assert.equal(context.taskList.value, [
+    'U inbox',
+    '',
+    'x 2026-09-01 completed inbox',
+    '',
+    'SORTED (2026.09.01)',
+    'A',
+    '',
+    'B',
+    '',
+    'C',
+    '',
+    'D',
+    '',
+    'PARTIALLY SORTED (2026.09.02)',
+    'G',
+    '',
+    'x 2026-09-02 completed partial',
+    '',
+    'ИГНОРИРУЕМЫЕ ЗАДАЧИ 2026.09.03',
+    'I ignored',
+  ].join('\n'));
+  assert.deepEqual(trace, [['A', 'B'], ['C', 'B'], ['C', 'D']]);
+  assert.doesNotMatch(context.taskList.value, /(?:^|\n)(?:NEW ARRAY|INBOX SORTED)(?:\n|$)/);
+
+  trace = [];
+  installComparator(context, ranks, trace);
+  const withoutIncomingBatch = context.taskList.value;
+  let emptyMergeMessage = null;
+  context.Swal = {
+    fire: async options => { emptyMergeMessage = options; return {}; },
+  };
+  await sorting.mergeArraysUI();
+  assert.equal(context.taskList.value, withoutIncomingBatch);
+  assert.deepEqual(trace, []);
+  assert.equal(emptyMergeMessage.title, 'Нечего объединять');
+
+  // A saved legacy document is migrated before the same five-list merge.
+  trace = [];
+  installComparator(context, ranks, trace);
+  context.saveDataToLocalStorage = support.saveDataToLocalStorage;
+  context.taskList = { value: [
     'SORTED (2026.09.01)',
     'A',
     'C',
     'NEW ARRAY',
     'B',
     'D',
-    'НЕУПОРЯДОЧЕННЫЕ ЗАДАЧИ',
-    'G',
-  ].join('\n');
+  ].join('\n'), dispatchEvent() {} };
   await sorting.mergeArraysUI();
   assert.equal(context.taskList.value, [
+    'SORTED (2026.09.01)',
     'A',
+    '',
     'B',
+    '',
     'C',
+    '',
     'D',
-    'NEW ARRAY',
-    'НЕУПОРЯДОЧЕННЫЕ ЗАДАЧИ',
-    'G',
   ].join('\n'));
   assert.deepEqual(trace, [['A', 'B'], ['C', 'B'], ['C', 'D']]);
+  assert.doesNotMatch(context.taskList.value, /(?:^|\n)(?:NEW ARRAY|INBOX SORTED)(?:\n|$)/);
 
   // The restored batch insertion treats every non-marker line above the
   // ignored section as one ranked array and moves its markers to the top.

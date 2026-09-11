@@ -6,7 +6,7 @@ const source = fs.readFileSync('sorter 2025/markers.js', 'utf8');
 const context = vm.createContext({});
 vm.runInContext(
   `${source}\n` +
-  `this.__model = { TASK_LIST_NAMES, createTaskLists, MARKERS, parseTaskDocument, serializeTaskDocument };`,
+  `this.__model = { TASK_LIST_NAMES, createTaskLists, MARKERS, canonicalizeTaskDocumentMarkers, parseTaskDocument, serializeTaskDocument };`,
   context,
 );
 
@@ -14,6 +14,7 @@ const {
   TASK_LIST_NAMES,
   createTaskLists,
   MARKERS,
+  canonicalizeTaskDocumentMarkers,
   parseTaskDocument,
   serializeTaskDocument,
 } = context.__model;
@@ -28,24 +29,32 @@ assert.deepEqual(
 );
 
 assert.equal(MARKERS.getListName('NEW ARRAY'), 'inboxSorted');
+assert.equal(MARKERS.getListName('INBOX SORTED'), 'inboxSorted');
+assert.equal(MARKERS.makeInboxSorted(), 'INBOX SORTED');
 assert.equal(MARKERS.getListName('SORTED (2026.09.05)'), 'sorted');
 assert.equal(MARKERS.getListName('PARTIALLY SORTED (2026.09.05)'), 'partiallySorted');
 assert.equal(MARKERS.getListName('НЕУПОРЯДОЧЕННЫЕ ЗАДАЧИ'), 'inboxUnsorted');
 assert.equal(MARKERS.getListName('ИГНОРИРУЕМЫЕ ЗАДАЧИ 2026.09.05'), 'ignored');
 assert.equal(MARKERS.getListName('ordinary task'), null);
 assert.equal(MARKERS.isSortedEnd('NEW ARRAY'), true);
+assert.equal(MARKERS.isSortedEnd('INBOX SORTED'), true);
 assert.equal(MARKERS.isSortedEnd('PARTIALLY SORTED (2026.09.05)'), true);
 assert.equal(MARKERS.getDate('SORTED (2026.09.05)'), '2026-09-05');
 assert.equal(MARKERS.getDate('PARTIALLY SORTED (2025.12.31)'), '2025-12-31');
 assert.equal(MARKERS.getDate('ИГНОРИРУЕМЫЕ ЗАДАЧИ 2026.01.02'), '2026-01-02');
 assert.equal(MARKERS.getDate('NEW ARRAY'), null);
+assert.equal(MARKERS.getDate('INBOX SORTED'), null);
+assert.equal(
+  canonicalizeTaskDocumentMarkers('task NEW ARRAY text\n  NEW ARRAY  \nother'),
+  'task NEW ARRAY text\nINBOX SORTED\nother',
+);
 
 const documentText = [
   'raw one',
   'x 2026-09-05 completed raw task',
   'SORTED (2026.09.05)',
   'sorted one',
-  'NEW ARRAY',
+  'INBOX SORTED',
   'new sorted one',
   'PARTIALLY SORTED (2026.09.05)',
   'partial one',
@@ -75,10 +84,23 @@ assert.deepEqual(Array.from(legacy.inboxUnsorted), ['raw one']);
 assert.deepEqual(Array.from(legacy.ignored), ['ignored one']);
 
 const roundTrip = serializeTaskDocument(lists, { today: '2026-09-09' });
+assert.match(roundTrip, /(?:^|\n)INBOX SORTED(?:\n|$)/);
+assert.doesNotMatch(roundTrip, /(?:^|\n)NEW ARRAY(?:\n|$)/);
 const reparsed = parseTaskDocument(roundTrip);
 for (const name of TASK_LIST_NAMES) {
   assert.deepEqual(Array.from(reparsed[name]), Array.from(lists[name]));
 }
+
+const migratedLegacy = serializeTaskDocument(legacy, { today: '2026-09-09' });
+assert.match(migratedLegacy, /(?:^|\n)INBOX SORTED(?:\n|$)/);
+assert.doesNotMatch(migratedLegacy, /(?:^|\n)NEW ARRAY(?:\n|$)/);
+
+const emptyInboxSorted = serializeTaskDocument({
+  ...createTaskLists(),
+  sorted: ['ranked'],
+  markers: { inboxSorted: 'NEW ARRAY' },
+}, { today: '2026-09-09' });
+assert.doesNotMatch(emptyInboxSorted, /(?:^|\n)(?:NEW ARRAY|INBOX SORTED)(?:\n|$)/);
 
 const noMarkers = parseTaskDocument('first\n\nx 2026-09-05 done\nsecond');
 assert.deepEqual(Array.from(noMarkers.inboxUnsorted), ['first', 'x 2026-09-05 done', 'second']);

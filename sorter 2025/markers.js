@@ -2,7 +2,7 @@
 //
 // Единая модель списков:
 //   inboxUnsorted  — новые задачи без внутреннего порядка
-//   inboxSorted    — отдельная партия из старого/manual NEW ARRAY сценария;
+//   inboxSorted    — отдельная отсортированная партия INBOX SORTED;
 //                    обычный Sort Tasks этот список не создаёт
 //   sorted         — основной отсортированный список
 //   partiallySorted — частично отсортированный остаток
@@ -25,13 +25,16 @@ const MARKERS = {
   isSorted:          line => /^SORTED\s*\(/i.test(line.trim()),
   isPartiallySorted: line => /^PARTIALLY SORTED/i.test(line.trim()),
   isIgnored:         line => /^ИГНОРИРУЕМЫЕ\s+ЗАДАЧИ/i.test(line.trim()),
+  isInboxSorted:     line => /^(?:INBOX SORTED|NEW ARRAY)$/i.test(line.trim()),
+  // Legacy-only predicate. NEW ARRAY remains readable, but all canonical
+  // writes use INBOX SORTED so existing documents migrate without data loss.
   isNewArray:        line => /^NEW ARRAY$/i.test(line.trim()),
   isUnordered:       line => /^НЕУПОРЯДОЧЕННЫЕ ЗАДАЧИ$/i.test(line.trim()),
 
-  // Имя списка в единой внутренней модели. Текстовые маркеры остаются
-  // прежними ради совместимости с существующими todo.txt файлами.
+  // Имя списка в единой внутренней модели. NEW ARRAY распознаётся только как
+  // старое имя INBOX SORTED и нормализуется при следующей записи.
   getListName(line) {
-    if (MARKERS.isNewArray(line)) return 'inboxSorted';
+    if (MARKERS.isInboxSorted(line)) return 'inboxSorted';
     if (MARKERS.isSorted(line)) return 'sorted';
     if (MARKERS.isPartiallySorted(line)) return 'partiallySorted';
     if (MARKERS.isIgnored(line)) return 'ignored';
@@ -46,7 +49,7 @@ const MARKERS = {
     return match ? `${match[1]}-${match[2]}-${match[3]}` : null;
   },
 
-  // Любой маркер секции (включая NEW ARRAY / НЕУПОРЯДОЧЕННЫЕ ЗАДАЧИ)
+  // Любой маркер секции (включая INBOX SORTED / legacy NEW ARRAY).
   isAnyMarker(line) {
     return MARKERS.getListName(line) !== null;
   },
@@ -61,9 +64,21 @@ const MARKERS = {
   makeSorted:  (year, month, day) => `SORTED (${year}.${month}.${day})`,
   makePartial: (year, month, day) => `PARTIALLY SORTED (${year}.${month}.${day})`,
   makeIgnored: (year, month, day) => `ИГНОРИРУЕМЫЕ ЗАДАЧИ ${year}.${month}.${day}`,
-  makeInboxSorted:   () => 'NEW ARRAY',
+  makeInboxSorted:   () => 'INBOX SORTED',
   makeInboxUnsorted: () => 'НЕУПОРЯДОЧЕННЫЕ ЗАДАЧИ',
 };
+
+/**
+ * Replace only the exact legacy section marker, never task substrings. This is
+ * intentionally a text-level migration so ordinary saves do not rebuild or
+ * reorder the complete task document.
+ */
+function canonicalizeTaskDocumentMarkers(input) {
+  return String(input || '').replace(
+    /^[\t ]*NEW ARRAY[\t ]*$/gim,
+    MARKERS.makeInboxSorted(),
+  );
+}
 
 /**
  * Parse the complete todo.txt document into the five business lists.
@@ -84,7 +99,7 @@ function parseTaskDocument(text) {
   const entries = [];
   const isLegacyMergeLayout =
     !rawLines.some(line => MARKERS.isSorted(line)) &&
-    rawLines.some(line => MARKERS.isNewArray(line));
+    rawLines.some(line => MARKERS.isInboxSorted(line));
   let currentList = isLegacyMergeLayout ? 'sorted' : 'inboxUnsorted';
 
   for (const line of rawLines) {
@@ -133,8 +148,10 @@ function serializeTaskDocument(documentModel, options = {}) {
     lines.push(sectionMarkers.sorted || MARKERS.makeSorted(...dateParts));
     lines.push(...lists.sorted);
   }
-  if (lists.inboxSorted.length || sectionMarkers.inboxSorted) {
-    lines.push(sectionMarkers.inboxSorted || MARKERS.makeInboxSorted());
+  // An empty inboxSorted section has no business meaning. Always emit the
+  // canonical name so parsing an old NEW ARRAY document performs migration.
+  if (lists.inboxSorted.length) {
+    lines.push(MARKERS.makeInboxSorted());
     lines.push(...lists.inboxSorted);
   }
   if (lists.partiallySorted.length || sectionMarkers.partiallySorted) {
@@ -166,7 +183,7 @@ function formatTaskList(input) {
   let previousKind = null;
 
   for (const rawLine of lines) {
-    const line = String(rawLine).trimEnd();
+    const line = canonicalizeTaskDocumentMarkers(String(rawLine).trimEnd());
     if (!line.trim()) continue;
 
     const kind = MARKERS.isAnyMarker(line) ? 'marker' : 'task';

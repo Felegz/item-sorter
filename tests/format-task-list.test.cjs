@@ -38,4 +38,9 @@ assert.equal(
 
 assert.equal(formatTaskList([]), '');
 
+assert.equal(
+  formatTaskList(['ranked', 'NEW ARRAY', 'new ranked']),
+  'ranked\n\nINBOX SORTED\nnew ranked'
+);
+
 console.log('formatTaskList contract: passed');

@@ -1062,7 +1062,7 @@ footer a {
   }
 
   .primary-actions #insert-button {
-    grid-column: 1 / -1;
+    grid-column: auto;
   }
 
   button,
@@ -1198,7 +1198,7 @@ footer a {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
-  .primary-actions #insert-button { grid-column: 1 / -1; }
+  .primary-actions #insert-button { grid-column: auto; }
   .primary-actions button { min-height: 38px; padding: 0 10px; font-size: 0.78rem; }
   .sync-badge { min-height: 30px; padding: 0 8px; font-size: 0.74rem; }
 }

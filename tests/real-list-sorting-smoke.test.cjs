@@ -56,19 +56,41 @@ const restoredNames = [
   'sortTasks',
 ];
 
+const supportNames = ['applyTaskListMutation'];
+
 function createRuntime() {
+  const storage = new Map();
   const context = vm.createContext({
     // Several historical functions log complete task strings. Suppress those
     // logs so the private fixture can never leak into CI or terminal output.
     console: { log() {}, error() {} },
+    localStorage: {
+      getItem(key) { return storage.has(key) ? storage.get(key) : null; },
+      setItem(key, value) { storage.set(key, String(value)); },
+    },
+    Event: class Event {
+      constructor(type, options) {
+        this.type = type;
+        this.options = options;
+      }
+    },
   });
   vm.runInContext(markersSource, context, { filename: 'markers.js' });
   vm.runInContext([
     ...restoredNames.map(extractFunction),
+    ...supportNames.map(extractFunction),
     `globalThis.__sorting = { ${restoredNames.join(', ')} };`,
     'globalThis.__markers = MARKERS;',
+    'globalThis.__parseTaskDocument = parseTaskDocument;',
+    'globalThis.__serializeTaskDocument = serializeTaskDocument;',
   ].join('\n\n'), context, { filename: 'restored-sorting-functions.js' });
-  return { context, sorting: context.__sorting, markers: context.__markers };
+  return {
+    context,
+    sorting: context.__sorting,
+    markers: context.__markers,
+    parseDocument: context.__parseTaskDocument,
+    serializeDocument: context.__serializeTaskDocument,
+  };
 }
 
 function installDeterministicComparator(context, counters) {
@@ -92,7 +114,7 @@ function activeSections(parsed) {
   const realBytesBefore = fs.readFileSync(FIXTURE_PATH);
   const realText = realBytesBefore.toString('utf8').replace(/^\uFEFF/, '');
   const sourceDigest = digest(realBytesBefore);
-  const { context, sorting, markers } = createRuntime();
+  const { context, sorting, markers, parseDocument, serializeDocument } = createRuntime();
   const counters = { comparisons: 0, saves: 0, filterDecisions: 0 };
 
   installDeterministicComparator(context, counters);
@@ -101,6 +123,7 @@ function activeSections(parsed) {
   context.assignPrioritiesAfterSort = () => {};
   context.syncHighlight = () => {};
   context.renderFilterBar = () => {};
+  context.saveSnapshot = () => {};
   context.Swal = {
     fire: async options => {
       ensure(!(options === 'Ошибка' || options?.title === 'Ошибка'), 'ui-reported-error');
@@ -132,24 +155,47 @@ function activeSections(parsed) {
   ensure(afterSort.sortedTasks.length === expectedWinnerCount,
     'sort-produced-wrong-winner-count');
 
-  // The real file has no NEW ARRAY. Build the valid legacy merge shape in
-  // memory from the same private task strings and verify the merge contract.
-  const ranked = [...beforeActive].sort();
-  const first = ranked.filter((_task, index) => index % 2 === 0);
-  const second = ranked.filter((_task, index) => index % 2 === 1);
-  const mergeTail = ['НЕУПОРЯДОЧЕННЫЕ ЗАДАЧИ', ...beforeSort.tail];
-  context.taskList.value = [...first, 'NEW ARRAY', ...second, ...mergeTail].join('\n');
+  // Build all five current lists in memory from the private fixture. The two
+  // merge inputs are individually ranked; the other lists must survive byte
+  // for byte at the task-line level and the fixture itself must remain read-only.
+  const parsedReal = parseDocument(realText);
+  const ranked = [...parsedReal.inboxUnsorted].sort();
+  ensure(ranked.length > 4, 'fixture-has-too-few-tasks-for-five-list-merge');
+  const untouchedInbox = ranked.slice(0, 1);
+  const untouchedPartial = ranked.slice(1, 2);
+  const mergePool = ranked.slice(2);
+  const first = mergePool.filter((_task, index) => index % 2 === 0);
+  const second = mergePool.filter((_task, index) => index % 2 === 1);
+  const mergeInput = serializeDocument({
+    inboxUnsorted: untouchedInbox,
+    sorted: first,
+    inboxSorted: second,
+    partiallySorted: untouchedPartial,
+    ignored: [...parsedReal.ignored],
+    markers: {
+      sorted: 'SORTED (2026.09.01)',
+      inboxSorted: 'INBOX SORTED',
+      partiallySorted: 'PARTIALLY SORTED (2026.09.01)',
+      ignored: parsedReal.markers.ignored,
+    },
+  }, { today: '2026-09-10' });
+  context.taskList = { value: mergeInput, dispatchEvent() {} };
   await sorting.mergeArraysUI();
-  const afterMerge = sorting.parseArrays(context.taskList.value);
+  const afterMerge = parseDocument(context.taskList.value);
   ensure(
-    orderedBagDigest(afterMerge.first.filter(line => line.trim() && !markers.isAnyMarker(line)))
-      === orderedBagDigest(beforeActive),
+    orderedBagDigest(afterMerge.sorted) === orderedBagDigest(mergePool),
     'merge-changed-ranked-task-multiset',
   );
-  ensure(afterMerge.second.length === 0, 'merge-left-new-array-content');
+  ensure(afterMerge.inboxSorted.length === 0, 'merge-left-inbox-sorted-content');
+  ensure(!/(?:^|\n)(?:NEW ARRAY|INBOX SORTED)(?:\n|$)/.test(context.taskList.value),
+    'merge-left-inbox-sorted-marker');
+  ensure(orderedBagDigest(afterMerge.inboxUnsorted) === orderedBagDigest(untouchedInbox),
+    'merge-changed-unsorted-inbox');
+  ensure(orderedBagDigest(afterMerge.partiallySorted) === orderedBagDigest(untouchedPartial),
+    'merge-changed-partial-list');
   ensure(
-    digest(afterMerge.tail.join('\n')) === digest(mergeTail.join('\n')),
-    'merge-changed-unordered-tail',
+    orderedBagDigest(afterMerge.ignored) === orderedBagDigest(parsedReal.ignored),
+    'merge-changed-ignored-list',
   );
 
   // Exercise batch insertion against the exact current structure. The source

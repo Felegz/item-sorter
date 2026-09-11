@@ -144,6 +144,17 @@ taskList.addEventListener("blur", function () {
 // Function to save both the user's question and task list in local storage
 function saveDataToLocalStorage() {
   const previousTasks = localStorage.getItem("tasks");
+  const tasksBeforeMarkerMigration = taskList.value;
+  const canonicalTasks = canonicalizeTaskDocumentMarkers(tasksBeforeMarkerMigration);
+
+  if (canonicalTasks !== tasksBeforeMarkerMigration) {
+    // Preserve the exact pre-migration text. Only the marker name changes, but
+    // this makes the automatic migration recoverable through History.
+    localStorage.setItem("tasks", tasksBeforeMarkerMigration);
+    if (typeof saveSnapshot === 'function') saveSnapshot('перед заменой NEW ARRAY на INBOX SORTED');
+    else localStorage.setItem('tasks_marker_migration_backup', tasksBeforeMarkerMigration);
+    taskList.value = canonicalTasks;
+  }
   localStorage.setItem("question", userQuestion.value);
   localStorage.setItem("tasks", taskList.value);
   if (previousTasks !== taskList.value && typeof dbxRecordLocalTasksChange === 'function') {
@@ -270,7 +281,9 @@ function applyTaskListMutation(result, reason) {
   return true;
 }
 
-// НОВАЯ ХУЙНЯ С МЕРДЖЕМ СПИСКОВ::
+// Исторический парсер старой раскладки. Оставлен только для характеристики
+// исходного поведения; рабочая кнопка Merge Arrays использует пятисписочную
+// модель parseTaskDocument(). Не подключать его обратно к записи документа.
 /**
  * 1) Разбирает единый текст на три части:
  *    - first   — до строки "NEW ARRAY"
@@ -364,21 +377,49 @@ async function mergeGalloping(first, second) {
   return result;
 }
 
-// 5) UI функция
+/**
+ * Merge the separately ranked inboxSorted batch into the main sorted list.
+ * The other three business lists are copied unchanged. Both inputs must
+ * already be ordered by the same comparison rule; mergeGalloping does not sort
+ * an arbitrary batch from scratch.
+ */
 async function mergeArraysUI() {
   saveDataToLocalStorage();
-  const text = taskList.value;
-  const { first, second, tail } = parseArrays(text);
-  const a = first.filter(l => l.trim() && !MARKERS.isAnyMarker(l));
-  const b = second.filter(l => l.trim() && !MARKERS.isAnyMarker(l));
-  const merged = await mergeGalloping(a, b);
-  const newText = [
-    ...merged,
-    'NEW ARRAY',
-    ...tail
-  ].join('\n');
-  taskList.value = newText;
-  saveDataToLocalStorage();
+  const parsed = parseTaskDocument(taskList.value);
+
+  if (!parsed.inboxSorted.length) {
+    await Swal.fire({
+      icon: 'info',
+      title: 'Нечего объединять',
+      text: 'В секции INBOX SORTED нет задач.',
+    });
+    return;
+  }
+
+  const merged = await mergeGalloping(
+    [...parsed.sorted],
+    [...parsed.inboxSorted],
+  );
+  const { year, month, day } = getDateParts();
+  const model = {
+    inboxUnsorted: [...parsed.inboxUnsorted],
+    inboxSorted: [],
+    sorted: merged,
+    partiallySorted: [...parsed.partiallySorted],
+    ignored: [...parsed.ignored],
+    markers: {
+      ...parsed.markers,
+      inboxSorted: null,
+    },
+  };
+  const newText = serializeTaskDocument(model, {
+    today: `${year}-${month}-${day}`,
+  });
+
+  applyTaskListMutation(
+    { changed: newText !== taskList.value, text: newText },
+    'перед Merge Arrays',
+  );
 }
 
 
