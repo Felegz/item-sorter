@@ -4,7 +4,8 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content">
   <title>Tasks</title>
-  <script src="runtime-mode.js?v=20260911-developer-mode"></script>
+  <script src="runtime-mode.js?v=20260911-auto-context"></script>
+  <script src="auto-context.js?v=20260911-auto-context"></script>
   <!-- vanilla-context-menu 1.6.0 — MIT license, github.com/GeorgianStan/vanilla-context-menu -->
   <script src="https://unpkg.com/vanilla-context-menu@1.6.0/dist/vanilla-context-menu.js"></script>
   <!-- date-fns 4.4.0 — MIT license, date-fns.org -->
@@ -16,7 +17,7 @@
   <script src="task-list-operations.js?v=20260911-ignored-filter"></script>
   <script src="ai-exchange.js?v=20260906-ai-bridge"></script>
   <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-  <link rel="stylesheet" href="tasks.css?v=20260911-mobile-panels" />
+  <link rel="stylesheet" href="tasks.css?v=20260911-auto-context" />
   <link rel="stylesheet" href="task-format.css?v=20260907-version-dates" />
 </head>
 <body>
@@ -74,6 +75,11 @@
     <span class="task-count"><span id="count">0</span> tasks</span>
   </div>
 
+  <div class="auto-context-banner" id="auto-context-banner" hidden aria-live="polite">
+    <span class="auto-context-key">AUTO</span>
+    <span id="auto-context-summary"></span>
+  </div>
+
   <section class="mobile-tools-panel" id="mobile-tools-panel" aria-label="Настройка списка">
     <div class="mobile-panel-heading">
       <strong>Настройка списка</strong>
@@ -93,6 +99,13 @@
   <div id="ctx-sec" class="chip-section" style="display:none">
     <div class="chip-label" onclick="toggleChipSection('ctx-sec')">Контекст <span class="chip-toggle" aria-hidden="true"></span></div>
     <div class="chip-row" id="ctx-row"></div>
+    <label class="context-match-control" for="context-match-mode">
+      <span>Для нескольких контекстов</span>
+      <select id="context-match-mode">
+        <option value="or">Хотя бы один (ИЛИ)</option>
+        <option value="and">Все выбранные (И)</option>
+      </select>
+    </label>
   </div>
 
   <!-- Project filter -->
@@ -156,7 +169,11 @@
     const priOrd = p => p ? (p.charCodeAt(0) - 64) : 27; // A=1..Z=26, none=27
 
     let items = [];
-    let tab = 'active', priF = null, ctxF = null, projF = null, hashtagF = null;
+    let tab = 'active', priF = null, projF = null, hashtagF = null;
+    const ctxF = new Set();
+    const autoMode = SorterAutoContext.isAutoUrl(window.location);
+    let contextOperator = SorterAutoContext.getContextOperator(localStorage);
+    let autoContextState = null;
     let sortMode = 'order', searchQ = '';
     let showIgnored = false, showFuture = false, rightClickedIdx = -1;
     const collapsedSections = new Set(); // хранит _raw маркеров свёрнутых секций
@@ -299,7 +316,7 @@
           if (tab === 'done'   && !t.complete) return false;
           if (tab === 'active' && !showFuture && t._threshold && t._threshold > new Date().toISOString().slice(0, 10)) return false;
           if (priF  && t.priority !== priF) return false;
-          if (ctxF  && !(t.contexts && t.contexts.includes(ctxF))) return false;
+          if (!SorterAutoContext.matchesSelectedContexts(t.contexts, ctxF, contextOperator)) return false;
           if (projF && !(t.projects && t.projects.includes(projF))) return false;
           if (hashtagF && !(t._hashtags && t._hashtags.includes(hashtagF))) return false;
           if (searchQ && !searchMatches(t._raw, searchQ)) return false;
@@ -314,7 +331,9 @@
         list = list.filter(t => !t._threshold || t._threshold <= today);
       }
       if (priF)  list = list.filter(t => t.priority === priF);
-      if (ctxF)  list = list.filter(t => t.contexts && t.contexts.includes(ctxF));
+      if (ctxF.size) list = list.filter(t =>
+        SorterAutoContext.matchesSelectedContexts(t.contexts, ctxF, contextOperator)
+      );
       if (projF) list = list.filter(t => t.projects && t.projects.includes(projF));
       if (hashtagF) list = list.filter(t => t._hashtags && t._hashtags.includes(hashtagF));
       if (searchQ) list = list.filter(t => searchMatches(t._raw, searchQ));
@@ -418,12 +437,15 @@
       const ctxSec = document.getElementById('ctx-sec');
       if (ctxs.length) {
         ctxSec.style.display = '';
-        if (ctxF) ctxSec.classList.remove('collapsed');
+        if (ctxF.size) ctxSec.classList.remove('collapsed');
         document.getElementById('ctx-row').innerHTML = ctxs.map(c => {
           const safe = c.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
-          return `<button class="chip${ctxF===c?' on':''}" onclick="setCtx('${safe}')">@${esc(c)}</button>`;
+          return `<button class="chip${ctxF.has(c)?' on':''}" onclick="setCtx('${safe}')">@${esc(c)}</button>`;
         }).join('');
       } else { ctxSec.style.display = 'none'; }
+
+      const contextMatchMode = document.getElementById('context-match-mode');
+      if (contextMatchMode) contextMatchMode.value = contextOperator;
 
       // Project chips
       const projSec = document.getElementById('proj-sec');
@@ -449,7 +471,7 @@
       } else { htSec.style.display = 'none'; }
 
       // Clear-filters button
-      const hasFilter = !!(priF || ctxF || projF || hashtagF || searchQ);
+      const hasFilter = !!(priF || ctxF.size || projF || hashtagF || searchQ);
       document.getElementById('clear-filters').style.display = hasFilter ? '' : 'none';
 
       // Archive button — показываем когда есть выполненные задачи
@@ -718,7 +740,11 @@
     }
 
     function setPri(p) { priF = priF === p ? null : p; render(); }
-    function setCtx(c) { ctxF = ctxF === c ? null : c; render(); }
+    function setCtx(c) {
+      if (ctxF.has(c)) ctxF.delete(c);
+      else ctxF.add(c);
+      render();
+    }
     function setProj(p) { projF = projF === p ? null : p; render(); }
     function setHashtag(h) { hashtagF = hashtagF === h ? null : h; render(); }
 
@@ -727,7 +753,9 @@
     }
 
     function clearAllFilters() {
-      priF = ctxF = projF = hashtagF = null;
+      priF = projF = hashtagF = null;
+      ctxF.clear();
+      if (autoMode && autoContextState) autoContextState.contexts.forEach(context => ctxF.add(context));
       searchQ = '';
       const si = document.getElementById('search');
       si.value = '';
@@ -772,7 +800,8 @@
     document.querySelectorAll('.tab').forEach(btn => {
       btn.onclick = () => {
         tab = btn.dataset.t;
-        priF = ctxF = projF = null;
+        priF = projF = null;
+        if (!autoMode) ctxF.clear();
         document.querySelectorAll('.tab').forEach(b => b.classList.toggle('on', b === btn));
         render();
       };
@@ -783,6 +812,11 @@
 
     // Clear filters
     document.getElementById('clear-filters').onclick = clearAllFilters;
+
+    document.getElementById('context-match-mode').onchange = event => {
+      contextOperator = SorterAutoContext.setContextOperator(localStorage, event.target.value);
+      render();
+    };
 
     // Ignored toggle
     document.getElementById('ignored-toggle').onclick = () => { showIgnored = !showIgnored; render(); };
@@ -1166,7 +1200,48 @@
       );
     }
 
+    function renderAutoContextBanner() {
+      const banner = document.getElementById('auto-context-banner');
+      const summary = document.getElementById('auto-context-summary');
+      if (!banner || !summary || !autoMode) return;
+      banner.hidden = false;
+      const joiner = contextOperator === 'and' ? ' и ' : ' или ';
+      const selected = [...ctxF].map(context => `@${context}`).join(joiner);
+      let suffix = '';
+      if (autoContextState?.location === 'loading') suffix = ' · определяю место';
+      else if (autoContextState?.location === 'unset') suffix = ' · координаты дома не заданы';
+      else if (autoContextState?.error) suffix = ` · ${autoContextState.error}`;
+      summary.textContent = `${selected || 'контексты не выбраны'}${suffix}`;
+    }
+
+    async function initAutoContextMode() {
+      if (!autoMode) return;
+      const deviceContext = SorterAutoContext.detectDeviceContext(navigator, window.innerWidth);
+      ctxF.add(deviceContext);
+      autoContextState = { contexts: [deviceContext], location: 'loading', error: null };
+      renderAutoContextBanner();
+      render();
+
+      autoContextState = await SorterAutoContext.resolveAutoContexts({
+        storage: localStorage,
+        geolocation: navigator.geolocation,
+        navigatorLike: navigator,
+        viewportWidth: window.innerWidth,
+      });
+      ctxF.clear();
+      autoContextState.contexts.forEach(context => ctxF.add(context));
+      renderAutoContextBanner();
+      render();
+    }
+
+    const originalRender = render;
+    render = function renderWithAutoContextStatus() {
+      originalRender();
+      renderAutoContextBanner();
+    };
+
     loadItems();
+    initAutoContextMode();
     initContextMenu();
     initAutocomplete();
   </script>

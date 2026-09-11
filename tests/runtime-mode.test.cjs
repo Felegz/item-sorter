@@ -70,6 +70,10 @@ function createRuntime(urlString, initialStorage = {}) {
   assert.equal(developer.runtime.defaultDeveloperTasks.length, 10);
   assert.equal(developer.runtime.withMode('/tasks'), '/tasks.html?mode=developer');
   assert.equal(
+    developer.runtime.withMode('/tasks/auto'),
+    '/tasks.html?mode=developer&auto=1',
+  );
+  assert.equal(
     developer.runtime.withMode('/process?task=one'),
     '/process.html?task=one&mode=developer',
   );

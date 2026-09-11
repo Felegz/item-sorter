@@ -5,9 +5,10 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content" />
   <title>Item Sorter</title>
-  <script src="runtime-mode.js?v=20260911-developer-mode"></script>
+  <script src="runtime-mode.js?v=20260911-auto-context"></script>
+  <script src="auto-context.js?v=20260911-auto-context"></script>
   <link rel="icon" type="image/x-icon" href="data:image/x-icon;base64,AAABAAEAEBAQAAEABAAoAQAAFgAAACgAAAAQAAAAIAAAAAEABAAAAAAAgAAAAAAAAAAAAAAAEAAAAAAAAAAAAAAA/4QAAADZ/wAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAERERERERERESAAAAAAAAARIAAAAAAAABEgAAABEgAAESAAABESAAARIAABEREgABEgABESESAAESABESAREgARIBESAAESABEhESAAARIAESESAAABEQARIAAAAAARABEgAAAAABEAESAAAAAAAAARIiIiIiIiIhEREREREREREAAAAAP/4AAD/+AAA/HgAAPh4AADwOAAA4DgAAMIYAACHGAAADxgAAB8YAAD/mAAA/5gAAP/4AAAAAAAAAAAAA" />
-  <link rel="stylesheet" href="style.css?v=20260911-filter-actions" />
+  <link rel="stylesheet" href="style.css?v=20260911-auto-context" />
   <link rel="stylesheet" href="task-format.css?v=20260907-version-dates" />
 </head>
 <body>
@@ -111,6 +112,14 @@ Your text will be stored in browser memory even after page reload, but it's not 
             </div>
             <div id="dbx-status"></div>
           </div>
+
+          <div class="btn-group">
+            <span class="btn-group-label">Автоконтекст</span>
+            <div class="btn-row">
+              <button id="set-home-coordinates-btn" type="button">Задать координаты дома</button>
+            </div>
+            <div id="home-coordinates-status" class="tool-status" aria-live="polite"></div>
+          </div>
         </div>
       </details>
     </main>
@@ -194,6 +203,35 @@ Your text will be stored in browser memory even after page reload, but it's not 
 
       setInterval(() => updateCompactSyncBadge(), 60_000);
       setTimeout(() => updateCompactSyncBadge(), 300);
+    </script>
+    <script>
+      (function initHomeCoordinatesControl() {
+        const button = document.getElementById('set-home-coordinates-btn');
+        const status = document.getElementById('home-coordinates-status');
+        if (!button || !status) return;
+
+        const saved = SorterAutoContext.getHomeCoordinates(localStorage);
+        if (saved) status.textContent = 'Координаты дома сохранены в этом браузере';
+
+        button.addEventListener('click', async () => {
+          button.disabled = true;
+          status.dataset.state = 'loading';
+          status.textContent = 'Определяю текущее место…';
+          try {
+            await SorterAutoContext.captureHomeCoordinates(
+              localStorage,
+              navigator.geolocation,
+            );
+            status.dataset.state = 'success';
+            status.textContent = 'Готово. Это место сохранено как дом только в этом браузере';
+          } catch (error) {
+            status.dataset.state = 'error';
+            status.textContent = `${error.message}. Разреши геопозицию и повтори`;
+          } finally {
+            button.disabled = false;
+          }
+        });
+      })();
     </script>
 
     <footer>

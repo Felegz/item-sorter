@@ -33,6 +33,10 @@
     const url = new URL(input, root.location.href);
     if (url.origin !== root.location.origin) return url.toString();
     if (isDeveloperMode) url.searchParams.set('mode', 'developer');
+    if (isLocal && /^\/tasks\/auto\/?$/.test(url.pathname)) {
+      url.pathname = '/tasks.html';
+      url.searchParams.set('auto', '1');
+    }
     if (isLocal && url.pathname === '/tasks') url.pathname = '/tasks.html';
     if (isLocal && url.pathname === '/process') url.pathname = '/process.html';
     return `${url.pathname}${url.search}${url.hash}`;

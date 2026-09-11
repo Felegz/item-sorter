@@ -986,6 +986,17 @@ button:disabled {
   flex: 0 1 auto;
 }
 
+.tool-status {
+  min-height: 1.35em;
+  margin-top: 8px;
+  color: var(--fg-muted);
+  font-size: 0.75rem;
+  line-height: 1.45;
+}
+
+.tool-status[data-state="success"] { color: var(--primary); }
+.tool-status[data-state="error"] { color: var(--danger); }
+
 /* Four Filter Tasks outcomes form one action group; mobile uses a compact 2×2 grid. */
 .swal2-actions.filter-task-actions {
   display: grid !important;

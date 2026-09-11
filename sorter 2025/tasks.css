@@ -1038,6 +1038,51 @@ button:disabled {
   gap: 6px;
 }
 
+.context-match-control {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 8px;
+  color: var(--fg-m);
+  font-size: 0.75rem;
+}
+
+.context-match-control select {
+  min-height: 34px;
+  max-width: 210px;
+}
+
+.auto-context-banner {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  min-width: 0;
+  margin: -2px 0 12px;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  background: var(--bg-card);
+  color: var(--fg-m);
+  font-size: 0.76rem;
+  line-height: 1.35;
+}
+
+.auto-context-banner[hidden] { display: none; }
+
+.auto-context-key {
+  flex: 0 0 auto;
+  color: var(--primary);
+  font-size: 0.68rem;
+  font-weight: 750;
+  letter-spacing: 0.08em;
+}
+
+#auto-context-summary {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
 .chip,
 .tag-pick-chip {
   min-height: 34px;
@@ -1794,6 +1839,14 @@ button:disabled {
   .mobile-tools-panel .filters-panel > summary {
     min-height: 38px;
   }
+
+  .context-match-control {
+    align-items: stretch;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .context-match-control select { max-width: none; }
 
   .mobile-tools-panel .controls {
     margin: 0;
