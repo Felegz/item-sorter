@@ -16,7 +16,7 @@
   <script src="task-list-operations.js?v=20260911-ignored-filter"></script>
   <script src="ai-exchange.js?v=20260906-ai-bridge"></script>
   <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-  <link rel="stylesheet" href="tasks.css?v=20260911-developer-mode" />
+  <link rel="stylesheet" href="tasks.css?v=20260911-mobile-panels" />
   <link rel="stylesheet" href="task-format.css?v=20260907-version-dates" />
 </head>
 <body>
@@ -53,11 +53,14 @@
   </div>
 
   <!-- Search -->
-  <div class="search-bar">
+  <div class="search-bar" data-mobile-editor-shell>
     <label class="sr-only" for="search">Поиск задач</label>
-    <input id="search" type="search" placeholder="Поиск… word -исключить &quot;точная фраза&quot; A OR B">
+    <input id="search" type="search" data-mobile-editor data-mobile-editor-layout="search" placeholder="Поиск задач">
     <button class="search-clear" id="search-clear" style="display:none" title="Очистить">Очистить</button>
     <span class="kbd" title="Нажми / чтобы сфокусироваться">/</span>
+    <button type="button" class="search-close" data-mobile-close aria-label="Закрыть поиск" title="Закрыть поиск">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg>
+    </button>
   </div>
   <div class="search-hint">Операторы: <code>-слово</code> исключить &nbsp; <code>OR</code> или <code>||</code> &nbsp; <code>AND</code> или <code>&&</code> &nbsp; <code>"точная фраза"</code></div>
 
@@ -807,9 +810,20 @@
     const mobileScrim = document.querySelector('.mobile-scrim');
 
     function setMobilePanel(name = '') {
-      const next = document.body.dataset.mobilePanel === name ? '' : name;
+      const current = document.body.dataset.mobilePanel || '';
+      const next = current === name ? '' : name;
+
+      // Search owns the keyboard-reduced viewport. Close its keyboard before
+      // returning to the normal list or opening the non-text tools sheet.
+      if (current === 'search' && next !== 'search') {
+        searchInput.blur();
+        document.activeElement?.blur();
+      }
+      if (next === 'tools') document.activeElement?.blur();
+
       document.body.dataset.mobilePanel = next;
-      mobileScrim.hidden = !next;
+      // Search keeps live results readable; only modal-like sheets dim the list.
+      mobileScrim.hidden = !next || next === 'search';
       mobilePanelButtons.forEach(button => {
         button.setAttribute('aria-expanded', String(button.dataset.mobilePanel === next));
       });
