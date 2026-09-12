@@ -504,25 +504,65 @@
     return body ? `<details class="task-breakdown"><summary>Разбор задачи</summary>${body}</details>` : '';
   }
 
+  const META_KINDS = Object.freeze([
+    'priority',
+    'contexts',
+    'projects',
+    'hashtags',
+    'tags',
+    'due',
+    'threshold',
+    'created',
+    'completed',
+  ]);
+
+  function shouldRenderMeta(kind, options) {
+    const included = Array.isArray(options.includeMeta) ? new Set(options.includeMeta) : null;
+    const excluded = new Set(Array.isArray(options.excludeMeta) ? options.excludeMeta : []);
+    return (!included || included.has(kind)) && !excluded.has(kind);
+  }
+
   function renderTaskMetaHtml(taskOrLine, options = {}) {
     const task = typeof taskOrLine === 'string' ? parseTaskLine(taskOrLine) : taskOrLine;
     const badges = [];
-    if (task.priority) badges.push(`<span class="t t-pri t-pri-${escapeHtml(task.priority)}">${escapeHtml(task.priority)}</span>`);
-    for (const context of task.contexts) badges.push(`<span class="t t-ctx">@${escapeHtml(context)}</span>`);
-    for (const project of task.projects) badges.push(`<span class="t t-proj">+${escapeHtml(project)}</span>`);
-    for (const hashtag of task.hashtags) badges.push(`<span class="t t-hash">#${escapeHtml(hashtag)}</span>`);
-    for (const tag of task.tagList) badges.push(`<span class="t t-meta">${escapeHtml(tag.key)}:${escapeHtml(tag.value)}</span>`);
-    if (task.dueDate) {
+    if (shouldRenderMeta('priority', options) && task.priority) badges.push(`<span class="t t-pri t-pri-${escapeHtml(task.priority)}">${escapeHtml(task.priority)}</span>`);
+    if (shouldRenderMeta('contexts', options)) {
+      for (const context of task.contexts) badges.push(`<span class="t t-ctx">@${escapeHtml(context)}</span>`);
+    }
+    if (shouldRenderMeta('projects', options)) {
+      for (const project of task.projects) badges.push(`<span class="t t-proj">+${escapeHtml(project)}</span>`);
+    }
+    if (shouldRenderMeta('hashtags', options)) {
+      for (const hashtag of task.hashtags) badges.push(`<span class="t t-hash">#${escapeHtml(hashtag)}</span>`);
+    }
+    if (shouldRenderMeta('tags', options)) {
+      for (const tag of task.tagList) badges.push(`<span class="t t-meta">${escapeHtml(tag.key)}:${escapeHtml(tag.value)}</span>`);
+    }
+    if (shouldRenderMeta('due', options) && task.dueDate) {
       const due = parseIsoDateLocal(task.dueDate);
       const today = startOfLocalDay(options.now || new Date());
       const diff = due ? calendarDayDifference(due, today) : null;
       const stateClass = diff == null ? '' : diff < 0 ? ' due-overdue' : diff === 0 ? ' due-today' : diff <= 3 ? ' due-soon' : ' due-ok';
       badges.push(`<span class="t t-due${stateClass}" title="${escapeHtml(absoluteDateTitle(task.dueDate))}">${escapeHtml(formatTaskDate(task.dueDate, { ...options, kind: 'due' }))}</span>`);
     }
-    if (task.thresholdDate) badges.push(`<span class="t t-threshold" title="${escapeHtml(absoluteDateTitle(task.thresholdDate))}">${escapeHtml(formatTaskDate(task.thresholdDate, { ...options, kind: 'threshold' }))}</span>`);
-    if (task.creationDate) badges.push(`<span class="t t-date" title="${escapeHtml(absoluteDateTitle(task.creationDate))}">${escapeHtml(formatTaskDate(task.creationDate, { ...options, kind: 'created' }))}</span>`);
-    if (task.completed && task.completionDate) badges.push(`<span class="t t-date" title="${escapeHtml(absoluteDateTitle(task.completionDate))}">${escapeHtml(formatTaskDate(task.completionDate, { ...options, kind: 'completed' }))}</span>`);
-    return badges.length ? `<div class="task-tags">${badges.join('')}</div>` : '';
+    if (shouldRenderMeta('threshold', options) && task.thresholdDate) badges.push(`<span class="t t-threshold" title="${escapeHtml(absoluteDateTitle(task.thresholdDate))}">${escapeHtml(formatTaskDate(task.thresholdDate, { ...options, kind: 'threshold' }))}</span>`);
+    if (shouldRenderMeta('created', options) && task.creationDate) badges.push(`<span class="t t-date" title="${escapeHtml(absoluteDateTitle(task.creationDate))}">${escapeHtml(formatTaskDate(task.creationDate, { ...options, kind: 'created' }))}</span>`);
+    if (shouldRenderMeta('completed', options) && task.completed && task.completionDate) badges.push(`<span class="t t-date" title="${escapeHtml(absoluteDateTitle(task.completionDate))}">${escapeHtml(formatTaskDate(task.completionDate, { ...options, kind: 'completed' }))}</span>`);
+    const positionClass = options.position === 'before' ? ' task-tags-leading' : '';
+    return badges.length ? `<div class="task-tags${positionClass}">${badges.join('')}</div>` : '';
+  }
+
+  // Each screen can move selected metadata without changing the todo.txt line
+  // or maintaining a second task renderer.
+  function renderTaskHtml(taskOrLine, options = {}) {
+    const task = typeof taskOrLine === 'string' ? parseTaskLine(taskOrLine) : taskOrLine;
+    const leadingMeta = unique(options.leadingMeta).filter(kind => META_KINDS.includes(kind));
+    const leading = leadingMeta.length
+      ? renderTaskMetaHtml(task, { ...options, includeMeta: leadingMeta, position: 'before' })
+      : '';
+    const content = renderTaskContentHtml(task, options);
+    const trailing = renderTaskMetaHtml(task, { ...options, excludeMeta: leadingMeta });
+    return leading + content + trailing;
   }
 
   return Object.freeze({
@@ -536,6 +576,7 @@
     formatVersionMoment,
     formatTaskDate,
     renderRichText,
+    renderTaskHtml,
     renderTaskContentHtml,
     renderTaskBreakdownHtml,
     renderTaskMetaHtml,

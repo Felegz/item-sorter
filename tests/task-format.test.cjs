@@ -77,6 +77,20 @@ assert.match(meta, /@дома/);
 assert.match(meta, /#здоровье/);
 assert.match(meta, /Создано/);
 
+const contextsAndHashtagsFirst = TaskFormat.renderTaskHtml(parsed, {
+  now: fixedNow,
+  dateFns: fakeDateFns,
+  leadingMeta: ['contexts', 'hashtags'],
+});
+assert.ok(contextsAndHashtagsFirst.indexOf('@дома') < contextsAndHashtagsFirst.indexOf('сфотать'));
+assert.ok(contextsAndHashtagsFirst.indexOf('#здоровье') < contextsAndHashtagsFirst.indexOf('сфотать'));
+assert.ok(contextsAndHashtagsFirst.indexOf('Создано') > contextsAndHashtagsFirst.indexOf('сфотать'));
+assert.equal((contextsAndHashtagsFirst.match(/@дома/g) || []).length, 1);
+assert.equal((contextsAndHashtagsFirst.match(/#здоровье/g) || []).length, 1);
+
+const defaultTaskHtml = TaskFormat.renderTaskHtml(parsed, { now: fixedNow, dateFns: fakeDateFns });
+assert.ok(defaultTaskHtml.indexOf('сфотать') < defaultTaskHtml.indexOf('@дома'));
+
 const legacyTailDates = TaskFormat.parseTaskLine(
   '2026-09-07 Найти адрес ⟦исх.: Найти организацию.⟧ заметка due:2026-09-14 t:2026-09-10'
 );

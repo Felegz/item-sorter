@@ -1223,6 +1223,11 @@ button:disabled {
   margin-top: 8px;
 }
 
+.task-tags-leading {
+  margin-top: 0;
+  margin-bottom: 6px;
+}
+
 .t {
   display: inline-flex;
   align-items: center;
@@ -2201,6 +2206,7 @@ button:disabled {
 
 .rank-choice .task-text { cursor: pointer; }
 .rank-choice .task-tags { margin-top: 8px; }
+.rank-choice .task-tags-leading { margin-top: 0; margin-bottom: 6px; }
 
 @media (max-width: 760px) {
   .rank-choices { grid-template-columns: 1fr; }

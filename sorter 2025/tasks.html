@@ -13,7 +13,7 @@
   <script src="https://cdn.jsdelivr.net/npm/@date-fns/cdn@4.4.0/locale/ru/cdn.min.js"></script>
   <script src="markers.js?v=20260911-ignored-filter"></script>
   <script src="mobile-edit-mode.js?v=20260911-edit-return"></script>
-  <script src="task-format.js?v=20260907-version-dates"></script>
+  <script src="task-format.js?v=20260912-meta-order"></script>
   <script src="task-list-operations.js?v=20260911-ignored-filter"></script>
   <script src="ai-exchange.js?v=20260906-ai-bridge"></script>
   <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
@@ -570,8 +570,11 @@
         return `<div class="task-row${t.complete ? ' done' : ''}${t._ignored ? ' ignored-row' : ''}" data-idx="${idx}">
   <input type="checkbox" ${t.complete ? 'checked' : ''} onchange="toggleDone(${idx})">
   <div class="task-body">
-    ${TaskFormat.renderTaskContentHtml(t, { variant: 'list', terms })}
-    ${TaskFormat.renderTaskMetaHtml(t)}
+    ${TaskFormat.renderTaskHtml(t, {
+      variant: 'list',
+      terms,
+      leadingMeta: ['contexts', 'hashtags'],
+    })}
     ${aiStatus}
   </div>
   <details class="task-actions">
@@ -638,12 +641,16 @@
           html: `<p class="rank-progress">${esc(step)}</p>
             <div class="rank-choices">
               <button type="button" id="rank-candidate" class="rank-choice">
-                ${TaskFormat.renderTaskContentHtml(candidate, { variant: 'choice' })}
-                ${TaskFormat.renderTaskMetaHtml(candidate)}
+                ${TaskFormat.renderTaskHtml(candidate, {
+                  variant: 'choice',
+                  leadingMeta: ['contexts', 'hashtags'],
+                })}
               </button>
               <button type="button" id="rank-existing" class="rank-choice">
-                ${TaskFormat.renderTaskContentHtml(existing, { variant: 'choice' })}
-                ${TaskFormat.renderTaskMetaHtml(existing)}
+                ${TaskFormat.renderTaskHtml(existing, {
+                  variant: 'choice',
+                  leadingMeta: ['contexts', 'hashtags'],
+                })}
               </button>
             </div>`,
           showConfirmButton: false,
