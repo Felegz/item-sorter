@@ -150,32 +150,57 @@ function meaningfulLines(lines) {
     },
   };
 
-  const beforeSort = sorting.parseAllSections(realText);
-  const beforeActive = activeSections(beforeSort);
-  ensure(beforeActive.length > 1, 'fixture-has-too-few-sortable-tasks');
-  ensure(beforeSort.tail.length > 0, 'fixture-has-no-ignored-tail');
+  const beforeSort = parseDocument(realText);
+  const beforeInboxActive = beforeSort.inboxUnsorted.filter(line => !/^x\s+/i.test(line));
+  const beforeInboxCompleted = beforeSort.inboxUnsorted.filter(line => /^x\s+/i.test(line));
+  ensure(beforeInboxActive.length > 1, 'fixture-has-too-few-sortable-tasks');
+  ensure(beforeSort.inboxSorted.length === 0, 'fixture-already-has-inbox-sorted');
+  ensure(beforeSort.ignored.length > 0, 'fixture-has-no-ignored-tail');
 
   // Exercise the exact current document through Sort Tasks. All writes happen
   // only on this in-memory textarea stand-in.
   context.taskList = { value: realText };
   await sorting.sortTasks();
-  const afterSort = sorting.parseAllSections(context.taskList.value);
+  const afterSort = parseDocument(context.taskList.value);
   ensure(
-    orderedBagDigest(activeSections(afterSort)) === orderedBagDigest(beforeActive),
-    'sort-changed-active-task-multiset',
+    orderedBagDigest([
+      ...afterSort.inboxUnsorted,
+      ...afterSort.inboxSorted,
+      ...afterSort.sorted,
+      ...afterSort.partiallySorted,
+      ...afterSort.ignored,
+    ]) === orderedBagDigest([
+      ...beforeSort.inboxUnsorted,
+      ...beforeSort.inboxSorted,
+      ...beforeSort.sorted,
+      ...beforeSort.partiallySorted,
+      ...beforeSort.ignored,
+    ]),
+    'sort-changed-task-multiset',
   );
   ensure(
-    digest(meaningfulLines(afterSort.tail).filter(line => !markers.isAnyMarker(line)).join('\n')) ===
-      digest(meaningfulLines(beforeSort.tail).filter(line => !markers.isAnyMarker(line)).join('\n')),
-    'sort-changed-ignored-tail-content',
+    orderedBagDigest(afterSort.sorted) === orderedBagDigest(beforeSort.sorted),
+    'sort-changed-main-sorted-list',
   );
-  ensure(afterSort.tail.filter(line => markers.isIgnored(line)).every(line => /^IGNORED TASKS \(/.test(line)),
-    'sort-left-legacy-ignored-marker');
-  const expectedWinnerCount = beforeActive.length <= 60
-    ? beforeActive.length
-    : Math.min(50, Math.ceil(beforeActive.length * 0.2));
-  ensure(afterSort.sortedTasks.length === expectedWinnerCount,
+  ensure(
+    orderedBagDigest(afterSort.inboxUnsorted) === orderedBagDigest(beforeInboxCompleted),
+    'sort-moved-completed-inbox-task',
+  );
+  ensure(
+    orderedBagDigest(afterSort.ignored) === orderedBagDigest(beforeSort.ignored),
+    'sort-changed-ignored-content',
+  );
+  ensure(/^IGNORED TASKS \(/.test(afterSort.markers.ignored), 'sort-left-legacy-ignored-marker');
+  const expectedWinnerCount = beforeInboxActive.length <= 60
+    ? beforeInboxActive.length
+    : Math.min(50, Math.ceil(beforeInboxActive.length * 0.2));
+  ensure(afterSort.inboxSorted.length === expectedWinnerCount,
     'sort-produced-wrong-winner-count');
+  ensure(
+    afterSort.partiallySorted.length ===
+      beforeSort.partiallySorted.length + beforeInboxActive.length - expectedWinnerCount,
+    'sort-produced-wrong-partial-count',
+  );
 
   // Build all five current lists in memory from the private fixture. The two
   // merge inputs are individually ranked; the other lists must survive byte

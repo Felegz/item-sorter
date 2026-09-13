@@ -854,109 +854,83 @@ async function promoteTailCandidates(sortedTasks, partiallySorted) {
 }
 
 /**
- * Сортировка задач:
- * 1. (опц.) Адаптивный зонд хвоста — повышает задачи из PARTIALLY SORTED в SORTED.
- * 2. Сортируем новые задачи (выше маркера SORTED).
- * 3. Победители → в SORTED, проигравшие → в PARTIALLY SORTED.
+ * Сортирует только активные задачи из inboxUnsorted и сохраняет полученную
+ * партию отдельно в INBOX SORTED. Основной SORTED меняет только Merge Arrays:
+ * это не даёт новой партии оказаться перед старым рейтингом без сравнений.
+ *
+ * Уже выполненные строки остаются в inboxUnsorted. Если INBOX SORTED уже
+ * заполнен, новая сортировка останавливается до записи: две независимо
+ * отсортированные партии нельзя просто склеить в один корректный рейтинг.
  */
 async function sortTasks() {
-  saveDataToLocalStorage();
-
   try {
-    const { newTasks, sortedTasks, partiallySorted, tail } = parseAllSections(taskList.value);
+    const parsed = parseTaskDocument(taskList.value);
+    const ignoredMarkerCount = parsed.entries.filter(
+      entry => entry.kind === 'marker' && entry.listName === 'ignored'
+    ).length;
 
-    let currentSorted    = [...sortedTasks];
-    let workingPartially = [...partiallySorted];
-
-    // Шаг 1: адаптивный зонд хвоста (только если оба списка непусты)
-    if (currentSorted.length > 0 && workingPartially.length > 0) {
-      const check = await Swal.fire({
-        title: 'Проверить хвост?',
-        html: `В <b>PARTIALLY SORTED</b> ${workingPartially.length} задач.<br>
-               Проверим: есть ли в начале хвоста задачи важнее конца SORTED?<br>
-               <b>В лучшем случае — 1 вопрос.</b>`,
-        showConfirmButton: true,
-        showDenyButton: true,
-        confirmButtonText: 'Да',
-        denyButtonText: 'Нет, пропустить',
-        allowOutsideClick: false,
+    // Canonical serialization supports one ignored block. Refuse to merge
+    // multiple blocks implicitly because that would change their meaning.
+    if (ignoredMarkerCount > 1) {
+      await Swal.fire({
+        icon: 'error',
+        title: 'Несколько блоков IGNORED TASKS',
+        text: 'Сортировка остановлена без изменений: сначала оставьте один блок IGNORED TASKS.',
       });
-
-      if (check.isConfirmed) {
-        const result = await promoteTailCandidates(currentSorted, workingPartially);
-        currentSorted    = result.sortedTasks;
-        workingPartially = result.partiallySorted;
-
-        if (result.promoted > 0) {
-          await Swal.fire({
-            title: `Повышено ${result.promoted} задач`,
-            text: `${result.promoted} задач из PARTIALLY SORTED перемещены в SORTED.`,
-            icon: 'success', timer: 2000, showConfirmButton: false,
-          });
-        } else {
-          await Swal.fire({
-            title: 'Хвост в порядке',
-            text: 'Начало PARTIALLY SORTED не важнее конца SORTED.',
-            icon: 'info', timer: 1500, showConfirmButton: false,
-          });
-        }
-      }
-    }
-
-    // Шаг 2: формируем пул из новых задач
-    const pool = [...newTasks];
-
-    // Если нет ни новых задач, ни повышений — нечего делать
-    if (pool.length === 0 && currentSorted.length === sortedTasks.length) {
-      Swal.fire('Нет задач', 'Нет новых задач. Добавьте задачи выше маркера SORTED.', 'info');
       return;
     }
 
-    // Шаг 3: сортируем пул (если есть новые задачи)
+    if (parsed.inboxSorted.length > 0) {
+      await Swal.fire({
+        icon: 'info',
+        title: 'INBOX SORTED уже заполнен',
+        text: 'Сначала выполните Merge Arrays, затем сортируйте следующую входящую партию.',
+      });
+      return;
+    }
+
+    saveDataToLocalStorage();
+
+    const completedInbox = parsed.inboxUnsorted.filter(task => /^x\s+/i.test(task.trim()));
+    const pool = parsed.inboxUnsorted.filter(task => !/^x\s+/i.test(task.trim()));
+
+    if (pool.length === 0) {
+      Swal.fire('Нет задач', 'Во входящих нет активных задач для сортировки.', 'info');
+      return;
+    }
+
     let winners = [], losers = [];
-    if (pool.length > 0) {
-      if (pool.length <= 60) {
-        winners = await mergeSort(pool);
-      } else {
-        const n = Math.min(50, Math.ceil(pool.length * 0.2));
-        ({ sorted: winners, remaining: losers } = await partialSortTasks(pool, n));
-      }
+    if (pool.length <= 60) {
+      winners = await mergeSort(pool);
+    } else {
+      const n = Math.min(50, Math.ceil(pool.length * 0.2));
+      ({ sorted: winners, remaining: losers } = await partialSortTasks(pool, n));
     }
 
-    // Шаг 4: пересобираем секции
     const { year, month, day } = getDateParts();
-    const sortedHeader  = `SORTED (${year}.${month}.${day})`;
-    const partialHeader = `PARTIALLY SORTED (${year}.${month}.${day})`;
+    const today = `${year}-${month}-${day}`;
+    const nextMarkers = {
+      ...parsed.markers,
+      inboxSorted: MARKERS.makeInboxSorted(),
+      partiallySorted: losers.length > 0
+        ? MARKERS.makePartial(year, month, day)
+        : parsed.markers.partiallySorted,
+    };
 
-    const newSorted    = [...winners, ...currentSorted];
-    const newPartially = [...losers, ...workingPartially];
-
-    const parts = [];
-    if (newSorted.length > 0) {
-      parts.push(sortedHeader);
-      parts.push(...newSorted);
-    }
-    if (newPartially.length > 0) {
-      if (parts.length > 0) parts.push('');
-      parts.push(partialHeader);
-      parts.push(...newPartially);
-    }
-    if (tail.length > 0) {
-      if (parts.length > 0) parts.push('');
-      parts.push(...tail);
-    }
-
-    // Sort Tasks changes order and therefore rebuilds the complete document.
-    // Keep its comparison algorithm intact, but always serialize the result
-    // through the shared contract: one empty line between neighboring tasks.
-    taskList.value = formatTaskList(parts);
+    taskList.value = serializeTaskDocument({
+      inboxUnsorted: completedInbox,
+      inboxSorted: winners,
+      sorted: [...parsed.sorted],
+      partiallySorted: [...losers, ...parsed.partiallySorted],
+      ignored: [...parsed.ignored],
+      markers: nextMarkers,
+    }, { today });
     saveDataToLocalStorage();
 
     if (typeof assignPrioritiesAfterSort === 'function') assignPrioritiesAfterSort();
     if (typeof syncHighlight   === 'function') syncHighlight();
     if (typeof renderFilterBar === 'function') renderFilterBar();
-    const promoted = currentSorted.length - sortedTasks.length;
-    console.log('sortTasks: winners =', winners.length, ', promoted =', promoted, ', partially =', newPartially.length);
+    console.log('sortTasks: inboxSorted =', winners.length, ', partially =', losers.length);
   } catch (err) {
     console.error('sortTasks error:', err);
     if (typeof Swal !== 'undefined') {

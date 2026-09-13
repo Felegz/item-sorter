@@ -223,13 +223,16 @@ function installComparator(context, ranks, trace) {
   assert.deepEqual(plain(partial.sorted), ['A', 'B']);
   assert.deepEqual(plain(partial.remaining).sort(), ['C', 'D', 'E']);
 
-  // Sort Tasks sorts only the incoming block. The new internally sorted batch
-  // is prepended to the old SORTED block without comparing the two blocks.
+  // Sort Tasks consumes only active inboxUnsorted tasks. It keeps completed
+  // inbox rows in place and stores the ranked batch in INBOX SORTED so the old
+  // SORTED list cannot change before the explicit Merge Arrays command.
   trace = [];
   installComparator(context, ranks, trace);
   context.taskList = { value: [
     'B new',
     'A new',
+    'A new',
+    'x 2026-09-09 completed inbox',
     'SORTED (2026.09.01)',
     'C old',
     'D old',
@@ -241,28 +244,37 @@ function installComparator(context, ranks, trace) {
   context.saveDataToLocalStorage = () => {};
   context.getDateParts = () => ({ year: '2026', month: '09', day: '10' });
   context.Swal = {
-    fire: async options => options && options.title === 'Проверить хвост?'
-      ? { isConfirmed: false }
-      : { isConfirmed: false },
+    fire: async () => ({ isConfirmed: false }),
   };
   await sorting.sortTasks();
   assert.equal(context.taskList.value, [
-    'SORTED (2026.09.10)',
-    'A new',
+    'x 2026-09-09 completed inbox',
     '',
-    'B new',
-    '',
+    'SORTED (2026.09.01)',
     'C old',
     '',
     'D old',
     '',
-    'PARTIALLY SORTED (2026.09.10)',
+    'INBOX SORTED',
+    'A new',
+    '',
+    'A new',
+    '',
+    'B new',
+    '',
+    'PARTIALLY SORTED (2026.09.01)',
     'E partial',
     '',
     'IGNORED TASKS (2026.09.01)',
     'I ignored',
   ].join('\n'));
-  assert.deepEqual(trace, [['B new', 'A new']]);
+  assert.deepEqual(trace, [
+    ['A new', 'A new'],
+    ['B new', 'A new'],
+    ['B new', 'A new'],
+  ]);
+  assert.equal(context.taskList.value.match(/^A new$/gm)?.length, 2,
+    'Sort Tasks must preserve duplicate task occurrences');
   assert.equal(
     context.taskList.value.split('\n').filter((line, index, lines) =>
       line && index > 0 && lines[index - 1] &&
@@ -271,6 +283,87 @@ function installComparator(context, ranks, trace) {
     0,
     'Sort Tasks must leave one empty line between neighboring task rows',
   );
+
+  // A second independent batch cannot be concatenated onto an already ranked
+  // inboxSorted block. Stop before comparisons and preserve the document.
+  trace = [];
+  installComparator(context, ranks, trace);
+  const pendingMerge = [
+    'B new',
+    'SORTED (2026.09.01)',
+    'C old',
+    'INBOX SORTED',
+    'A new',
+  ].join('\n');
+  let pendingMergeMessage = null;
+  let blockedSortSaves = 0;
+  context.taskList = { value: pendingMerge };
+  context.saveDataToLocalStorage = () => { blockedSortSaves += 1; };
+  context.Swal = {
+    fire: async options => { pendingMergeMessage = options; return {}; },
+  };
+  await sorting.sortTasks();
+  assert.equal(context.taskList.value, pendingMerge);
+  assert.deepEqual(trace, []);
+  assert.equal(blockedSortSaves, 0);
+  assert.equal(pendingMergeMessage.title, 'INBOX SORTED уже заполнен');
+
+  // Canonical serialization supports one ignored block. Multiple blocks must
+  // stop before any save or comparison instead of being silently merged.
+  trace = [];
+  installComparator(context, ranks, trace);
+  const multipleIgnoredBlocks = [
+    'B new',
+    'SORTED (2026.09.01)',
+    'C old',
+    'IGNORED TASKS (2026.09.01)',
+    'I ignored',
+    'IGNORED TASKS (2026.09.02)',
+    'J ignored',
+  ].join('\n');
+  let ignoredBlockMessage = null;
+  blockedSortSaves = 0;
+  context.taskList = { value: multipleIgnoredBlocks };
+  context.saveDataToLocalStorage = () => { blockedSortSaves += 1; };
+  context.Swal = {
+    fire: async options => { ignoredBlockMessage = options; return {}; },
+  };
+  await sorting.sortTasks();
+  assert.equal(context.taskList.value, multipleIgnoredBlocks);
+  assert.deepEqual(trace, []);
+  assert.equal(blockedSortSaves, 0);
+  assert.equal(ignoredBlockMessage.title, 'Несколько блоков IGNORED TASKS');
+
+  // For a large inbox, keep the restored partial-sort algorithm as a separate
+  // unit and characterize only this function's routing of its two outputs.
+  const largePool = Array.from({ length: 61 }, (_value, index) => `Large ${index + 1}`);
+  let partialSortCall = null;
+  context.__partialSortStub = async (tasks, count) => {
+    partialSortCall = { tasks: [...tasks], count };
+    return { sorted: tasks.slice(0, count), remaining: tasks.slice(count) };
+  };
+  vm.runInContext('partialSortTasks = __partialSortStub;', context);
+  context.taskList = { value: [
+    ...largePool,
+    'SORTED (2026.09.01)',
+    'C old',
+    'PARTIALLY SORTED (2026.09.01)',
+    'E partial',
+    'IGNORED TASKS (2026.09.01)',
+    'I ignored',
+  ].join('\n') };
+  context.saveDataToLocalStorage = () => {};
+  context.Swal = { fire: async () => ({}) };
+  await sorting.sortTasks();
+  const largeResult = plain(vm.runInContext('parseTaskDocument(taskList.value)', context));
+  assert.equal(partialSortCall.count, 13);
+  assert.deepEqual(partialSortCall.tasks, largePool);
+  assert.deepEqual(largeResult.inboxUnsorted, []);
+  assert.deepEqual(largeResult.inboxSorted, largePool.slice(0, 13));
+  assert.deepEqual(largeResult.sorted, ['C old']);
+  assert.deepEqual(largeResult.partiallySorted, [...largePool.slice(13), 'E partial']);
+  assert.deepEqual(largeResult.ignored, ['I ignored']);
+  vm.runInContext('partialSortTasks = __sorting.partialSortTasks;', context);
 
   // Merge Arrays combines only sorted + inboxSorted in the five-list model.
   // It removes the consumed marker and preserves all three untouched lists.
