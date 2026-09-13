@@ -9,8 +9,19 @@
    */
   const EDITOR_SELECTOR = '[data-mobile-editor]';
   const ACTIVE_CLASS = 'mobile-editor-active';
+  const MOBILE_EDITOR_QUERY = '(max-width: 760px)';
+  const mobileEditorViewport = window.matchMedia?.(MOBILE_EDITOR_QUERY);
   let activeShell = null;
   let pointerActionInsideShell = false;
+
+  /**
+   * The compact editor rearranges the page and scrolls its field into view.
+   * It must never run in the desktop layout, where the fields are already
+   * visible and moving the document on focus only hides the controls.
+   */
+  function usesCompactEditorLayout() {
+    return mobileEditorViewport?.matches ?? window.innerWidth <= 760;
+  }
 
   /**
    * Android and iOS expose the space above the keyboard through visualViewport.
@@ -24,6 +35,7 @@
   }
 
   function activateEditor(editor) {
+    if (!usesCompactEditorLayout()) return;
     document.body.classList.add(ACTIVE_CLASS);
     document.body.dataset.mobileEditorLayout = editor.dataset.mobileEditorLayout || 'default';
     editor.classList.add('mobile-editor-focus');
@@ -36,13 +48,7 @@
     });
   }
 
-  function deactivateIfFocusLeftEditors() {
-    // On touch browsers focusout can run between pointerdown and click. Keep the
-    // compact editor stable until its Save/Cancel action has actually fired;
-    // otherwise the button moves and the first tap is lost.
-    if (pointerActionInsideShell) return;
-    const focused = document.activeElement;
-    if (activeShell?.isConnected && activeShell.contains(focused)) return;
+  function clearEditorMode() {
     document.body?.classList.remove(ACTIVE_CLASS);
     delete document.body?.dataset.mobileEditorLayout;
     activeShell = null;
@@ -50,6 +56,16 @@
       element.classList.remove('mobile-editor-focus');
     });
     document.documentElement.style.removeProperty('--mobile-editor-height');
+  }
+
+  function deactivateIfFocusLeftEditors() {
+    // On touch browsers focusout can run between pointerdown and click. Keep the
+    // compact editor stable until its Save/Cancel action has actually fired;
+    // otherwise the button moves and the first tap is lost.
+    if (pointerActionInsideShell) return;
+    const focused = document.activeElement;
+    if (activeShell?.isConnected && activeShell.contains(focused)) return;
+    clearEditorMode();
   }
 
   document.addEventListener('focusin', event => {
@@ -90,4 +106,7 @@
 
   window.visualViewport?.addEventListener('resize', syncVisibleHeight, { passive: true });
   window.visualViewport?.addEventListener('scroll', syncVisibleHeight, { passive: true });
+  mobileEditorViewport?.addEventListener?.('change', event => {
+    if (!event.matches) clearEditorMode();
+  });
 })();

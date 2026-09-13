@@ -4,10 +4,19 @@ const vm = require('node:vm');
 
 const listeners = new Map();
 const classes = new Set();
+const mediaListeners = new Map();
+const mobileViewport = {
+  matches: true,
+  addEventListener(type, callback) {
+    if (!mediaListeners.has(type)) mediaListeners.set(type, []);
+    mediaListeners.get(type).push(callback);
+  },
+};
+let scrollIntoViewCalls = 0;
 const shell = {
   isConnected: true,
   contains(target) { return target === editor || target === saveButton; },
-  scrollIntoView() {},
+  scrollIntoView() { scrollIntoViewCalls += 1; },
 };
 const editor = {
   dataset: { mobileEditorLayout: 'task' },
@@ -47,7 +56,12 @@ function dispatch(type, target) {
 
 const context = vm.createContext({
   document,
-  window: { innerHeight: 844, visualViewport: null },
+  window: {
+    innerHeight: 844,
+    innerWidth: 390,
+    visualViewport: null,
+    matchMedia() { return mobileViewport; },
+  },
   requestAnimationFrame(callback) { callback(); },
   queueMicrotask,
   setTimeout,
@@ -61,6 +75,7 @@ vm.runInContext(
 (async function run() {
   dispatch('focusin', editor);
   assert.equal(classes.has('mobile-editor-active'), true);
+  assert.equal(scrollIntoViewCalls, 1, 'mobile focus keeps the editor visible');
 
   dispatch('pointerdown', saveButton);
   document.activeElement = outside;
@@ -78,6 +93,20 @@ vm.runInContext(
     classes.has('mobile-editor-active'),
     false,
     'the mobile editor layout must close after the Save click is dispatched',
+  );
+
+  mobileViewport.matches = false;
+  document.activeElement = editor;
+  dispatch('focusin', editor);
+  assert.equal(
+    classes.has('mobile-editor-active'),
+    false,
+    'desktop focus must not activate the compact editor layout',
+  );
+  assert.equal(
+    scrollIntoViewCalls,
+    1,
+    'desktop focus must not scroll the page',
   );
 
   const tasksHtml = fs.readFileSync('sorter 2025/tasks.html', 'utf8');
