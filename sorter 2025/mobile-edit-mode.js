@@ -104,6 +104,18 @@
     queueMicrotask(deactivateIfFocusLeftEditors);
   });
 
+  // Collapse is deliberately different from Cancel: keep the field and draft
+  // intact while releasing the keyboard-aware layout. Any editor shell can reuse it.
+  document.addEventListener('click', event => {
+    if (!event.target.closest?.('[data-mobile-editor-collapse]')) return;
+    if (!activeShell?.contains(event.target)) return;
+    const shell = activeShell;
+    document.activeElement?.blur?.();
+    pointerActionInsideShell = false;
+    clearEditorMode();
+    requestAnimationFrame(() => shell.scrollIntoView({ block: 'nearest', inline: 'nearest' }));
+  });
+
   window.visualViewport?.addEventListener('resize', syncVisibleHeight, { passive: true });
   window.visualViewport?.addEventListener('scroll', syncVisibleHeight, { passive: true });
   mobileEditorViewport?.addEventListener?.('change', event => {

@@ -14,12 +14,13 @@
   <script src="https://cdn.jsdelivr.net/npm/@date-fns/cdn@4.4.0/cdn.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@date-fns/cdn@4.4.0/locale/ru/cdn.min.js"></script>
   <script src="markers.js?v=20260911-ignored-filter"></script>
-  <script src="mobile-edit-mode.js?v=20260913-desktop-focus"></script>
+  <script src="mobile-edit-mode.js?v=20260917-collapse"></script>
   <script src="task-format.js?v=20260917-creation-date"></script>
   <script src="task-list-operations.js?v=20260911-ignored-filter"></script>
   <script src="ai-exchange.js?v=20260906-ai-bridge"></script>
   <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-  <link rel="stylesheet" href="tasks.css?v=20260917-task-menu" />
+  <script src="icons.js?v=20260917-lucide"></script>
+  <link rel="stylesheet" href="tasks.css?v=20260917-lucide" />
   <link rel="stylesheet" href="task-format.css?v=20260917-creation-date" />
 </head>
 <body>
@@ -550,11 +551,13 @@
             const safe = p.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
             return `<button class="tag-pick-chip proj-tag${on?' active-tag':''}" data-tag="${esc('+'+p)}" onclick="toggleTagOnEdit('+${safe}')">+${esc(p)}</button>`;
           }).join('');
-          const currentDue = t._due || '';
-          const duePicker = `<label class="tag-pick-chip due-pick-lbl" title="Дата due:">Срок <input type="date" id="due-pick-${idx}" class="due-pick-inp" value="${currentDue}" onchange="setDueOnEdit(${idx},this.value)" onclick="event.stopPropagation()"></label>`;
+          // A rerender must use the draft date, not restore the saved task's old date.
+          const currentDue = TaskFormat.parseTaskLine(editVal).dueDate || '';
+          const duePicker = `<label class="tag-pick-chip due-pick-lbl" title="Дата due:">Срок <input type="date" id="due-pick-${idx}" class="due-pick-inp" value="${currentDue}" oninput="setDueOnEdit(${idx},this.value)" onchange="setDueOnEdit(${idx},this.value)" onclick="event.stopPropagation()"></label>`;
           return `<div class="task-row editing" data-idx="${idx}" data-mobile-editor-shell>
   <input type="checkbox" ${t.complete ? 'checked' : ''} onchange="toggleDone(${idx})" style="margin-top:8px;flex-shrink:0">
   <div class="task-body" style="flex:1;min-width:0">
+    <button type="button" class="mobile-editor-collapse" data-mobile-editor-collapse aria-label="Свернуть редактор" title="Свернуть редактор">${SorterIcons.render('minimize-2')}</button>
     <textarea id="edit-inp-${idx}" class="task-edit-input" data-mobile-editor data-mobile-editor-layout="task"
       onkeydown="handleEditKey(event,${idx})" oninput="updateTagPicker(${idx})">${esc(editVal)}</textarea>
     <div class="tag-picker" id="tag-picker-${idx}">${priChips}${ctxChips}${projChips}${duePicker}</div>
@@ -582,14 +585,14 @@
   <details class="task-actions">
     <summary aria-label="Действия" title="Действия"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="5" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="12" cy="19" r="1"/></svg></summary>
     <div class="task-actions-menu">
-      <button class="edit-btn" onclick="editTask(${idx})">Редактировать</button>
-      <button class="proc-btn" onclick="openProcess(${idx})">Обработать</button>
-      ${!t.complete && !t._ignored ? `<button class="rank-btn" onclick="rankTask(${idx})">Отсортировать</button>` : ''}
-      <button class="ai-btn" onclick="delegateTaskToAi(${idx})">Поручить ИИ</button>
-      <button onclick="toggleDone(${idx})">${t.complete ? 'Не сделано' : 'Сделано'}</button>
-      <button onclick="${t._ignored ? 'restoreIgnored' : 'moveToIgnored'}(${idx})">${t._ignored ? 'Вернуть из игнорируемых' : 'В игнорируемые'}</button>
-      <button onclick="navigator.clipboard?.writeText(items[${idx}]._raw)">Копировать текст</button>
-      <button class="del-btn" onclick="deleteTask(${idx})">Удалить</button>
+      <button class="edit-btn" onclick="editTask(${idx})">${SorterIcons.render('pencil')}<span>Редактировать</span></button>
+      <button class="proc-btn" onclick="openProcess(${idx})">${SorterIcons.render('list-filter')}<span>Обработать</span></button>
+      ${!t.complete && !t._ignored ? `<button class="rank-btn" onclick="rankTask(${idx})">${SorterIcons.render('arrow-up-down')}<span>Отсортировать</span></button>` : ''}
+      <button class="ai-btn" onclick="delegateTaskToAi(${idx})">${SorterIcons.render('bot')}<span>Поручить ИИ</span></button>
+      <button onclick="toggleDone(${idx})">${SorterIcons.render(t.complete ? 'undo-2' : 'check')}<span>${t.complete ? 'Не сделано' : 'Сделано'}</span></button>
+      <button onclick="${t._ignored ? 'restoreIgnored' : 'moveToIgnored'}(${idx})">${SorterIcons.render(t._ignored ? 'eye' : 'eye-off')}<span>${t._ignored ? 'Вернуть из игнорируемых' : 'В игнорируемые'}</span></button>
+      <button onclick="navigator.clipboard?.writeText(items[${idx}]._raw)">${SorterIcons.render('copy')}<span>Копировать текст</span></button>
+      <button class="del-btn" onclick="deleteTask(${idx})">${SorterIcons.render('trash')}<span>Удалить</span></button>
     </div>
   </details>
 </div>`;
@@ -1008,6 +1011,14 @@
     }
 
     function saveEdit(idx) {
+      // Native calendars can commit on blur; read their current value before saving.
+      const duePicker = document.getElementById('due-pick-' + idx);
+      if (duePicker) {
+        if (!duePicker.checkValidity()) { duePicker.reportValidity(); return; }
+        const draft = document.getElementById('edit-inp-' + idx)?.value || editingTempValue || '';
+        const currentDate = draft.match(/\bdue:(\d{4}-\d{2}-\d{2})\b/)?.[1] || '';
+        if (currentDate !== duePicker.value) setDueOnEdit(idx, duePicker.value);
+      }
       const inp    = document.getElementById('edit-inp-' + idx);
       const newRaw = (inp ? inp.value : editingTempValue || '').trim();
       if (!newRaw) { cancelEdit(); return; }
@@ -1149,7 +1160,8 @@
       inp.value = text;
       editingTempValue = text;
       updateTagPicker(idx);
-      inp.focus();
+      // Do not refocus the textarea: that can dismiss the native calendar or
+      // reopen the mobile keyboard before its date selection has completed.
     }
 
     // ── Автокомплит @контекст / +проект в быстром добавлении ──────────────────

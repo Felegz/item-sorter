@@ -1240,8 +1240,19 @@ footer a {
   .sync-badge { min-height: 30px; padding: 0 8px; font-size: 0.74rem; }
 }
 
+.mobile-editor-collapse { display: none; }
 /* Focus mode uses the viewport that remains above the mobile keyboard. */
 @media (max-width: 760px) {
+  body.mobile-editor-active .mobile-editor-collapse {
+    display: inline-flex;
+    align-self: flex-end;
+    width: 44px;
+    min-height: 44px;
+    flex: 0 0 auto;
+    padding: 0;
+    align-items: center;
+    justify-content: center;
+  }
   body.mobile-editor-active {
     min-height: 0;
     height: var(--mobile-editor-height, 100dvh);

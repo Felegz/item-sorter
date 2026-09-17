@@ -1315,6 +1315,9 @@ button:disabled {
 .edit-cancel-btn:hover { background: #2a333e; }
 
 .task-actions-menu .del-btn { color: var(--danger); }
+.task-actions-menu button { display: flex; align-items: center; gap: 10px; text-align: left; }
+.lucide-icon { flex: 0 0 auto; }
+.task-actions-menu button span { min-width: 0; }
 
 /* Fixed to the visible viewport, not the row; short keyboard viewports scroll internally. */
 .task-actions[open] { z-index: 1001; }
@@ -2311,6 +2314,20 @@ button:disabled {
 
   body.mobile-editor-active[data-mobile-editor-layout="task"] .task-row.editing .edit-cancel-btn {
     grid-column: 2;
+  }
+}
+
+.mobile-editor-collapse { display: none; }
+@media (max-width: 760px) {
+  body.mobile-editor-active[data-mobile-editor-layout="task"] .mobile-editor-collapse {
+    display: inline-flex;
+    align-self: flex-end;
+    min-height: 44px;
+    width: 44px;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    flex: 0 0 auto;
   }
 }
 

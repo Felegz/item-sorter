@@ -95,6 +95,21 @@ vm.runInContext(
     'the mobile editor layout must close after the Save click is dispatched',
   );
 
+  mobileViewport.matches = true;
+  editor.value = 'Unsaved draft';
+  editor.blur = () => { document.activeElement = outside; };
+  document.activeElement = editor;
+  dispatch('focusin', editor);
+  const collapseButton = {
+    closest(selector) { return selector === '[data-mobile-editor-collapse]' ? this : null; },
+  };
+  const oldContains = shell.contains;
+  shell.contains = target => target === collapseButton || oldContains(target);
+  dispatch('click', collapseButton);
+  assert.equal(classes.has('mobile-editor-active'), false, 'explicit collapse releases layout');
+  assert.equal(editor.value, 'Unsaved draft', 'collapse never deletes the draft');
+  shell.contains = oldContains;
+
   mobileViewport.matches = false;
   document.activeElement = editor;
   dispatch('focusin', editor);
@@ -105,7 +120,7 @@ vm.runInContext(
   );
   assert.equal(
     scrollIntoViewCalls,
-    1,
+    3,
     'desktop focus must not scroll the page',
   );
 

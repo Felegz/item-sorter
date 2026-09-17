@@ -26,9 +26,9 @@
     end.setUTCDate(end.getUTCDate() + 1);
     const compact = value => value.replaceAll('-', '');
     const url = new URL('https://calendar.google.com/calendar/r/eventedit');
-    url.search = new URLSearchParams({ action: 'TEMPLATE', text: task.text,
+    url.search = new URLSearchParams({ action: 'TEMPLATE', text: task.text, details: task.text,
       dates: `${compact(task.dueDate)}/${compact(end.toISOString().slice(0, 10))}` }).toString();
-    // Only the title and date go to Google; source history/advice remain private locally.
+    // Repeat the visible task text in the description; do not include source history/advice.
     return url.href;
   }
   root.TaskGtd = { prepareOutput, withDueDate, validDate, googleCalendarUrl };
