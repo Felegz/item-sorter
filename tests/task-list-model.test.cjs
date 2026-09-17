@@ -93,6 +93,11 @@ assert.deepEqual(Array.from(legacy.ignored), ['ignored one']);
 const roundTrip = serializeTaskDocument(lists, { today: '2026-09-09' });
 assert.match(roundTrip, /(?:^|\n)INBOX SORTED(?:\n|$)/);
 assert.doesNotMatch(roundTrip, /(?:^|\n)NEW ARRAY(?:\n|$)/);
+const roundTripLines = roundTrip.split('\n');
+assert.ok(
+  roundTripLines.indexOf('INBOX SORTED') < roundTripLines.indexOf('SORTED (2026.09.05)'),
+  'INBOX SORTED must be displayed above SORTED until Merge Arrays consumes it',
+);
 assert.match(roundTrip, /(?:^|\n)IGNORED TASKS \(2026\.09\.05\)(?:\n|$)/);
 assert.doesNotMatch(roundTrip, /ИГНОРИРУЕМЫЕ ЗАДАЧИ/);
 const reparsed = parseTaskDocument(roundTrip);

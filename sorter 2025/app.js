@@ -596,14 +596,15 @@ async function insertUnsortedTasksUI(unsortedTasks) {
       console.log(`Inserted "${newTask}" at index`, lo);
     }
 
-    // Собираем назад и записываем в textarea
+    // Preserve the historical marker and task order, but use the shared text
+    // layout so every neighboring task has exactly one empty line between it.
     const resultLines = [
       ...markerLines,
       ...sorted,
       "",
       ...tail
     ];
-    taskList.value = resultLines.join("\n");
+    taskList.value = formatTaskList(resultLines);
     saveDataToLocalStorage();
     console.log('insertUnsortedTasksUI: done');
   } catch (err) {
@@ -927,7 +928,8 @@ async function sortTasks() {
     }, { today });
     saveDataToLocalStorage();
 
-    if (typeof assignPrioritiesAfterSort === 'function') assignPrioritiesAfterSort();
+    // Priorities are a separate deferred policy. Sort Tasks must not rewrite
+    // the existing SORTED block while it prepares a pending inboxSorted batch.
     if (typeof syncHighlight   === 'function') syncHighlight();
     if (typeof renderFilterBar === 'function') renderFilterBar();
     console.log('sortTasks: inboxSorted =', winners.length, ', partially =', losers.length);

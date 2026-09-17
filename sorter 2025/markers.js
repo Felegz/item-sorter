@@ -146,18 +146,20 @@ function serializeTaskDocument(documentModel, options = {}) {
   );
   const lines = [...lists.inboxUnsorted];
 
+  // An empty inboxSorted section has no business meaning. Always emit the
+  // canonical name so parsing an old NEW ARRAY document performs migration.
+  // The pending ranked batch stays above the main SORTED list until the user
+  // explicitly runs Merge Arrays.
+  if (lists.inboxSorted.length) {
+    lines.push(MARKERS.makeInboxSorted());
+    lines.push(...lists.inboxSorted);
+  }
   const hasSortedBoundary = Boolean(
     sectionMarkers.sorted || lists.sorted.length || lists.inboxSorted.length || lists.partiallySorted.length
   );
   if (hasSortedBoundary) {
     lines.push(sectionMarkers.sorted || MARKERS.makeSorted(...dateParts));
     lines.push(...lists.sorted);
-  }
-  // An empty inboxSorted section has no business meaning. Always emit the
-  // canonical name so parsing an old NEW ARRAY document performs migration.
-  if (lists.inboxSorted.length) {
-    lines.push(MARKERS.makeInboxSorted());
-    lines.push(...lists.inboxSorted);
   }
   if (lists.partiallySorted.length || sectionMarkers.partiallySorted) {
     lines.push(sectionMarkers.partiallySorted || MARKERS.makePartial(...dateParts));

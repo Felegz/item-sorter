@@ -243,6 +243,8 @@ function installComparator(context, ranks, trace) {
   ].join('\n') };
   context.saveDataToLocalStorage = () => {};
   context.getDateParts = () => ({ year: '2026', month: '09', day: '10' });
+  let priorityAssignments = 0;
+  context.assignPrioritiesAfterSort = () => { priorityAssignments += 1; };
   context.Swal = {
     fire: async () => ({ isConfirmed: false }),
   };
@@ -250,17 +252,17 @@ function installComparator(context, ranks, trace) {
   assert.equal(context.taskList.value, [
     'x 2026-09-09 completed inbox',
     '',
-    'SORTED (2026.09.01)',
-    'C old',
-    '',
-    'D old',
-    '',
     'INBOX SORTED',
     'A new',
     '',
     'A new',
     '',
     'B new',
+    '',
+    'SORTED (2026.09.01)',
+    'C old',
+    '',
+    'D old',
     '',
     'PARTIALLY SORTED (2026.09.01)',
     'E partial',
@@ -275,6 +277,8 @@ function installComparator(context, ranks, trace) {
   ]);
   assert.equal(context.taskList.value.match(/^A new$/gm)?.length, 2,
     'Sort Tasks must preserve duplicate task occurrences');
+  assert.equal(priorityAssignments, 0,
+    'Sort Tasks must not renumber the existing SORTED block');
   assert.equal(
     context.taskList.value.split('\n').filter((line, index, lines) =>
       line && index > 0 && lines[index - 1] &&
@@ -372,12 +376,12 @@ function installComparator(context, ranks, trace) {
   context.taskList = { value: [
     'U inbox',
     'x 2026-09-01 completed inbox',
-    'SORTED (2026.09.01)',
-    'A',
-    'C',
     'INBOX SORTED',
     'B',
     'D',
+    'SORTED (2026.09.01)',
+    'A',
+    'C',
     'PARTIALLY SORTED (2026.09.02)',
     'G',
     'x 2026-09-02 completed partial',
@@ -465,17 +469,27 @@ function installComparator(context, ranks, trace) {
   await sorting.insertUnsortedTasksUI(['B', 'F']);
   assert.equal(context.taskList.value, [
     'SORTED (2026.09.01)',
+    '',
     'PARTIALLY SORTED (2026.09.01)',
     'A',
+    '',
     'B',
+    '',
     'C',
+    '',
     'E',
+    '',
     'F',
+    '',
     'G',
     '',
     'IGNORED TASKS (2026.09.01)',
     'ignored',
   ].join('\n'));
+  assert.deepEqual(trace, [
+    ['B', 'E'], ['B', 'C'], ['B', 'A'],
+    ['F', 'C'], ['F', 'G'], ['F', 'E'],
+  ]);
 
   // Filter Tasks preserves section membership, duplicate occurrences and
   // already completed tasks. New ignored tasks are prepended; only an explicit
