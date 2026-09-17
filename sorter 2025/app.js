@@ -1032,7 +1032,8 @@ function promptUnsortedTasks() {
         Swal.showValidationMessage('Нужно ввести хотя бы одну задачу');
         return;
       }
-      return lines;
+      // New captures use the same creation-date operation as quick-add and GTD.
+      return lines.map(line => TaskListOperations.prepareNewTask(line));
     }
   }).then(result => {
     if (result.isConfirmed && Array.isArray(result.value)) {

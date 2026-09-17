@@ -84,6 +84,8 @@
 .t-due.due-ok { color: var(--fg-m, #aeb8c4); }
 .t-threshold { color: #a8b6c8; font-variant-numeric: tabular-nums; }
 .t-date { color: var(--fg-m, #aeb8c4); font-variant-numeric: tabular-nums; }
+/* Creation is supporting information, unlike a due date requiring attention. */
+.t.t-created { background: transparent; padding-inline: 2px; font-weight: 400; }
 
 .version-conflict-note {
   margin: 0 0 12px;

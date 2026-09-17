@@ -546,7 +546,7 @@
       badges.push(`<span class="t t-due${stateClass}" title="${escapeHtml(absoluteDateTitle(task.dueDate))}">${escapeHtml(formatTaskDate(task.dueDate, { ...options, kind: 'due' }))}</span>`);
     }
     if (shouldRenderMeta('threshold', options) && task.thresholdDate) badges.push(`<span class="t t-threshold" title="${escapeHtml(absoluteDateTitle(task.thresholdDate))}">${escapeHtml(formatTaskDate(task.thresholdDate, { ...options, kind: 'threshold' }))}</span>`);
-    if (shouldRenderMeta('created', options) && task.creationDate) badges.push(`<span class="t t-date" title="${escapeHtml(absoluteDateTitle(task.creationDate))}">${escapeHtml(formatTaskDate(task.creationDate, { ...options, kind: 'created' }))}</span>`);
+    if (shouldRenderMeta('created', options) && task.creationDate) badges.push(`<span class="t t-date t-created" title="${escapeHtml(absoluteDateTitle(task.creationDate))}">${escapeHtml(formatTaskDate(task.creationDate, { ...options, kind: 'created' }))}</span>`);
     if (shouldRenderMeta('completed', options) && task.completed && task.completionDate) badges.push(`<span class="t t-date" title="${escapeHtml(absoluteDateTitle(task.completionDate))}">${escapeHtml(formatTaskDate(task.completionDate, { ...options, kind: 'completed' }))}</span>`);
     const positionClass = options.position === 'before' ? ' task-tags-leading' : '';
     return badges.length ? `<div class="task-tags${positionClass}">${badges.join('')}</div>` : '';

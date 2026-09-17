@@ -267,6 +267,9 @@ async function showSnapshots() {
   });
   if (idx === undefined || idx === null || idx === '') return;
   const snap = snaps[parseInt(idx, 10)];
+  if (window.SorterUnsavedChanges && !await SorterUnsavedChanges.allowReplace(snap.text)) return;
+  SorterRuntime.setItem('tasks_backup', document.getElementById('task-list')?.value ?? SorterRuntime.getTasks());
+  SorterRuntime.setItem('tasks_backup_time', String(Date.now()));
   saveSnapshot('перед восстановлением');
   const ta = document.getElementById('task-list');
   if (ta) ta.value = snap.text;
@@ -374,7 +377,7 @@ async function dbxArchiveCompleted(lines) {
 
 // ─── Автоматическое скачивание (без диалога) ─────────────────────────────────
 
-async function dbxAutoDownload(detail = '') {
+async function dbxAutoDownload(detail = '', approvedState) {
   const token = getToken();
   if (!token) return false;
   setDbxStatus('⬇ Загрузка…');
@@ -390,6 +393,15 @@ async function dbxAutoDownload(detail = '') {
     if (resp.ok) {
       const text      = await resp.text();
       const apiResult = JSON.parse(resp.headers.get('dropbox-api-result') || '{}');
+
+      // Check immediately before replacement: the user may have typed while fetch waited.
+      if (window.SorterUnsavedChanges && !await SorterUnsavedChanges.allowReplace(text, approvedState)) {
+        setDbxStatus('Загрузка отменена · правки сохранены');
+        return false;
+      }
+      const previousContent = document.getElementById('task-list')?.value ?? SorterRuntime.getTasks();
+      SorterRuntime.setItem('tasks_backup', previousContent);
+      SorterRuntime.setItem('tasks_backup_time', String(Date.now()));
 
       saveSnapshot('автозагрузка из Dropbox');
       const ta = document.getElementById('task-list');
@@ -407,7 +419,7 @@ async function dbxAutoDownload(detail = '') {
       return true;
     } else if (resp.status === 401) {
       const refreshed = await tryRefreshToken();
-      if (refreshed.ok) return dbxAutoDownload(detail);
+      if (refreshed.ok) return dbxAutoDownload(detail, approvedState);
     } else if (resp.status === 409) {
       // Файла нет на сервере — не ошибка
     } else {
@@ -733,11 +745,12 @@ async function dropboxSave() {
 async function dropboxLoad() {
   if (!getToken()) { dropboxLogin(); return; }
 
-  const _ta = document.getElementById('task-list');
-  const currentContent = _ta ? _ta.value : SorterRuntime.getTasks();
+  const approvedState = window.SorterUnsavedChanges?.state();
+  const unsavedWarning = window.SorterUnsavedChanges && (SorterUnsavedChanges.hasDraft() || SorterUnsavedChanges.hasCloudChanges())
+    ? 'Есть несохранённые изменения. Введённый текст будет заменён.<br>' : '';
   const result = await Swal.fire({
     title:             'Загрузить из Dropbox?',
-    html:              'Текущий список будет заменён данными из облака.<br><small style="color:#8888ab">Резервная копия автоматически сохранится в браузере.</small>',
+    html:              unsavedWarning + 'Текущий список будет заменён данными из облака.<br><small style="color:#8888ab">Резервная копия списка автоматически сохранится в браузере.</small>',
     icon:              'question',
     showCancelButton:  true,
     confirmButtonText: 'Загрузить',
@@ -746,13 +759,8 @@ async function dropboxLoad() {
   });
   if (!result.isConfirmed) return;
 
-  if (currentContent.trim()) {
-    SorterRuntime.setItem('tasks_backup', currentContent);
-    SorterRuntime.setItem('tasks_backup_time', String(Date.now()));
-  }
-
-  localStorage.removeItem('dbx_last_rev');
-  const ok = await dbxAutoDownload('вручную');
+  // Do not clear the revision before a download: cancellation must leave sync state intact.
+  const ok = await dbxAutoDownload('вручную', approvedState);
   if (ok) Swal.fire({ title: 'Загружено из Dropbox!', icon: 'success', timer: 1500, showConfirmButton: false });
 }
 

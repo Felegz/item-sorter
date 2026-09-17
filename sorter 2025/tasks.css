@@ -1316,6 +1316,18 @@ button:disabled {
 
 .task-actions-menu .del-btn { color: var(--danger); }
 
+/* Fixed to the visible viewport, not the row; short keyboard viewports scroll internally. */
+.task-actions[open] { z-index: 1001; }
+.task-actions[open] .task-actions-menu {
+  position: fixed;
+  right: auto;
+  z-index: 1000;
+  box-sizing: border-box;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  background: #1c232b;
+}
+
 .task-row.editing {
   grid-template-columns: 24px minmax(0, 1fr) auto auto;
   background: var(--bg-card);

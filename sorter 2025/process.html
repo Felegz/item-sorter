@@ -285,10 +285,14 @@
       <div class="act-row">
         <button class="btn btn-p" onclick="copyOut()">&#x1F4CB; Копировать</button>
         <button class="btn" onclick="addToList()">&#x2795; В список</button>
+        <button id="google-calendar-btn" class="btn" onclick="openGoogleCalendar()" disabled>В Google Calendar</button>
         <button id="next-task-btn" class="btn btn-p hidden" onclick="nextTask()">&#x27A1; Следующая задача</button>
         <button class="btn btn-g" onclick="resetAll()">&#x21BA; Ещё одну</button>
       </div>
       <div class="note" id="out-note"></div>
+      <label for="out-due">Срок задачи</label>
+      <input id="out-due" type="date" onchange="setOutputDue(this.value)" />
+      <p class="note">«В список» сохраняет задачу. Google Calendar открывает форму события; сохранение нужно подтвердить там.</p>
     </div>
     <div id="offer-mutny" class="card hidden">
       <div class="step-q" style="font-size:1rem;margin-bottom:0.5rem">Задача мутная? Запустить разбор?</div>
@@ -302,7 +306,11 @@
 
 <script src="runtime-mode.js?v=20260911-developer-mode"></script>
 <script src="markers.js?v=20260911-ignored-filter"></script>
-<script src="task-format.js?v=20260912-meta-order"></script>
+<script src="task-format.js?v=20260917-creation-date"></script>
+<script src="task-list-operations.js?v=20260911-ignored-filter"></script>
+<script src="gtd-task-tools.js?v=20260917"></script>
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+<script src="unsaved-changes.js?v=20260917-gtd"></script>
 <script src="flows.js"></script>
 <script src="mobile-edit-mode.js?v=20260911-edit-return"></script>
 <script>
@@ -398,7 +406,7 @@ function renderStep(idx) {
     h += '</div>';
 
   } else if (step.type === 'date') {
-    h += '<input type="date" id="sf" value="' + (S.dueDate || todayStr()) + '" />';
+    h += '<input type="date" id="sf" required value="' + (S.dueDate || todayStr()) + '" />';
     h += '<div class="act-row">';
     if (step.action)
       h += '<button class="btn btn-p" onclick="dateAction(\'' + step.field + '\',\'' + step.action + '\')">Дальше &rarr;</button>';
@@ -527,7 +535,9 @@ function textAction(field, action) {
   S[field] = sf.value.trim(); showOutput(action);
 }
 function dateAction(field, action) {
-  const sf = el('sf'); if (sf) S[field] = sf.value; showOutput(action);
+  const sf = el('sf');
+  if (!sf || !TaskGtd.validDate(sf.value)) { sf?.focus(); sf?.reportValidity(); return; }
+  S[field] = sf.value; showOutput(action);
 }
 function dateNext(field, nextIdx) {
   const sf = el('sf'); if (sf) S[field] = sf.value;
@@ -572,8 +582,11 @@ function showOutput(action) {
     if (S.advice)   goalHtml += '<div class="out-field"><span class="out-field-lbl">💜 Совет</span>' + esc(S.advice)   + '</div>';
   }
 
+  if (action !== 'trash') line = TaskGtd.prepareOutput(line, S.originalTask, todayStr());
+  if (action === 'calendar') line = TaskGtd.withDueDate(line, S.dueDate || t);
   el('out-title').textContent = title;
   el('out-line').textContent  = line;
+  syncOutputDate();
   el('out-goal').innerHTML    = goalHtml;
   el('out-note').textContent  = '';
   el('out-note').className    = 'note';
@@ -621,19 +634,25 @@ function copyOut() {
 
 // process.html does not load dropbox.js, so it records the same local-version
 // timestamp directly whenever GTD processing changes the shared task document.
-function saveProcessedTaskDocument(text) {
+function saveProcessedTaskDocument(text, savedLine) {
   const previous = SorterRuntime.getTasks();
   SorterRuntime.setTasks(text);
   if (previous !== text && !SorterRuntime.isDeveloperMode) {
     localStorage.setItem('dbx_local_version_time', String(Date.now()));
   }
+  // Subsequent saves edit the same task instead of duplicating a no-longer-matching original.
+  if (savedLine) S.originalTask = savedLine;
+  savedProcessState = processDraftState();
 }
 
 function addToList() {
-  const line = el('out-line').textContent.trim();
+  let line = el('out-line').textContent.trim();
   if (!line || line.startsWith('# УДАЛЕНО')) {
     el('out-note').textContent='Помечено как удалённое \u2014 в список не добавляется.'; return;
   }
+  line = TaskGtd.prepareOutput(line, S.originalTask, todayStr());
+  el('out-line').textContent = line;
+  syncOutputDate();
   const existing = SorterRuntime.getTasks();
   const lines = existing ? existing.split('\n') : [];
   // If came from a specific task, replace it instead of prepending
@@ -642,25 +661,29 @@ function addToList() {
     const finalLine = TaskFormat.mergeOriginalTask(line, S.originalTask);
     if (idx !== -1) {
       lines[idx] = finalLine;
-      saveProcessedTaskDocument(formatTaskList(lines));
+      saveProcessedTaskDocument(formatTaskList(lines), finalLine);
       el('out-note').textContent = 'Задача обновлена!';
       el('out-note').className = 'note ok';
       return;
     }
     // Original not found — prepend
-    saveProcessedTaskDocument(formatTaskList([finalLine, ...existing.split(/\r?\n/)]));
+    saveProcessedTaskDocument(formatTaskList([finalLine, ...existing.split(/\r?\n/)]), finalLine);
     el('out-note').textContent='Добавлено в список!'; el('out-note').className='note ok';
     return;
   }
   // Otherwise prepend
-  saveProcessedTaskDocument(formatTaskList([line, ...existing.split(/\r?\n/)]));
+  saveProcessedTaskDocument(formatTaskList([line, ...existing.split(/\r?\n/)]), line);
   el('out-note').textContent='Добавлено в список!'; el('out-note').className='note ok';
 }
 
-function resetAll() {
+async function resetAll() {
+  if (!await SorterUnsavedChanges.confirmDiscard('Начать другой разбор без сохранения текущего?', 'Начать другой')) return;
   Object.assign(S, { task:'', originalTask:'', mode:null, flow:null, stepIdx:0, history:[],
     outcome:'',action:'',delegate:'',dueDate:'',priority:null,contexts:[],feelings:'',advice:'' });
   hide('step-area','out-area','task-cap','edit-area'); show('mode-sel'); window.scrollTo(0,0);
+  el('task-input').value = '';
+  el('out-line').textContent = '';
+  savedProcessState = processDraftState();
 }
 
 function nextTask() {
@@ -690,14 +713,45 @@ function esc(s) {
   return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
 
-function todayStr() { return new Date().toISOString().slice(0,10); }
+function todayStr() { return TaskListOperations.localIsoDate(); }
+
+function syncOutputDate() {
+  const task = TaskFormat.parseTaskLine(el('out-line').textContent);
+  const deleted = el('out-line').textContent.startsWith('# УДАЛЕНО');
+  el('out-due').value = task.dueDate || '';
+  el('out-due').disabled = deleted;
+  el('google-calendar-btn').disabled = deleted || !TaskGtd.validDate(task.dueDate);
+}
+function setOutputDue(value) {
+  S.dueDate = value;
+  el('out-line').textContent = TaskGtd.withDueDate(el('out-line').textContent, value);
+  syncOutputDate();
+}
+function openGoogleCalendar() {
+  // This explicit action sends only the current title and due date to Google.
+  window.open(TaskGtd.googleCalendarUrl(el('out-line').textContent), '_blank', 'noopener,noreferrer');
+}
+el('out-line').addEventListener('input', syncOutputDate);
+
+let savedProcessState = null;
+function processDraftState() {
+  return JSON.stringify({ task:S.task, outcome:S.outcome, action:S.action,
+    delegate:S.delegate, dueDate:S.dueDate, priority:S.priority, contexts:S.contexts,
+    feelings:S.feelings, advice:S.advice,
+    input:el('task-input').value, field:el('sf')?.value || '',
+    output:el('out-line').textContent });
+}
+SorterUnsavedChanges.register('gtd', () => {
+  const current = processDraftState();
+  return savedProcessState !== null && current !== savedProcessState ? current : '';
+});
 
 window.addEventListener('DOMContentLoaded', () => {
   const params = new URLSearchParams(window.location.search);
   const tp   = params.get('task');
   const flow = params.get('flow') || 'korz';
   if (tp) {
-    const fullTask = decodeURIComponent(tp);
+    const fullTask = tp; // URLSearchParams already decodes once; literal % must survive.
     const parsedTask = TaskFormat.parseTaskLine(fullTask);
     S.task = parsedTask.text || fullTask;
     S.originalTask = fullTask;
@@ -711,6 +765,7 @@ window.addEventListener('DOMContentLoaded', () => {
     show('task-cap');
     startFlow(FLOWS[flow] ? flow : 'korz');
   }
+  savedProcessState = processDraftState();
 });
 </script>
 </body>

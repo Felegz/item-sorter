@@ -7,18 +7,20 @@
   <script src="runtime-mode.js?v=20260911-auto-context"></script>
   <script src="auto-context.js?v=20260911-auto-context"></script>
   <!-- vanilla-context-menu 1.6.0 — MIT license, github.com/GeorgianStan/vanilla-context-menu -->
-  <script src="https://unpkg.com/vanilla-context-menu@1.6.0/dist/vanilla-context-menu.js"></script>
+  <!-- Native text-selection menus must remain available, including inside the editor. -->
+  <script src="task-action-menu.js?v=20260917"></script>
+  <script src="unsaved-changes.js?v=20260917"></script>
   <!-- date-fns 4.4.0 — MIT license, date-fns.org -->
   <script src="https://cdn.jsdelivr.net/npm/@date-fns/cdn@4.4.0/cdn.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@date-fns/cdn@4.4.0/locale/ru/cdn.min.js"></script>
   <script src="markers.js?v=20260911-ignored-filter"></script>
   <script src="mobile-edit-mode.js?v=20260913-desktop-focus"></script>
-  <script src="task-format.js?v=20260912-meta-order"></script>
+  <script src="task-format.js?v=20260917-creation-date"></script>
   <script src="task-list-operations.js?v=20260911-ignored-filter"></script>
   <script src="ai-exchange.js?v=20260906-ai-bridge"></script>
   <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-  <link rel="stylesheet" href="tasks.css?v=20260911-auto-context" />
-  <link rel="stylesheet" href="task-format.css?v=20260907-version-dates" />
+  <link rel="stylesheet" href="tasks.css?v=20260917-task-menu" />
+  <link rel="stylesheet" href="task-format.css?v=20260917-creation-date" />
 </head>
 <body>
   <!--
@@ -584,6 +586,9 @@
       <button class="proc-btn" onclick="openProcess(${idx})">Обработать</button>
       ${!t.complete && !t._ignored ? `<button class="rank-btn" onclick="rankTask(${idx})">Отсортировать</button>` : ''}
       <button class="ai-btn" onclick="delegateTaskToAi(${idx})">Поручить ИИ</button>
+      <button onclick="toggleDone(${idx})">${t.complete ? 'Не сделано' : 'Сделано'}</button>
+      <button onclick="${t._ignored ? 'restoreIgnored' : 'moveToIgnored'}(${idx})">${t._ignored ? 'Вернуть из игнорируемых' : 'В игнорируемые'}</button>
+      <button onclick="navigator.clipboard?.writeText(items[${idx}]._raw)">Копировать текст</button>
       <button class="del-btn" onclick="deleteTask(${idx})">Удалить</button>
     </div>
   </details>
@@ -773,6 +778,10 @@
     // --- Context menu ---
 
     function initContextMenu() {
+      // Disabled: the old list-wide context menu intercepted selecting/cutting text.
+      // Keep actions on the explicit ⋮ control and leave native contextmenu untouched.
+      SorterTaskMenu.install(document.getElementById('list'));
+      return;
       const listEl = document.getElementById('list');
       if (!listEl || typeof VanillaContextMenu === 'undefined') return;
       // Capture the right-clicked row index before the menu opens
@@ -933,6 +942,8 @@
     taskListElement.addEventListener('click', event => {
       const title = event.target.closest('[data-task-title]');
       if (!title || event.target.closest('a')) return;
+      // A drag selection is not a request to open the task editor.
+      if (!window.getSelection().isCollapsed) return;
       const row = title.closest('.task-row');
       if (row) editTask(Number(row.dataset.idx));
     });
@@ -1274,15 +1285,27 @@
 
     loadItems();
     initAutoContextMode();
+    SorterUnsavedChanges.register('task-editor', () => {
+      if (editingIdx < 0) return '';
+      const value = document.getElementById('edit-inp-' + editingIdx)?.value ?? editingTempValue;
+      return value != null && value.trim() !== items[editingIdx]?._raw ? JSON.stringify([editingIdx, value]) : '';
+    });
+    SorterUnsavedChanges.register('new-task', () => addInput.value.trim());
     initContextMenu();
     initAutocomplete();
   </script>
-  <script src="dropbox.js?v=20260911-developer-mode"></script>
+  <script src="dropbox.js?v=20260917-unsaved-guard"></script>
   <script src="ai-dropbox.js?v=20260906-ai-bridge"></script>
   <script>
     // \u2500\u2500 Dropbox \u0438\u043d\u0442\u0435\u0433\u0440\u0430\u0446\u0438\u044f \u0434\u043b\u044f tasks.html \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
     // \u041f\u0435\u0440\u0435\u0437\u0430\u0433\u0440\u0443\u0437\u0438\u0442\u044c \u0437\u0430\u0434\u0430\u0447\u0438 \u043f\u043e\u0441\u043b\u0435 Dropbox-\u0437\u0430\u0433\u0440\u0443\u0437\u043a\u0438
-    window._onDbxLoad = () => loadItems();
+    window._onDbxLoad = () => {
+      // Only called after replacement approval; stale drafts must not edit a different task.
+      editingIdx = -1;
+      editingTempValue = null;
+      addInput.value = '';
+      loadItems();
+    };
 
     // \u041e\u0432\u0435\u0440\u0440\u0430\u0439\u0434 setDbxStatus \u2014 \u043e\u0431\u043d\u043e\u0432\u043b\u044f\u0435\u043c \u0431\u0435\u0439\u0434\u0436 \u0432 \u0448\u0430\u043f\u043a\u0435
     const _origSetDbxStatus = setDbxStatus;

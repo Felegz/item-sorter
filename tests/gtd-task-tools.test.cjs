@@ -1,0 +1,52 @@
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const vm = require('node:vm');
+const c = vm.createContext({URL, URLSearchParams});
+for (const file of ['markers.js','task-format.js','task-list-operations.js','gtd-task-tools.js']) {
+  vm.runInContext(fs.readFileSync('sorter 2025/'+file,'utf8'),c);
+}
+const gtd = c.TaskGtd;
+const parse = c.TaskFormat.parseTaskLine;
+const old = '(B) 2026-09-01 Старый текст @дом #review due:2026-09-20';
+const result = gtd.prepareOutput('2026-09-17 Новый текст due:2026-09-25',old,'2026-09-17');
+assert.equal(parse(result).creationDate,'2026-09-01');
+assert.equal(parse(result).dueDate,'2026-09-25');
+assert(parse(result).contexts.includes('дом'));
+assert(parse(result).hashtags.includes('review'));
+assert.equal(parse(gtd.prepareOutput('Новая задача','', '2026-09-17')).creationDate,'2026-09-17');
+const due = gtd.withDueDate(result,'2026-12-31');
+assert.equal(parse(due).dueDate,'2026-12-31');
+assert.equal(parse(due).creationDate,'2026-09-01');
+assert.equal(parse(gtd.withDueDate(due,'')).dueDate,null);
+assert.throws(()=>gtd.withDueDate(due,'2026-02-30'));
+const url = new URL(gtd.googleCalendarUrl(due));
+assert.equal(url.hostname,'calendar.google.com');
+assert.equal(url.searchParams.get('dates'),'20261231/20270101');
+assert.equal(url.searchParams.get('text'),parse(due).text);
+assert(!url.searchParams.has('details'), 'do not transmit original history or advice');
+assert.throws(()=>gtd.googleCalendarUrl('Без срока'));
+const html=fs.readFileSync('sorter 2025/process.html','utf8');
+assert(html.includes("register('gtd'"));
+assert(html.includes('savedProcessState = processDraftState();'));
+assert(html.includes('TaskGtd.prepareOutput(line, S.originalTask, todayStr())'));
+// Run actual GTD save handlers with memory-only storage and DOM stubs.
+let stored = '2026-09-01 Задача один due:2026-09-20';
+const elements = new Map();
+c.document = { getElementById(id) {
+  if (!elements.has(id)) elements.set(id,{value:'',textContent:'',className:'',classList:{add(){},remove(){}},addEventListener(){}});
+  return elements.get(id);
+}};
+c.SorterRuntime = {getTasks:()=>stored,setTasks:text=>{stored=text;},isDeveloperMode:true};
+c.SorterUnsavedChanges = {register(){},confirmDiscard:async()=>true};
+c.window = {addEventListener(){},scrollTo(){}};
+const inline = [...html.matchAll(/<script\b[^>]*>([\s\S]*?)<\/script>/gi)].map(m=>m[1]).filter(s=>s.trim()).at(-1);
+vm.runInContext(inline,c);
+vm.runInContext("S.originalTask='2026-09-01 Задача один due:2026-09-20';",c);
+elements.get('out-line').textContent='Задача один due:2026-09-25';
+c.addToList();
+assert.equal(parse(stored).creationDate,'2026-09-01');
+elements.get('out-line').textContent='Задача один due:2026-09-26';
+c.addToList();
+assert.equal(stored.split('\n').filter(row=>row.includes('Задача один')).length,1);
+assert.equal(parse(stored).dueDate,'2026-09-26');
+console.log('PASS GTD creation/due dates, private calendar template, and guard integration');
