@@ -15,7 +15,7 @@
   <script src="https://cdn.jsdelivr.net/npm/@date-fns/cdn@4.4.0/locale/ru/cdn.min.js"></script>
   <script src="markers.js?v=20260911-ignored-filter"></script>
   <script src="mobile-edit-mode.js?v=20260917-collapse"></script>
-  <script src="task-format.js?v=20260917-creation-date"></script>
+  <script src="task-format.js?v=20260928-number-hashtag"></script>
   <script src="task-list-operations.js?v=20260911-ignored-filter"></script>
   <script src="ai-exchange.js?v=20260906-ai-bridge"></script>
   <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
@@ -49,7 +49,7 @@
   <div class="add-bar" data-mobile-editor-shell>
     <div class="add-input-wrap">
       <label class="sr-only" for="add-input">Новая задача</label>
-      <textarea id="add-input" rows="1" data-mobile-editor data-mobile-editor-layout="capture" placeholder="Новая задача… (A) +проект @контекст due:2026-04-10"></textarea>
+      <textarea id="add-input" rows="1" data-mobile-editor data-mobile-editor-layout="capture" data-task-text-input placeholder="Новая задача… (A) +проект @контекст due:2026-04-10"></textarea>
       <div id="ac-drop" class="ac-drop" style="display:none"></div>
     </div>
     <button type="button" id="add-cancel" class="add-cancel">Отмена</button>
@@ -558,7 +558,7 @@
   <input type="checkbox" ${t.complete ? 'checked' : ''} onchange="toggleDone(${idx})" style="margin-top:8px;flex-shrink:0">
   <div class="task-body" style="flex:1;min-width:0">
     <button type="button" class="mobile-editor-collapse" data-mobile-editor-collapse aria-label="Свернуть редактор" title="Свернуть редактор">${SorterIcons.render('minimize-2')}</button>
-    <textarea id="edit-inp-${idx}" class="task-edit-input" data-mobile-editor data-mobile-editor-layout="task"
+    <textarea id="edit-inp-${idx}" class="task-edit-input" data-mobile-editor data-mobile-editor-layout="task" data-task-text-input
       onkeydown="handleEditKey(event,${idx})" oninput="updateTagPicker(${idx})">${esc(editVal)}</textarea>
     <div class="tag-picker" id="tag-picker-${idx}">${priChips}${ctxChips}${projChips}${duePicker}</div>
     <div class="edit-hint">Enter — сохранить &nbsp;·&nbsp; Escape — отмена &nbsp;·&nbsp; клик по тегу — добавить/убрать</div>

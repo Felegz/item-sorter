@@ -33,6 +33,23 @@
     return String(value == null ? '' : value).replace(/[\r\n]+/g, ' ').replace(/\s+/g, ' ').trim();
   }
 
+  function normalizeHashtagAliases(value) {
+    return String(value == null ? '' : value).replace(/(^|\s)№(?=\S)/g, '$1#');
+  }
+
+  function normalizeHashtagAliasesInInput(input) {
+    if (!input || typeof input.value !== 'string') return false;
+    const normalized = normalizeHashtagAliases(input.value);
+    if (normalized === input.value) return false;
+    const start = input.selectionStart;
+    const end = input.selectionEnd;
+    input.value = normalized;
+    if (typeof input.setSelectionRange === 'function' && start != null && end != null) {
+      input.setSelectionRange(start, end);
+    }
+    return true;
+  }
+
   function escapeHtml(value) {
     return String(value == null ? '' : value)
       .replace(/&/g, '&amp;')
@@ -193,7 +210,7 @@
         contexts.push(token.slice(1));
         continue;
       }
-      if (/^#\S+$/.test(token)) {
+      if (/^[#№]\S+$/.test(token)) {
         hashtags.push(token.slice(1));
         continue;
       }
@@ -260,7 +277,7 @@
     if (cleanInline(task.text)) parts.push(cleanInline(task.text));
     for (const context of unique(task.contexts).map(value => normalizeTagName(value, '@'))) parts.push(`@${context}`);
     for (const project of unique(task.projects).map(value => normalizeTagName(value, '+'))) parts.push(`+${project}`);
-    for (const hashtag of unique(task.hashtags).map(value => normalizeTagName(value, '#'))) parts.push(`#${hashtag}`);
+    for (const hashtag of unique(task.hashtags).map(value => cleanInline(value).replace(/^[#№]/, ''))) parts.push(`#${hashtag}`);
     if (task.dueDate) parts.push(`due:${task.dueDate}`);
     if (task.thresholdDate) parts.push(`t:${task.thresholdDate}`);
 
@@ -581,5 +598,17 @@
     renderTaskBreakdownHtml,
     renderTaskMetaHtml,
     escapeHtml,
+    normalizeHashtagAliases,
+    normalizeHashtagAliasesInInput,
   });
 });
+
+// Only marked task fields use the № alias. Search and ordinary text inputs keep it unchanged.
+if (typeof document !== 'undefined') {
+  document.addEventListener('input', event => {
+    const input = event.target && event.target.closest
+      ? event.target.closest('[data-task-text-input]')
+      : null;
+    if (input) globalThis.TaskFormat.normalizeHashtagAliasesInInput(input);
+  });
+}

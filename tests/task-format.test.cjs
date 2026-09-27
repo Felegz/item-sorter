@@ -13,6 +13,22 @@ assert.equal(parsed.advice, 'сначала отдохнуть');
 assert.equal(parsed.source, 'Записаться на исследование храпа.');
 assert.equal(parsed.unparsed, 'в');
 
+const numberHashtag = TaskFormat.parseTaskLine('Проверить №трекер #гпт №трекер номер № 5');
+assert.deepEqual(numberHashtag.hashtags, ['трекер', 'гпт']);
+assert.equal(numberHashtag.text, 'Проверить номер № 5');
+assert.equal(TaskFormat.serializeTaskLine(numberHashtag), 'Проверить номер № 5 #трекер #гпт');
+assert.equal(
+  TaskFormat.normalizeHashtagAliases('№трекер и №гпт, но номер № 5'),
+  '#трекер и #гпт, но номер № 5'
+);
+const aliasInput = {
+  value: 'Задача №трекер', selectionStart: 15, selectionEnd: 15,
+  setSelectionRange(start, end) { this.restoredSelection = [start, end]; },
+};
+assert.equal(TaskFormat.normalizeHashtagAliasesInInput(aliasInput), true);
+assert.equal(aliasInput.value, 'Задача #трекер');
+assert.deepEqual(aliasInput.restoredSelection, [15, 15]);
+
 const canonical = TaskFormat.serializeTaskLine(parsed);
 assert.match(canonical, /➤цель:/);
 assert.match(canonical, /➤сложность:/);

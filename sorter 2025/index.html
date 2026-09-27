@@ -54,6 +54,7 @@
           class="text-field"
           id="task-list"
           data-mobile-editor
+          data-task-text-input
           placeholder="Enter your list of tasks here.
 Write one task per line.
 Duplicate and empty lines will be ignored automatically.
@@ -133,14 +134,14 @@ Your text will be stored in browser memory even after page reload, but it's not 
 
     <script src="markers.js?v=20260913-inbox-before-sorted"></script>
     <script src="mobile-edit-mode.js?v=20260917-collapse"></script>
-    <script src="task-format.js?v=20260917-creation-date"></script>
+    <script src="task-format.js?v=20260928-number-hashtag"></script>
     <script src="task-list-operations.js?v=20260911-ignored-filter"></script>
     <script src="ai-exchange.js?v=20260906-ai-bridge"></script>
     <script src="unsaved-changes.js?v=20260917"></script>
     <script src="app.js?v=20260917-capture-date"></script>
     <script src="dropbox.js?v=20260917-unsaved-guard"></script>
     <script src="ai-dropbox.js?v=20260906-ai-bridge"></script>
-    <script src="todotxt.js?v=20260911-developer-mode"></script>
+    <script src="todotxt.js?v=20260928-number-hashtag"></script>
     <script>
       const _origSetDbxStatus = setDbxStatus;
       setDbxStatus = function(text) {

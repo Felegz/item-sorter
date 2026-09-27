@@ -74,8 +74,8 @@ function highlightTodoLine(line) {
   // @context
   html = html.replace(/@([^\s<]+)/g, '<span class="todo-context">@$1</span>');
 
-  // #hashtag
-  html = html.replace(/#([^\s<]+?)([.,;!?]*(?=\s|$|<))/g, '<span class="todo-hashtag">#$1</span>$2');
+  // #hashtag and its keyboard alias №hashtag
+  html = html.replace(/([#№])([^\s<]+?)([.,;!?]*(?=\s|$|<))/g, '<span class="todo-hashtag">$1$2</span>$3');
 
   // дата создания после приоритета
   html = html.replace(/(\d{4}-\d{2}-\d{2})/g, '<span class="todo-date">$1</span>');
