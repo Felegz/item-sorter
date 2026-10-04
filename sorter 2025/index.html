@@ -9,7 +9,7 @@
   <script src="auto-context.js?v=20260911-auto-context"></script>
   <link rel="icon" type="image/x-icon" href="data:image/x-icon;base64,AAABAAEAEBAQAAEABAAoAQAAFgAAACgAAAAQAAAAIAAAAAEABAAAAAAAgAAAAAAAAAAAAAAAEAAAAAAAAAAAAAAA/4QAAADZ/wAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAERERERERERESAAAAAAAAARIAAAAAAAABEgAAABEgAAESAAABESAAARIAABEREgABEgABESESAAESABESAREgARIBESAAESABEhESAAARIAESESAAABEQARIAAAAAARABEgAAAAABEAESAAAAAAAAARIiIiIiIiIhEREREREREREAAAAAP/4AAD/+AAA/HgAAPh4AADwOAAA4DgAAMIYAACHGAAADxgAAB8YAAD/mAAA/5gAAP/4AAAAAAAAAAAAA" />
   <script src="icons.js?v=20260917-lucide"></script>
-  <link rel="stylesheet" href="style.css?v=20260917-lucide" />
+  <link rel="stylesheet" href="style.css?v=20261004-stale-sync" />
   <link rel="stylesheet" href="task-format.css?v=20260917-creation-date" />
 </head>
 <body>
@@ -139,7 +139,7 @@ Your text will be stored in browser memory even after page reload, but it's not 
     <script src="ai-exchange.js?v=20260906-ai-bridge"></script>
     <script src="unsaved-changes.js?v=20260917"></script>
     <script src="app.js?v=20260917-capture-date"></script>
-    <script src="dropbox.js?v=20260917-unsaved-guard"></script>
+    <script src="dropbox.js?v=20261004-stale-sync"></script>
     <script src="ai-dropbox.js?v=20260906-ai-bridge"></script>
     <script src="todotxt.js?v=20260928-number-hashtag"></script>
     <script>
@@ -192,16 +192,12 @@ Your text will be stored in browser memory even after page reload, but it's not 
           return;
         }
 
-        const ageMinutes = Math.max(0, Math.floor((Date.now() - sync.time) / 60_000));
-        let age;
-        if (ageMinutes < 1) age = 'just now';
-        else if (ageMinutes < 60) age = `${ageMinutes} min ago`;
-        else if (ageMinutes < 1440) age = `${Math.floor(ageMinutes / 60)} h ago`;
-        else age = `${Math.floor(ageMinutes / 1440)} d ago`;
-
-        const state = ageMinutes <= 15 ? 'ok' : 'stale';
+        const presentation = getCompactSyncAge(sync.time);
         const fullStatus = typeof getLastSyncText === 'function' ? getLastSyncText() : status;
-        setBadge(state, `✓ Sync · ${age}`, fullStatus || `Последняя синхронизация: ${age}`);
+        const title = presentation.state === 'stale'
+          ? `Синхронизация устарела. ${fullStatus || presentation.age}`
+          : (fullStatus || `Последняя синхронизация: ${presentation.age}`);
+        setBadge(presentation.state, presentation.label, title);
       }
 
       setInterval(() => updateCompactSyncBadge(), 60_000);

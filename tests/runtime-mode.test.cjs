@@ -6,6 +6,8 @@ const vm = require('node:vm');
 const projectRoot = path.join(__dirname, '..');
 const runtimeSource = fs.readFileSync(path.join(projectRoot, 'sorter 2025', 'runtime-mode.js'), 'utf8');
 const dropboxSource = fs.readFileSync(path.join(projectRoot, 'sorter 2025', 'dropbox.js'), 'utf8');
+const mainSyncCss = fs.readFileSync(path.join(projectRoot, 'sorter 2025', 'style.css'), 'utf8');
+const tasksSyncCss = fs.readFileSync(path.join(projectRoot, 'sorter 2025', 'tasks.css'), 'utf8');
 
 function createStorage(initial = {}) {
   const values = new Map(Object.entries(initial));
@@ -96,7 +98,7 @@ function createRuntime(urlString, initialStorage = {}) {
   };
   developer.context.Swal = { fire() {} };
   vm.runInContext(
-    `${dropboxSource}\n;globalThis.__dropboxGuard = { getToken, dropboxLogin };`,
+    `${dropboxSource}\n;globalThis.__dropboxGuard = { getToken, dropboxLogin, getCompactSyncAge };`,
     developer.context,
     { filename: 'dropbox.js' },
   );
@@ -104,6 +106,19 @@ function createRuntime(urlString, initialStorage = {}) {
   await developer.context.__dropboxGuard.dropboxLogin();
   assert.equal(fetchCalls, 0);
   assert.equal(developer.storage.get('dbx_access_token'), 'real-token-must-stay-unreachable');
+
+  const syncAge = developer.context.__dropboxGuard.getCompactSyncAge;
+  const now = Date.UTC(2026, 9, 4, 12, 0, 0);
+  const recent = syncAge(now - 29 * 60_000, now);
+  assert.equal(recent.state, 'ok');
+  assert.equal(recent.label, '✓ Sync · 29 min ago');
+  const stale = syncAge(now - 30 * 60_000, now);
+  assert.equal(stale.state, 'stale');
+  assert.equal(stale.label, '! Sync · 30 min ago');
+  for (const css of [mainSyncCss, tasksSyncCss]) {
+    assert.match(css, /\.sync-badge\[data-state="stale"\]\s*\{[^}]*248, 113, 113/s);
+    assert.doesNotMatch(css, /\.sync-badge\[data-state="stale"\]\s*,/);
+  }
 
   console.log('runtime mode isolation tests passed');
 })().catch(error => {

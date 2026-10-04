@@ -15,6 +15,25 @@ const DROPBOX_REDIRECT_URI  = window.location.origin + '/';
 const DROPBOX_FILE_PATH     = '/tasks.txt';
 const DROPBOX_ARCHIVE_PATH  = '/archive.txt';
 const AUTOSAVE_DELAY_MS     = 20_000;
+const SYNC_STALE_AFTER_MINUTES = 30;
+
+// Both main screens use this result so the age threshold and wording cannot drift apart.
+function getCompactSyncAge(syncTime, now = Date.now()) {
+  const ageMinutes = Math.max(0, Math.floor((now - syncTime) / 60_000));
+  let age;
+  if (ageMinutes < 1) age = 'just now';
+  else if (ageMinutes < 60) age = `${ageMinutes} min ago`;
+  else if (ageMinutes < 1440) age = `${Math.floor(ageMinutes / 60)} h ago`;
+  else age = `${Math.floor(ageMinutes / 1440)} d ago`;
+
+  const stale = ageMinutes >= SYNC_STALE_AFTER_MINUTES;
+  return {
+    ageMinutes,
+    age,
+    state: stale ? 'stale' : 'ok',
+    label: `${stale ? '!' : '✓'} Sync · ${age}`,
+  };
+}
 
 const isRuntimeDeveloperMode = () => Boolean(window.SorterRuntime?.isDeveloperMode);
 
