@@ -2,6 +2,12 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const vm = require('node:vm');
 const menu = require('../sorter 2025/task-action-menu.js');
+// Guard the CSS fix; real hit-testing and clicks are checked in the browser.
+const css = fs.readFileSync('sorter 2025/tasks.css', 'utf8');
+const openRow = css.match(/\.task-row:has\(> \.task-actions\[open\]\)\s*\{([^}]+)\}/);
+assert.ok(openRow, 'lift the owning row, not just the menu trapped inside it');
+assert.match(openRow[1], /z-index:\s*1001\s*;/);
+assert.match(openRow[1], /opacity:\s*1\s*;/);
 // Desktop edges, mobile width, and a keyboard-reduced visible viewport.
 for (const v of [{left:0,top:0,width:1440,height:900}, {left:0,top:0,width:390,height:844}, {left:0,top:120,width:390,height:280}]) {
   for (const a of [{left:0,top:v.top,right:20,bottom:v.top+30}, {left:v.width-30,top:v.top+v.height-30,right:v.width,bottom:v.top+v.height}]) {

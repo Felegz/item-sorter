@@ -174,6 +174,33 @@
   }
 
   /**
+   * Set, replace or clear one task's due date without changing its creation
+   * date or any other text. Both the inline editor and quick task actions use
+   * this operation so native calendar event timing cannot produce two rules.
+   */
+  function setTaskDueDate(rawTask, dueDate) {
+    const raw = String(rawTask || '').trim();
+    if (!raw) throw new TypeError('Task text is required');
+    if (markers.isAnyMarker(raw)) throw new TypeError('A section marker is not a task');
+
+    const normalizedDate = String(dueDate || '').trim();
+    if (normalizedDate) {
+      const parsedDate = taskFormat.parseIsoDateLocal(normalizedDate);
+      const [year, month, day] = normalizedDate.split('-').map(Number);
+      const isExactDate = parsedDate
+        && parsedDate.getFullYear() === year
+        && parsedDate.getMonth() === month - 1
+        && parsedDate.getDate() === day;
+      if (!ISO_DATE_RE.test(normalizedDate) || !isExactDate) {
+        throw new TypeError('dueDate must use a valid YYYY-MM-DD date');
+      }
+    }
+
+    const withoutDue = raw.replace(/\s*\bdue:\d{4}-\d{2}-\d{2}\b/g, '').trim();
+    return normalizedDate ? `${withoutDue} due:${normalizedDate}` : withoutDue;
+  }
+
+  /**
    * Binary-insertion formula for a list ordered from most important to least.
    * compare(candidate, existing) must resolve to a negative number when the
    * candidate belongs above the existing task, otherwise to a positive number.
@@ -255,6 +282,7 @@
     insertTaskIntoInbox,
     assignMissingCreationDates,
     setTaskCompletion,
+    setTaskDueDate,
     findRankedInsertionIndex,
     insertTaskByRank,
     rankTaskAtIndex,

@@ -75,6 +75,24 @@ assert.equal(TaskFormat.formatCalendarDate('2026-09-09', { now: fixedNow, dateFn
 assert.equal(TaskFormat.formatTaskDate('2026-09-09', { now: fixedNow, dateFns: fakeDateFns, kind: 'due' }), 'Срок · в следующую среду');
 assert.equal(TaskFormat.formatRelativeAge('2026-09-04', { now: fixedNow, dateFns: fakeDateFns }), 'позавчера');
 assert.equal(TaskFormat.formatRelativeAge('2026-07-06', { now: fixedNow, dateFns: fakeDateFns }), '2 месяца назад');
+const oldCreationDateFns = {
+  locale: { ru: {} },
+  format() { return '5 мая'; },
+  differenceInMonths() { return 4; },
+  formatDistanceStrict() { return '4 месяца назад'; },
+};
+assert.equal(
+  TaskFormat.formatTaskDate('2026-05-05', { now: fixedNow, dateFns: oldCreationDateFns, kind: 'created' }),
+  'Создано · 5 мая · 4 месяца назад'
+);
+assert.equal(
+  TaskFormat.formatTaskDate('2026-08-20', {
+    now: fixedNow,
+    kind: 'created',
+    dateFns: { ...oldCreationDateFns, format() { return '20 авг.'; }, differenceInMonths() { return 0; } },
+  }),
+  'Создано · 20 авг.'
+);
 assert.match(
   TaskFormat.formatVersionMoment('2026-07-06T12:30:00+02:00', { now: fixedNow, dateFns: fakeDateFns }),
   /6 июля 2026.*12:30.*2 месяца назад/

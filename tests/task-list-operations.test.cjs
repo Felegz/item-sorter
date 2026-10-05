@@ -83,6 +83,19 @@ const operations = context.TaskListOperations;
     operations.setTaskCompletion('x 2026-09-09 (B) 2026-09-01 Позвонить @телефон', false),
     '(B) 2026-09-01 Позвонить @телефон',
   );
+  assert.equal(
+    operations.setTaskDueDate('(B) 2026-09-01 Позвонить @телефон', '2026-10-12'),
+    '(B) 2026-09-01 Позвонить @телефон due:2026-10-12',
+  );
+  assert.equal(
+    operations.setTaskDueDate('(B) 2026-09-01 Позвонить due:2026-10-12 #важно', '2026-11-02'),
+    '(B) 2026-09-01 Позвонить #важно due:2026-11-02',
+  );
+  assert.equal(
+    operations.setTaskDueDate('(B) 2026-09-01 Позвонить due:2026-10-12', ''),
+    '(B) 2026-09-01 Позвонить',
+  );
+  assert.throws(() => operations.setTaskDueDate('Позвонить', '2026-02-30'), /valid YYYY-MM-DD/);
 
   const weight = new Map([['A', 1], ['B', 2], ['C', 3], ['D', 4], ['E', 5]]);
   const compare = (candidate, existing) => weight.get(candidate) - weight.get(existing);

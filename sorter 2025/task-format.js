@@ -457,12 +457,42 @@
     return relative ? `${absolute} · ${relative}` : absolute;
   }
 
+  /**
+   * Creation dates older than one full month show both the calendar date and
+   * their age. date-fns owns month boundaries and Russian plural forms.
+   */
+  function formatOldCreationAge(isoDate, options = {}) {
+    const target = parseIsoDateLocal(isoDate);
+    if (!target) return '';
+    const base = startOfLocalDay(options.now || new Date());
+    const dateFns = getDateFns(options);
+    const locale = getRussianLocale(dateFns);
+    const completedMonths = dateFns && typeof dateFns.differenceInMonths === 'function'
+      ? dateFns.differenceInMonths(base, target)
+      : Math.floor((base.getTime() - target.getTime()) / 2629800000);
+    if (completedMonths < 1) return '';
+
+    if (dateFns && typeof dateFns.formatDistanceStrict === 'function' && locale) {
+      return dateFns.formatDistanceStrict(target, base, {
+        addSuffix: true,
+        locale,
+        unit: 'month',
+        roundingMethod: 'floor',
+      });
+    }
+    return new Intl.RelativeTimeFormat('ru-RU', { numeric: 'always', style: 'long' })
+      .format(-completedMonths, 'month');
+  }
+
   function formatTaskDate(isoDate, options = {}) {
     const kind = options.kind || 'date';
     const value = formatCalendarDate(isoDate, options);
     if (!value) return '';
     if (kind === 'due') return `Срок · ${value}`;
-    if (kind === 'created') return `Создано · ${value}`;
+    if (kind === 'created') {
+      const age = formatOldCreationAge(isoDate, options);
+      return age ? `Создано · ${value} · ${age}` : `Создано · ${value}`;
+    }
     if (kind === 'completed') return `Готово · ${value}`;
     if (kind === 'threshold') return `Старт · ${value}`;
     return value;

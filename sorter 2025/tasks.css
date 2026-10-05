@@ -1297,6 +1297,7 @@ button:disabled {
 }
 
 .task-actions-menu button,
+.task-actions-menu .task-due-action,
 .edit-confirm-btn,
 .edit-cancel-btn {
   min-height: 36px;
@@ -1311,15 +1312,44 @@ button:disabled {
 }
 
 .task-actions-menu button:hover,
+.task-actions-menu .task-due-action:hover,
 .edit-confirm-btn:hover,
 .edit-cancel-btn:hover { background: #2a333e; }
 
 .task-actions-menu .del-btn { color: var(--danger); }
 .task-actions-menu button { display: flex; align-items: center; gap: 10px; text-align: left; }
+.task-actions-menu .task-due-action {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  text-align: left;
+  cursor: pointer;
+}
+.task-actions-menu .task-due-action:focus-within {
+  outline: 2px solid var(--primary);
+  outline-offset: -2px;
+}
+.task-due-action input[type="date"] {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  cursor: pointer;
+}
 .lucide-icon { flex: 0 0 auto; }
-.task-actions-menu button span { min-width: 0; }
+.task-actions-menu button span,
+.task-actions-menu .task-due-action span { min-width: 0; }
 
 /* Fixed to the visible viewport, not the row; short keyboard viewports scroll internally. */
+/* Completed/ignored row opacity creates a stacking context that traps its
+   menu below later rows. Lift only the open row and keep its menu fully opaque;
+   closing the menu restores the existing faded task appearance. */
+.task-row:has(> .task-actions[open]) {
+  z-index: 1001;
+  opacity: 1;
+}
 .task-actions[open] { z-index: 1001; }
 .task-actions[open] .task-actions-menu {
   position: fixed;
@@ -1545,7 +1575,8 @@ button:disabled {
     width: 176px;
   }
 
-  .task-actions-menu button {
+  .task-actions-menu button,
+  .task-actions-menu .task-due-action {
     min-height: 44px;
   }
 
@@ -1733,7 +1764,8 @@ button:disabled {
     width: 164px;
   }
 
-  .task-actions-menu button {
+  .task-actions-menu button,
+  .task-actions-menu .task-due-action {
     min-height: 38px;
     padding: 0 11px;
     font-size: 0.82rem;

@@ -15,12 +15,12 @@
   <script src="https://cdn.jsdelivr.net/npm/@date-fns/cdn@4.4.0/locale/ru/cdn.min.js"></script>
   <script src="markers.js?v=20260911-ignored-filter"></script>
   <script src="mobile-edit-mode.js?v=20260917-collapse"></script>
-  <script src="task-format.js?v=20260928-number-hashtag"></script>
-  <script src="task-list-operations.js?v=20260911-ignored-filter"></script>
+  <script src="task-format.js?v=20261005-old-creation-age"></script>
+  <script src="task-list-operations.js?v=20261005-due-menu"></script>
   <script src="ai-exchange.js?v=20260906-ai-bridge"></script>
   <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-  <script src="icons.js?v=20260917-lucide"></script>
-  <link rel="stylesheet" href="tasks.css?v=20261004-stale-sync" />
+  <script src="icons.js?v=20261005-due-menu"></script>
+  <link rel="stylesheet" href="tasks.css?v=20261005-due-menu" />
   <link rel="stylesheet" href="task-format.css?v=20260917-creation-date" />
 </head>
 <body>
@@ -588,6 +588,10 @@
       <button class="edit-btn" onclick="editTask(${idx})">${SorterIcons.render('pencil')}<span>Редактировать</span></button>
       <button class="proc-btn" onclick="openProcess(${idx})">${SorterIcons.render('list-filter')}<span>Обработать</span></button>
       ${!t.complete && !t._ignored ? `<button class="rank-btn" onclick="rankTask(${idx})">${SorterIcons.render('arrow-up-down')}<span>Отсортировать</span></button>` : ''}
+      <label class="task-due-action">
+        ${SorterIcons.render('calendar-days')}<span>${t._due ? 'Изменить срок' : 'Добавить срок'}</span>
+        <input type="date" aria-label="${t._due ? 'Изменить срок' : 'Добавить срок'}" value="${esc(t._due || '')}" onchange="applyTaskDueDate(${idx},this.value)">
+      </label>
       <button class="ai-btn" onclick="delegateTaskToAi(${idx})">${SorterIcons.render('bot')}<span>Поручить ИИ</span></button>
       <button onclick="toggleDone(${idx})">${SorterIcons.render(t.complete ? 'undo-2' : 'check')}<span>${t.complete ? 'Не сделано' : 'Сделано'}</span></button>
       <button onclick="${t._ignored ? 'restoreIgnored' : 'moveToIgnored'}(${idx})">${SorterIcons.render(t._ignored ? 'eye' : 'eye-off')}<span>${t._ignored ? 'Вернуть из игнорируемых' : 'В игнорируемые'}</span></button>
@@ -611,9 +615,13 @@
       const willComplete = !t.complete;
       let newRaw;
       if (willComplete) {
+        // Reuse the common operation but preserve this page's existing UTC
+        // date policy. Changing calendar-day semantics is a separate fix.
         const today = new Date().toISOString().slice(0, 10);
-        newRaw = 'x ' + today + ' ' + t._raw;
+        newRaw = TaskListOperations.setTaskCompletion(t._raw, true, { completionDate: today });
       } else {
+        // Keep the legacy undo until its noncanonical-prefix differences from
+        // setTaskCompletion are agreed; a refactor must not silently rewrite them.
         newRaw = t._raw.replace(/^x\s+(?:\d{4}-\d{2}-\d{2}\s+)?/, '');
       }
       const updated = parseLine(newRaw);
@@ -961,18 +969,9 @@
 
     function editTask(idx) {
       if (editingIdx >= 0 && editingIdx !== idx) {
-        // Автосохранение предыдущей правки перед переключением
-        const prev = document.getElementById('edit-inp-' + editingIdx);
-        if (prev) {
-          const newRaw = prev.value.trim();
-          if (newRaw && newRaw !== items[editingIdx]._raw) {
-            const origIgnored = items[editingIdx]._ignored;
-            const newItem = parseLine(newRaw);
-            newItem._ignored = origIgnored;
-            items[editingIdx] = newItem;
-            saveItems();
-          }
-        }
+        // Switching keeps the existing autosave behavior, but must read the
+        // same calendar and text draft as the explicit Save button.
+        if (!commitEditDraft(editingIdx)) return;
       }
       editingIdx = idx;
       editingTempValue = null;
@@ -1010,23 +1009,34 @@
       }, { once: true });
     }
 
-    function saveEdit(idx) {
-      // Native calendars can commit on blur; read their current value before saving.
+    /**
+     * Persist the current editor draft for both Save and task switching.
+     * Read the calendar directly: input/change can arrive after a mobile tap.
+     * Replace only the indexed occurrence, keeping its ignored section; an
+     * empty draft never means deletion. Callers own closing/redrawing the UI.
+     * Explicit Save historically also writes unchanged text; switching doesn't.
+     */
+    function commitEditDraft(idx, { saveUnchanged = false } = {}) {
       const duePicker = document.getElementById('due-pick-' + idx);
       if (duePicker) {
-        if (!duePicker.checkValidity()) { duePicker.reportValidity(); return; }
-        const draft = document.getElementById('edit-inp-' + idx)?.value || editingTempValue || '';
-        const currentDate = draft.match(/\bdue:(\d{4}-\d{2}-\d{2})\b/)?.[1] || '';
-        if (currentDate !== duePicker.value) setDueOnEdit(idx, duePicker.value);
+        if (!duePicker.checkValidity()) { duePicker.reportValidity(); return false; }
       }
       const inp    = document.getElementById('edit-inp-' + idx);
-      const newRaw = (inp ? inp.value : editingTempValue || '').trim();
-      if (!newRaw) { cancelEdit(); return; }
+      let newRaw = (inp ? inp.value : editingTempValue || '').trim();
+      // Check empty text before assigning due:, which requires a real task.
+      if (!newRaw) return true;
+      if (duePicker) newRaw = TaskListOperations.setTaskDueDate(newRaw, duePicker.value);
+      if (!saveUnchanged && newRaw === items[idx]._raw) return true;
       const origIgnored = items[idx]._ignored;
       const newItem = parseLine(newRaw);
       newItem._ignored = origIgnored;
       items[idx] = newItem;
       saveItems();
+      return true;
+    }
+
+    function saveEdit(idx) {
+      if (!commitEditDraft(idx, { saveUnchanged: true })) return;
       editingIdx = -1;
       editingTempValue = null;
       render();
@@ -1155,13 +1165,24 @@
     function setDueOnEdit(idx, dateVal) {
       const inp = document.getElementById('edit-inp-' + idx);
       if (!inp) return;
-      let text = inp.value.replace(/\s*\bdue:\d{4}-\d{2}-\d{2}\b/g, '').trim();
-      if (dateVal) text = (text + ' due:' + dateVal).trim();
+      const text = TaskListOperations.setTaskDueDate(inp.value, dateVal);
       inp.value = text;
       editingTempValue = text;
       updateTagPicker(idx);
       // Do not refocus the textarea: that can dismiss the native calendar or
       // reopen the mobile keyboard before its date selection has completed.
+    }
+
+    function applyTaskDueDate(idx, dateVal) {
+      const task = items[idx];
+      if (!task || task._sectionHeader) return;
+      const raw = TaskListOperations.setTaskDueDate(task._raw, dateVal);
+      const updated = parseLine(raw);
+      updated._ignored = task._ignored;
+      items[idx] = updated;
+      saveItems();
+      render();
+      keepTaskVisibleAfterEdit(idx);
     }
 
     // ── Автокомплит @контекст / +проект в быстром добавлении ──────────────────
