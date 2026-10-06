@@ -157,7 +157,9 @@
    * Canonical, reusable todo.txt completion toggle.
    * Completing prepends only the completion prefix and therefore preserves the
    * task's priority, creation date, tags and original spelling byte-for-byte.
-   * Repeating the same state is idempotent.
+   * Write lowercase x; accept legacy uppercase X without changing its date.
+   * Repeating the same state is idempotent after prefix normalization.
+   * Refuse an undo that would erase a malformed, textless task occurrence.
    */
   function setTaskCompletion(rawTask, completed, options = {}) {
     const raw = String(rawTask || '').trim();
@@ -165,12 +167,16 @@
     if (markers.isAnyMarker(raw)) throw new TypeError('A section marker is not a task');
 
     const parsed = taskFormat.parseTaskLine(raw);
-    if (Boolean(completed) === parsed.completed) return raw;
+    if (Boolean(completed) === parsed.completed) {
+      return parsed.completed ? raw.replace(/^X(?=\s)/, 'x') : raw;
+    }
     if (completed) {
       const completionDate = localIsoDate(options.completionDate || options.today || options.now);
       return `x ${completionDate} ${raw}`;
     }
-    return raw.replace(/^x\s+(?:\d{4}-\d{2}-\d{2}(?:\s+|$))?/i, '').trimStart();
+    const activeRaw = raw.replace(/^x\s+(?:\d{4}-\d{2}-\d{2}(?:\s+|$))?/i, '').trimStart();
+    if (!activeRaw) throw new TypeError('Cannot remove completion from a task with no text');
+    return activeRaw;
   }
 
   /**

@@ -83,6 +83,16 @@ const operations = context.TaskListOperations;
     operations.setTaskCompletion('x 2026-09-09 (B) 2026-09-01 Позвонить @телефон', false),
     '(B) 2026-09-01 Позвонить @телефон',
   );
+  const legacyCompleted = 'X 2026-09-09 (B) 2026-09-01 Позвонить @телефон #tag due:2026-11-12';
+  const canonicalCompleted = legacyCompleted.replace(/^X/, 'x');
+  assert.equal(operations.setTaskCompletion(legacyCompleted, true, { today: '2026-10-06' }), canonicalCompleted);
+  assert.equal(operations.setTaskCompletion(canonicalCompleted, true), canonicalCompleted);
+  assert.equal(operations.setTaskCompletion(legacyCompleted, false), legacyCompleted.slice(13));
+  assert.equal(operations.setTaskCompletion('X Без даты @дом', false), 'Без даты @дом');
+  assert.equal(operations.setTaskCompletion('Обычная x и X внутри текста', false), 'Обычная x и X внутри текста');
+  for (const prefix of ['x', 'X']) {
+    assert.throws(() => operations.setTaskCompletion(`${prefix} 2026-09-09`, false), /no text/);
+  }
   assert.equal(
     operations.setTaskDueDate('(B) 2026-09-01 Позвонить @телефон', '2026-10-12'),
     '(B) 2026-09-01 Позвонить @телефон due:2026-10-12',

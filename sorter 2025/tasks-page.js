@@ -445,15 +445,19 @@ const PRI_CHIP_CLS = { A:'pri-a', B:'pri-b', C:'pri-c' };
       const t = items[idx];
       const willComplete = !t.complete;
       let newRaw;
-      if (willComplete) {
-        // Reuse the common operation but preserve this page's existing UTC
-        // date policy. Changing calendar-day semantics is a separate fix.
+      try {
+        // Both directions share the completion rule (x on write, x/X on read).
+        // Preserve this page's UTC date policy and all other task metadata.
         const today = new Date().toISOString().slice(0, 10);
-        newRaw = TaskListOperations.setTaskCompletion(t._raw, true, { completionDate: today });
-      } else {
-        // Keep the legacy undo until its noncanonical-prefix differences from
-        // setTaskCompletion are agreed; a refactor must not silently rewrite them.
-        newRaw = t._raw.replace(/^x\s+(?:\d{4}-\d{2}-\d{2}\s+)?/, '');
+        newRaw = TaskListOperations.setTaskCompletion(t._raw, willComplete, { completionDate: today });
+      } catch (error) {
+        // A textless completed line must not disappear during saveItems().
+        // Restore the checkbox as well as leaving storage and task data intact.
+        render();
+        Swal.fire('Не удалось изменить отметку',
+          'После снятия отметки строка не должна стать пустой. Сначала добавьте текст задачи в редакторе.',
+          'warning');
+        return;
       }
       const updated = parseLine(newRaw);
       updated._ignored = t._ignored;

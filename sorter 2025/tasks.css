@@ -411,23 +411,7 @@ mark {
   padding: 0 !important;
 }
 
-/* ── Edit mode ──────────────────────────────────────────────── */
-.task-row.editing { background: var(--bg-el); border-color: var(--primary); align-items: flex-start; }
-.task-edit-input {
-  width: 100%;
-  background: var(--bg);
-  color: var(--fg);
-  border: 1px solid var(--primary);
-  border-radius: 6px;
-  padding: 0.4rem 0.7rem;
-  font-size: 0.88rem;
-  font-family: inherit;
-  outline: none;
-  min-height: 3.5rem;
-  resize: vertical;
-  box-sizing: border-box;
-}
-.tag-picker { display: flex; flex-wrap: wrap; gap: 0.25rem; margin-top: 0.4rem; }
+/* Tag chips are also used outside the inline editor. Editor layout is below. */
 .tag-pick-chip {
   padding: 2px 9px;
   border-radius: 12px;
@@ -447,7 +431,6 @@ mark {
 .tag-pick-chip.proj-tag.active-tag { background: #3a6a3a; color: #fff; border-color: #3a6a3a; }
 .tag-pick-chip.pri-pick { border-color: #805050; color: #f0a0a0; font-weight: 700; }
 .tag-pick-chip.pri-pick.active-tag { background: #805050; color: #fff; border-color: #805050; }
-.edit-hint { font-size: 0.67rem; color: var(--fg-m); margin-top: 0.3rem; opacity: 0.7; }
 
 /* ── Delete & edit hover buttons ────────────────────────────── */
 .del-btn, .edit-btn {
@@ -1361,7 +1344,10 @@ button:disabled {
   background: #1c232b;
 }
 
+/* Inline editor base styles. Keep these before the mobile overrides below;
+   changing the focused keyboard layout is a separate behavior change. */
 .task-row.editing {
+  align-items: flex-start;
   grid-template-columns: 24px minmax(0, 1fr) auto auto;
   background: var(--bg-card);
   border-radius: 12px;
@@ -1371,6 +1357,11 @@ button:disabled {
 }
 
 .task-edit-input {
+  width: 100%;
+  font-family: inherit;
+  outline: none;
+  resize: vertical;
+  box-sizing: border-box;
   min-height: 90px;
   padding: 11px 12px;
   border: 1px solid var(--border);
@@ -1387,8 +1378,18 @@ button:disabled {
   outline: 3px solid rgba(120, 214, 163, 0.22);
 }
 
-.tag-picker { gap: 6px; margin-top: 9px; }
-.edit-hint { color: var(--fg-m); }
+.tag-picker {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 9px;
+}
+.edit-hint {
+  font-size: 0.67rem;
+  color: var(--fg-m);
+  margin-top: 0.3rem;
+  opacity: 0.7;
+}
 .edit-confirm-btn { background: var(--primary); color: #0c1812; font-weight: 700; }
 .edit-cancel-btn { color: var(--fg-m); }
 

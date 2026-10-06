@@ -17,6 +17,8 @@ for (const file of ['markers.js', 'task-format.js', 'task-list-operations.js']) 
 let savedText;
 let saves = 0;
 let renders = 0;
+const warnings = [];
+context.Swal = { fire: (...args) => { warnings.push(args); } };
 context.parseLine = raw => ({
   ...context.TaskFormat.parseTaskLine(raw),
   complete: context.TaskFormat.parseTaskLine(raw).completed,
@@ -64,17 +66,31 @@ for (const target of [0, 2, 10]) {
   assert.equal(savedText, context.formatTaskList(sourceLines));
 }
 
-// Lock unusual old undo results too. This stage must not quietly fix them.
+// Uppercase legacy prefixes now use the same undo as lowercase prefixes.
 for (const [raw, expected] of [
   ['x Без даты @дом', 'Без даты @дом'],
-  ['X 2026-09-01 Верхний регистр', 'X 2026-09-01 Верхний регистр'],
-  ['x 2026-09-01', '2026-09-01'],
+  ['X Без даты @дом', 'Без даты @дом'],
+  ['X 2026-09-01 Верхний регистр', 'Верхний регистр'],
+  ['X 2026-09-04 ' + original, original],
 ]) {
   context.items = [context.parseLine(raw)];
   context.toggleDone(0);
   assert.equal(context.items[0]._raw, expected);
 }
 assert.equal(renders, saves);
+// Never replace a malformed task with a blank line and silently drop it.
+for (const raw of ['x 2026-09-01', 'X 2026-09-01']) {
+  context.items = [{ ...context.parseLine(raw), _ignored: true }, context.parseLine(original)];
+  const before = JSON.stringify(context.items);
+  const beforeSaves = saves;
+  const beforeRenders = renders;
+  context.toggleDone(0);
+  assert.equal(JSON.stringify(context.items), before);
+  assert.equal(saves, beforeSaves);
+  assert.equal(renders, beforeRenders + 1, 'restore checkbox after a rejected undo');
+}
+assert.equal(warnings.length, 2);
+assert.ok(warnings.every(args => args[2] === 'warning'));
 assert.match(html, /onchange="toggleDone\(\$\{idx\}\)"/);
 assert.match(html, /<button onclick="toggleDone\(\$\{idx\}\)">/);
-console.log('PASS completion handler: legacy UTC date, metadata, duplicate occurrences, sections and undo');
+console.log('PASS completion handler: lowercase x, legacy X undo, UTC date, metadata, sections and no task loss');
