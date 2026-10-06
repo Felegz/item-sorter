@@ -21,7 +21,9 @@ assert.throws(() => context.window.SorterIcons.render('__proto__'));
 hydrate();
 assert.match(slot.innerHTML, /class="lucide-icon"/);
 for (const page of ['index.html', 'tasks.html']) {
-  const html = fs.readFileSync('sorter 2025/' + page, 'utf8');
+  const html = page === 'tasks.html'
+    ? require('./helpers/task-page-source.cjs')()
+    : fs.readFileSync('sorter 2025/' + page, 'utf8');
   assert.match(html, /src="icons\.js/);
   assert.match(html, /data-mobile-editor-collapse aria-label="Свернуть редактор"/);
   assert.doesNotMatch(html, /data-mobile-editor-collapse[^>]*>Свернуть</);

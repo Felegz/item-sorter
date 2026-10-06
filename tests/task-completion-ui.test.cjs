@@ -2,7 +2,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const vm = require('node:vm');
 
-const html = fs.readFileSync('sorter 2025/tasks.html', 'utf8');
+const html = require('./helpers/task-page-source.cjs')();
 const start = html.indexOf('    function toggleDone(');
 const end = html.indexOf('\n    function ', start + 1);
 assert.ok(start >= 0 && end > start, 'the actual page handler must be tested');

@@ -51,7 +51,7 @@ assert.equal(await guard.allowReplace(stored),true);
 answer = true;
 assert.equal(await guard.allowReplace('remote version'),true);
 assert(prompts >= 4);
-const html = fs.readFileSync('sorter 2025/tasks.html','utf8');
+const html = require('./helpers/task-page-source.cjs')();
 assert(!html.includes('src="https://unpkg.com/vanilla-context-menu'));
 assert(html.includes('if (!window.getSelection().isCollapsed) return;'));
 const dropbox = fs.readFileSync('sorter 2025/dropbox.js','utf8');

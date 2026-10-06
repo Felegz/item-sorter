@@ -124,7 +124,7 @@ vm.runInContext(
     'desktop focus must not scroll the page',
   );
 
-  const tasksHtml = fs.readFileSync('sorter 2025/tasks.html', 'utf8');
+  const tasksHtml = require('./helpers/task-page-source.cjs')();
   assert.match(tasksHtml, /function keepTaskVisibleAfterEdit\(idx\)/);
   assert.match(tasksHtml, /keepTaskVisibleAfterEdit\(idx\);/);
 

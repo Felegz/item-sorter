@@ -1,7 +1,7 @@
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const vm = require('node:vm');
-const html = fs.readFileSync('sorter 2025/tasks.html', 'utf8');
+const html = require('./helpers/task-page-source.cjs')();
 const operationsContext = vm.createContext({ console });
 for (const file of ['markers.js', 'task-format.js', 'task-list-operations.js']) {
   vm.runInContext(fs.readFileSync(`sorter 2025/${file}`, 'utf8'), operationsContext, { filename: file });
