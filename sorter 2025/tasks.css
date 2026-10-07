@@ -2504,6 +2504,8 @@ button:disabled {
     min-height: 0;
     height: 100%;
     display: grid;
+    /* A long result or the search controls must not widen the only column. */
+    grid-template-columns: minmax(0, 1fr);
     grid-template-rows: auto minmax(0, 1fr);
     gap: 8px;
     padding: 8px 10px;
@@ -2544,5 +2546,12 @@ button:disabled {
     overflow-y: auto;
     overscroll-behavior: contain;
     scrollbar-width: thin;
+  }
+
+  /* The keyboard reduces the list's viewport, not the height of its tasks.
+     Prevent flex compression: long text, dates and expanded sources must stay
+     inside their rows. Include section headers and the empty-results message. */
+  body.mobile-editor-active[data-mobile-editor-layout="search"] #list > * {
+    flex-shrink: 0;
   }
 }
