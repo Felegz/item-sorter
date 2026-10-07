@@ -15,12 +15,12 @@
   <script src="https://cdn.jsdelivr.net/npm/@date-fns/cdn@4.4.0/locale/ru/cdn.min.js"></script>
   <script src="markers.js?v=20260911-ignored-filter"></script>
   <script src="mobile-edit-mode.js?v=20260917-collapse"></script>
-  <script src="task-format.js?v=20261005-old-creation-age"></script>
-  <script src="task-list-operations.js?v=20261006-completion"></script>
+  <script src="task-format.js?v=20261007-snooze"></script>
+  <script src="task-list-operations.js?v=20261007-snooze"></script>
   <script src="ai-exchange.js?v=20260906-ai-bridge"></script>
   <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
   <script src="icons.js?v=20261005-due-menu"></script>
-  <link rel="stylesheet" href="tasks.css?v=20261007-search-row-height" />
+  <link rel="stylesheet" href="tasks.css?v=20261007-snooze" />
   <link rel="stylesheet" href="task-format.css?v=20260917-creation-date" />
 </head>
 <body>
@@ -137,7 +137,7 @@
       <option value="text">По алфавиту</option>
     </select>
     <button id="archive-btn" class="archive-btn" style="display:none" onclick="archiveCompleted()" title="Архивировать выполненные">Архив</button>
-    <button id="future-btn" class="archive-btn" style="display:none" onclick="toggleFuture()" title="Показать или скрыть задачи с будущей датой t:">Будущие (<span id="future-count">0</span>)</button>
+    <button id="future-btn" class="archive-btn" style="display:none" onclick="toggleFuture()" title="Показать или скрыть отложенные задачи snz: (старое t: тоже читается)">Будущие (<span id="future-count">0</span>)</button>
     <button id="dbx-history-btn" class="btn--ghost btn--sm" hidden onclick="showSnapshots()">История</button>
     <button id="ai-jobs-btn" class="btn--ghost btn--sm" onclick="SorterAiDropbox.showJobsDialog()">Поручения ИИ</button>
     <button id="dbx-sync-btn" hidden tabindex="-1" aria-hidden="true">Синхронизировать</button>
@@ -167,7 +167,7 @@
   </div>
 
   <!-- Classic blocking script: keep globals shared with the Dropbox integration below. -->
-  <script src="tasks-page.js?v=20261006-completion"></script>
+  <script src="tasks-page.js?v=20261007-snooze"></script>
   <script src="dropbox.js?v=20261004-stale-sync"></script>
   <script src="ai-dropbox.js?v=20260906-ai-bridge"></script>
   <script>

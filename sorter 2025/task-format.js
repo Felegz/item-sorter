@@ -128,17 +128,26 @@
    * stripLegacySource() называет весь этот фрагмент хвостом, поэтому здесь мы
    * забираем из него только известные даты, не теряя действительно неизвестный текст.
    */
+  function isSnoozeDate(value) {
+    const date = parseIsoDateLocal(value);
+    if (!date) return false;
+    const [year, month, day] = value.split('-').map(Number);
+    return date.getFullYear() === year && date.getMonth() === month - 1 && date.getDate() === day;
+  }
+
   function extractKnownTailDates(rawTail) {
     let dueDate = null;
     let thresholdDate = null;
+    let snoozeDate = null;
     const unparsedParts = [];
     const words = cleanInline(rawTail).split(/\s+/).filter(Boolean);
 
     for (const originalWord of words) {
       const token = originalWord.replace(/[.,;!?]+$/, '');
-      const tagMatch = token.match(/^(due|t):(.+)$/);
-      if (tagMatch && ISO_DATE_RE.test(tagMatch[2])) {
+      const tagMatch = token.match(/^(due|t|snz):(.+)$/);
+      if (tagMatch && ISO_DATE_RE.test(tagMatch[2]) && (tagMatch[1] !== 'snz' || isSnoozeDate(tagMatch[2]))) {
         if (tagMatch[1] === 'due') dueDate = tagMatch[2];
+        else if (tagMatch[1] === 'snz') snoozeDate = tagMatch[2];
         else thresholdDate = tagMatch[2];
         continue;
       }
@@ -148,6 +157,7 @@
     return {
       dueDate,
       thresholdDate,
+      snoozeDate,
       unparsed: cleanInline(unparsedParts.join(' ')) || null,
     };
   }
@@ -192,6 +202,7 @@
     const textParts = [];
     let dueDate = null;
     let thresholdDate = null;
+    let snoozeDate = null;
 
     for (const originalWord of words) {
       const word = originalWord.trim();
@@ -219,6 +230,7 @@
         const key = tagMatch[1];
         const value = tagMatch[2];
         if (key === 'due' && ISO_DATE_RE.test(value)) dueDate = value;
+        else if (key === 'snz' && isSnoozeDate(value)) snoozeDate = value;
         else if (key === 't' && ISO_DATE_RE.test(value)) thresholdDate = value;
         else tagList.push({ key, value });
         continue;
@@ -234,7 +246,9 @@
     const sourceHistory = unique([legacy.source, canonicalSource, ...duplicateSources]).filter(value => value !== source);
     const tailDates = extractKnownTailDates(legacy.unparsed);
     if (tailDates.dueDate) dueDate = tailDates.dueDate;
-    if (tailDates.thresholdDate) thresholdDate = tailDates.thresholdDate;
+    // Canonical snz wins over legacy t regardless of token order or tail placement.
+    // Keep thresholdDate as the shared internal field so all renderers/GTD agree.
+    thresholdDate = tailDates.snoozeDate || snoozeDate || tailDates.thresholdDate || thresholdDate;
 
     return {
       raw,
@@ -279,13 +293,15 @@
     for (const project of unique(task.projects).map(value => normalizeTagName(value, '+'))) parts.push(`+${project}`);
     for (const hashtag of unique(task.hashtags).map(value => cleanInline(value).replace(/^[#№]/, ''))) parts.push(`#${hashtag}`);
     if (task.dueDate) parts.push(`due:${task.dueDate}`);
-    if (task.thresholdDate) parts.push(`t:${task.thresholdDate}`);
+    if (task.thresholdDate) parts.push(`snz:${task.thresholdDate}`);
 
     const seenTagKeys = new Set(['due', 't']);
     const sourceTags = Array.isArray(task.tagList)
       ? task.tagList
       : Object.entries(task.tags || {}).map(([key, value]) => ({ key, value }));
     for (const tag of sourceTags) {
+      // Invalid/unknown snz values stay visible metadata, not discarded text.
+      if (tag?.key === 'snz' && task.thresholdDate && isSnoozeDate(tag.value)) continue;
       if (!tag || !tag.key || tag.value == null || seenTagKeys.has(tag.key)) continue;
       seenTagKeys.add(tag.key);
       parts.push(`${tag.key}:${cleanInline(tag.value)}`);
@@ -494,7 +510,7 @@
       return age ? `Создано · ${value} · ${age}` : `Создано · ${value}`;
     }
     if (kind === 'completed') return `Готово · ${value}`;
-    if (kind === 'threshold') return `Старт · ${value}`;
+    if (kind === 'threshold') return `Отложено до · ${value}`;
     return value;
   }
 

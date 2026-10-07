@@ -148,7 +148,7 @@ const PRI_CHIP_CLS = { A:'pri-a', B:'pri-b', C:'pri-c' };
           if (t._ignored && !showIgnored) return false;
           if (tab === 'active' && t.complete) return false;
           if (tab === 'done'   && !t.complete) return false;
-          if (tab === 'active' && !showFuture && t._threshold && t._threshold > new Date().toISOString().slice(0, 10)) return false;
+          if (tab === 'active' && !showFuture && t._threshold && t._threshold > TaskListOperations.localIsoDate()) return false;
           if (priF  && t.priority !== priF) return false;
           if (!SorterAutoContext.matchesSelectedContexts(t.contexts, ctxF, contextOperator)) return false;
           if (projF && !(t.projects && t.projects.includes(projF))) return false;
@@ -161,7 +161,7 @@ const PRI_CHIP_CLS = { A:'pri-a', B:'pri-b', C:'pri-c' };
       if (tab === 'active') list = list.filter(t => !t.complete);
       if (tab === 'done')   list = list.filter(t =>  t.complete);
       if (tab === 'active' && !showFuture) {
-        const today = new Date().toISOString().slice(0, 10);
+        const today = TaskListOperations.localIsoDate();
         list = list.filter(t => !t._threshold || t._threshold <= today);
       }
       if (priF)  list = list.filter(t => t.priority === priF);
@@ -312,10 +312,10 @@ const PRI_CHIP_CLS = { A:'pri-a', B:'pri-b', C:'pri-c' };
       const archiveBtn = document.getElementById('archive-btn');
       if (archiveBtn) archiveBtn.style.display = items.some(t => !t._sectionHeader && t.complete) ? '' : 'none';
 
-      // Future tasks button — задачи с t: в будущем
+      // Snooze uses the user's local calendar day, not UTC; legacy t is still read.
       const futureBtn = document.getElementById('future-btn');
       if (futureBtn) {
-        const today = new Date().toISOString().slice(0, 10);
+        const today = TaskListOperations.localIsoDate();
         const fc = items.filter(t => !t._sectionHeader && !t.complete && t._threshold && t._threshold > today).length;
         const fcEl = document.getElementById('future-count');
         if (fcEl) fcEl.textContent = fc;
@@ -423,6 +423,7 @@ const PRI_CHIP_CLS = { A:'pri-a', B:'pri-b', C:'pri-c' };
         ${SorterIcons.render('calendar-days')}<span>${t._due ? 'Изменить срок' : 'Добавить срок'}</span>
         <input type="date" aria-label="${t._due ? 'Изменить срок' : 'Добавить срок'}" value="${esc(t._due || '')}" onchange="applyTaskDueDate(${idx},this.value)">
       </label>
+      ${!t.complete ? `<button onclick="openTaskSnooze(${idx})">${SorterIcons.render('calendar-days')}<span>${t._threshold ? 'Изменить откладывание' : 'Отложить'}</span></button>` : ''}
       <button class="ai-btn" onclick="delegateTaskToAi(${idx})">${SorterIcons.render('bot')}<span>Поручить ИИ</span></button>
       <button onclick="toggleDone(${idx})">${SorterIcons.render(t.complete ? 'undo-2' : 'check')}<span>${t.complete ? 'Не сделано' : 'Сделано'}</span></button>
       <button onclick="${t._ignored ? 'restoreIgnored' : 'moveToIgnored'}(${idx})">${SorterIcons.render(t._ignored ? 'eye' : 'eye-off')}<span>${t._ignored ? 'Вернуть из игнорируемых' : 'В игнорируемые'}</span></button>
@@ -996,6 +997,72 @@ const PRI_CHIP_CLS = { A:'pri-a', B:'pri-b', C:'pri-c' };
     }
 
     function toggleFuture() { showFuture = !showFuture; render(); }
+
+    // date-fns is already loaded by this page; it handles DST and month-end clamps.
+    function snoozePresetDate(preset, now = new Date()) {
+      const dates = window.dateFns;
+      if (!dates?.addDays || !dates?.addMonths) throw new Error('Календарь не загрузился. Выберите дату вручную.');
+      if (preset === 'month') return TaskListOperations.localIsoDate(dates.addMonths(now, 1));
+      if (preset === 'day' || preset === 'week') return TaskListOperations.localIsoDate(dates.addDays(now, preset === 'day' ? 1 : 7));
+      throw new TypeError('Unknown snooze preset');
+    }
+
+    async function openTaskSnooze(idx) {
+      const task = items[idx];
+      if (!task || task._sectionHeader || task.complete) return;
+      const menu = document.querySelector(`.task-row[data-idx="${idx}"] .task-actions`);
+      if (menu) menu.open = false;
+      const result = await Swal.fire({
+        title: 'Отложить задачу',
+        html: '<div class="snooze-presets"><button type="button" data-snooze-preset="day">На день</button><button type="button" data-snooze-preset="week">На неделю</button><button type="button" data-snooze-preset="month">На месяц</button></div>',
+        input: 'date', inputLabel: 'Показать в активных с',
+        inputValue: task._threshold || '',
+        showCancelButton: true, showDenyButton: Boolean(task._threshold),
+        confirmButtonText: 'Отложить', cancelButtonText: 'Отмена', denyButtonText: 'Не откладывать',
+        buttonsStyling: false,
+        customClass: { popup: 'rank-dialog snooze-dialog', confirmButton: 'snooze-confirm' },
+        didOpen: popup => {
+          popup.querySelectorAll('[data-snooze-preset]').forEach(button => {
+            button.addEventListener('click', () => {
+              try { Swal.getInput().value = snoozePresetDate(button.dataset.snoozePreset); }
+              catch (error) { Swal.showValidationMessage(error.message); }
+            });
+          });
+        },
+        preConfirm: () => {
+          const date = Swal.getInput().value;
+          if (!date) { Swal.showValidationMessage('Выберите дату'); return false; }
+          try { TaskListOperations.setTaskSnoozeDate(task._raw, date); }
+          catch (error) { Swal.showValidationMessage('Выберите корректную дату'); return false; }
+          return date;
+        },
+      });
+      if (!result.isConfirmed && !result.isDenied) return;
+      // Sync or another edit can replace items while a dialog is open. Never
+      // apply the chosen date to a different occurrence that acquired this index.
+      if (items[idx] !== task) {
+        Swal.fire('Задача изменилась', 'Откройте откладывание ещё раз. Список не изменён.', 'warning');
+        return;
+      }
+      applyTaskSnoozeDate(idx, result.isDenied ? '' : result.value);
+    }
+
+    function applyTaskSnoozeDate(idx, dateVal) {
+      const task = items[idx];
+      if (!task || task._sectionHeader) return;
+      let raw;
+      try { raw = TaskListOperations.setTaskSnoozeDate(task._raw, dateVal); }
+      catch (error) {
+        Swal.fire('Не удалось изменить откладывание', 'Проверьте дату и текст задачи. Список не изменён.', 'warning');
+        return;
+      }
+      const updated = parseLine(raw);
+      updated._ignored = task._ignored;
+      items[idx] = updated;
+      saveItems();
+      render();
+      if (!dateVal || showFuture || tab !== 'active') keepTaskVisibleAfterEdit(idx);
+    }
 
     function setDueOnEdit(idx, dateVal) {
       const inp = document.getElementById('edit-inp-' + idx);

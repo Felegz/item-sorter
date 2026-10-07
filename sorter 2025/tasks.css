@@ -2227,6 +2227,24 @@ button:disabled {
 .rank-dialog .swal2-title { color: var(--fg); font-size: 1.15rem; }
 .rank-dialog .swal2-html-container { margin: 14px 18px 0; color: var(--fg); }
 .rank-dialog .swal2-actions { margin-top: 12px; }
+.snooze-dialog {
+  width: min(420px, calc(100vw - 24px)) !important;
+  /* Keep task text behind the dialog from showing through the shared card tint. */
+  background: var(--bg) !important;
+  max-height: calc(100dvh - 24px); overflow-y: auto;
+}
+.snooze-dialog .snooze-presets { display: flex; flex-wrap: wrap; gap: 8px; }
+.snooze-dialog .swal2-actions { gap: 8px; margin: 16px 18px 18px; }
+.snooze-dialog :is(.snooze-presets, .swal2-actions) button {
+  min-height: 44px; padding: 8px 12px; border: 1px solid var(--border-h);
+  border-radius: 9px; background: var(--bg); color: var(--fg); font: inherit; cursor: pointer;
+}
+.snooze-dialog .swal2-actions .snooze-confirm { background: var(--primary); color: #08120d; border-color: var(--primary); }
+.snooze-dialog :is(button, input):focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+.snooze-dialog .swal2-input {
+  width: calc(100% - 36px); min-width: 0; margin: 12px 18px 0;
+  background: var(--bg); color: var(--fg); border: 1px solid var(--border-h);
+}
 .rank-dialog .rank-cancel {
   min-height: 38px;
   padding: 0 14px;

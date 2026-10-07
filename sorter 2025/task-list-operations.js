@@ -207,6 +207,40 @@
   }
 
   /**
+   * Set/clear snooze metadata on one occurrence without reserializing its text.
+   * Read legacy t, write snz. Source blocks and structured advice are protected:
+   * a date mentioned in the original task is not the current task's snooze date.
+   * No bulk migration, deletion, completion or section movement happens here.
+   */
+  function setTaskSnoozeDate(rawTask, snoozeDate) {
+    const raw = String(rawTask || '').trim();
+    if (!raw) throw new TypeError('Task text is required');
+    if (markers.isAnyMarker(raw)) throw new TypeError('A section marker is not a task');
+    const date = String(snoozeDate || '').trim();
+    if (date) {
+      const parsed = taskFormat.parseIsoDateLocal(date);
+      const [year, month, day] = date.split('-').map(Number);
+      if (!ISO_DATE_RE.test(date) || !parsed || parsed.getFullYear() !== year
+        || parsed.getMonth() !== month - 1 || parsed.getDate() !== day) {
+        throw new TypeError('snoozeDate must use a valid YYYY-MM-DD date');
+      }
+    }
+    const fieldStart = raw.search(/➤\s*(?:цель|сложность|совет|исходное|исх\.?)\s*:/i);
+    const main = fieldStart < 0 ? raw : raw.slice(0, fieldStart);
+    const fields = fieldStart < 0 ? '' : raw.slice(fieldStart);
+    const withoutSnooze = main.replace(
+      /⟦[\s\S]*?(?:⟧|$)|(^|\s)(?:snz|t):\d{4}-\d{2}-\d{2}[.,;!?]*(?=\s|$)/g,
+      match => match.startsWith('⟦') ? match : '',
+    ).trim();
+    const sourceStart = withoutSnooze.search(/⟦\s*(?:исх\.?|исходное)\s*:/i);
+    const prefix = sourceStart < 0 ? withoutSnooze : withoutSnooze.slice(0, sourceStart).trimEnd();
+    const source = sourceStart < 0 ? '' : withoutSnooze.slice(sourceStart);
+    const result = [prefix, date ? `snz:${date}` : '', source, fields].filter(Boolean).join(' ');
+    if (!result) throw new TypeError('Cannot clear snooze from a task with no text');
+    return result;
+  }
+
+  /**
    * Binary-insertion formula for a list ordered from most important to least.
    * compare(candidate, existing) must resolve to a negative number when the
    * candidate belongs above the existing task, otherwise to a positive number.
@@ -289,6 +323,7 @@
     assignMissingCreationDates,
     setTaskCompletion,
     setTaskDueDate,
+    setTaskSnoozeDate,
     findRankedInsertionIndex,
     insertTaskByRank,
     rankTaskAtIndex,

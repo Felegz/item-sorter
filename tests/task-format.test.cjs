@@ -133,7 +133,7 @@ assert.equal(legacyTailDates.thresholdDate, '2026-09-10');
 assert.equal(legacyTailDates.unparsed, 'заметка');
 const tailMeta = TaskFormat.renderTaskMetaHtml(legacyTailDates, { now: fixedNow, dateFns: fakeDateFns });
 assert.match(tailMeta, /Срок/);
-assert.match(tailMeta, /Старт/);
+assert.match(tailMeta, /Отложено до/);
 const tailContent = TaskFormat.renderTaskContentHtml(legacyTailDates, { variant: 'list' });
 assert.doesNotMatch(tailContent, /Хвост строки: due:/);
 
