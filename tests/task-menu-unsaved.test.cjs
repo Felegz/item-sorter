@@ -60,6 +60,7 @@ assert(dropbox.indexOf('allowReplace(text, approvedState)') < dropbox.indexOf('S
 let writes = 0, snapshots = 0, reloads = 0;
 context.window = context;
 context.DROPBOX_FILE_PATH = '/mock-only.txt';
+context._conflictInProgress = false;
 context.setDbxStatus = () => {};
 context.saveSnapshot = () => {snapshots++;};
 context.SorterRuntime.setTasks = () => {writes++;};

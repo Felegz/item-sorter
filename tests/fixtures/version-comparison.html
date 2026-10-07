@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="ru">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Проверка сравнения на вымышленных задачах</title>
+<link rel="stylesheet" href="../../sorter%202025/tasks.css">
+<link rel="stylesheet" href="../../sorter%202025/task-format.css">
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+<script src="../../sorter%202025/markers.js"></script>
+<script src="../../sorter%202025/task-format.js"></script>
+<script src="../../sorter%202025/task-version-comparison.js"></script>
+<body>
+<main style="padding:20px">
+  <h1>Вымышленные задачи</h1>
+  <p>Здесь нет Dropbox, ключей или настоящего списка. Это те же окна, но без записи файлов.</p>
+  <button id="preview" type="button">Показать сравнение</button>
+  <p id="result" role="status"></p>
+  <pre id="merged" style="white-space:pre-wrap;overflow-wrap:anywhere"></pre>
+</main>
+<script>
+document.getElementById('preview').addEventListener('click', async () => {
+  const local = 'Задача восемь\n\nЗадача восемь\n\nINBOX SORTED\nЗадача три\n\nSORTED (2026.10.08)\nЗадача один due:2026-10-10\n\nЗадача двадцать один';
+  const cloud = 'Задача пять\n\nINBOX SORTED\nЗадача двадцать один\n\nSORTED (2026.10.07)\nЗадача один due:2026-10-11\n\nЗадача три';
+  const diff = TaskVersionComparison.compare(local, cloud,
+    'Задача восемь\n\nSORTED (2026.10.07)\nЗадача один due:2026-10-10\n\nЗадача три\n\nЗадача двадцать один',
+    'x 2026-10-08 Задача восемь');
+  const choice = await TaskVersionComparison.show(diff);
+  document.getElementById('result').textContent = choice?.kind === 'merge'
+    ? `Объединено. В списке: ${choice.kept}; в архиве: ${choice.archived}; не включено: ${choice.excluded}. Тест без записи.`
+    : choice?.kind === 'cloud' ? 'Выбрано облако. Тест без записи.'
+    : choice?.kind === 'local' ? 'Выбрано устройство. Тест без записи.' : 'Отменено. Тест без записи.';
+  document.getElementById('merged').textContent = choice?.text || '';
+});
+</script>
+</body>
+</html>

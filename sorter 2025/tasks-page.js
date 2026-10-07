@@ -960,8 +960,11 @@ const PRI_CHIP_CLS = { A:'pri-a', B:'pri-b', C:'pri-c' };
       render();
     }
 
-    // Архивирует выполненные: скачивает как done.txt и удаляет из списка
+    let archiveInProgress = false;
+    // Remove only the confirmed occurrences, not every task that happens to be
+    // complete when the network returns. Edited/reloaded objects stay visible.
     async function archiveCompleted() {
+      if (archiveInProgress) return;
       const completed = items.filter(t => !t._sectionHeader && t.complete);
       if (!completed.length) return;
 
@@ -969,31 +972,34 @@ const PRI_CHIP_CLS = { A:'pri-a', B:'pri-b', C:'pri-c' };
       const dest = useDropbox ? 'archive.txt в Dropbox' : 'файл done.txt (Dropbox не подключён)';
       if (!confirm(`Архивировать ${completed.length} выполн. задач?\nОни будут перемещены в ${dest}.`)) return;
 
-      if (useDropbox) {
-        const lines = completed.map(t => t._raw);
-        const ok = await dbxArchiveCompleted(lines);
-        if (!ok) {
-          alert('Не удалось записать archive.txt в Dropbox. Задачи остались в списке.');
-          return;
+      archiveInProgress = true;
+      const archived = new Map(completed.map(t => [t, t._raw]));
+      try {
+        if (useDropbox) {
+          const ok = await dbxArchiveCompleted(completed.map(t => archived.get(t)));
+          if (!ok) {
+            alert('Запись archive.txt не подтверждена. Задачи остались в списке. Если связь оборвалась при записи, проверьте архив перед повтором.');
+            return;
+          }
+        } else {
+          // Existing offline fallback; downloading is not a cloud archive receipt.
+          const blob = new Blob([completed.map(t => archived.get(t)).join('\n') + '\n'], { type: 'text/plain' });
+          const a = document.createElement('a');
+          a.href = URL.createObjectURL(blob);
+          a.download = 'done.txt';
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+          URL.revokeObjectURL(a.href);
         }
-        items = items.filter(t => t._sectionHeader || !t.complete);
+        items = items.filter(t => !archived.has(t) || archived.get(t) !== t._raw || !t.complete);
         saveItems();
         render();
-        return;
+      } catch (_) {
+        alert('Архивирование не завершено. Проверьте список и архив перед повтором.');
+      } finally {
+        archiveInProgress = false;
       }
-
-      // Fallback: скачать локально
-      const blob = new Blob([completed.map(t => t._raw).join('\n') + '\n'], { type: 'text/plain' });
-      const a = document.createElement('a');
-      a.href = URL.createObjectURL(blob);
-      a.download = 'done.txt';
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(a.href);
-      items = items.filter(t => t._sectionHeader || !t.complete);
-      saveItems();
-      render();
     }
 
     function toggleFuture() { showFuture = !showFuture; render(); }

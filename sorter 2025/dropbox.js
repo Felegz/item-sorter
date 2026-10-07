@@ -7,7 +7,8 @@
 //       - сервер не изменился           → ничего
 //   • Автосохранение: 20 с бездействия в textarea → загружаем на сервер
 //       - используем mode:"update" + rev → Dropbox сам обнаружит конфликт (409)
-//   • Ручные кнопки: fallback; «В Dropbox» — всегда перезапись, «Из Dropbox» — с подтверждением
+//   • Ручные кнопки: сохранение с проверкой rev, загрузка с подтверждением.
+//   • Конфликт: сравнение точных версий, архив как подсказка, выбор без merge.
 
 const DROPBOX_APP_KEY       = 'd1t1dje9vyjotd7';
 // Динамический redirect URI — работает и локально, и на продакшне
@@ -206,6 +207,151 @@ function dbxConflictVersionsHtml(meta) {
     </div>`;
 }
 
+let _conflictInProgress = false;
+
+// Preview reads never alter tasks, sync state, or the archive. Missing archive
+// is the only 409 that means an empty file; other failures mean "not checked".
+async function dbxReadComparisonFile(path, allowRefresh = true) {
+  const token = getToken();
+  if (!token) throw new Error('Нет подключения к Dropbox.');
+  const response = await fetch('https://content.dropboxapi.com/2/files/download', {
+    method: 'POST', headers: { Authorization: 'Bearer ' + token,
+      'Dropbox-API-Arg': JSON.stringify({ path }) },
+  });
+  if (response.status === 401 && allowRefresh && (await tryRefreshToken()).ok) {
+    return dbxReadComparisonFile(path, false);
+  }
+  if (response.status === 409 && path === DROPBOX_ARCHIVE_PATH) {
+    const error = (await response.json()).error;
+    if (error?.['.tag'] === 'path' && error.path?.['.tag'] === 'not_found') return { text: '', meta: {} };
+  }
+  if (!response.ok) throw new Error('Не удалось прочитать файл для сравнения. HTTP ' + response.status);
+  const text = await response.text();
+  const meta = JSON.parse(response.headers.get('dropbox-api-result') || '{}');
+  if (path === DROPBOX_FILE_PATH && (typeof meta.rev !== 'string' || !meta.rev)) {
+    throw new Error('Dropbox не вернул версию файла. Замена остановлена.');
+  }
+  return { text, meta };
+}
+
+function dbxConflictLocalState() {
+  return JSON.stringify([document.getElementById('task-list')?.value ?? SorterRuntime.getTasks(),
+    SorterRuntime.getTasks(), window.SorterUnsavedChanges?.state()]);
+}
+
+// Save BOTH exact alternatives, including an empty document, before applying a
+// choice. Fail closed on storage/quota errors, rather than promising a backup.
+function dbxBackupConflictVersions(local, cloud, merged) {
+  const key = SorterRuntime.storageKey(SNAPSHOT_KEY);
+  const previous = JSON.parse(localStorage.getItem(key) || '[]');
+  if (!Array.isArray(previous)) throw new Error('История версий повреждена. Замена остановлена.');
+  const time = Date.now();
+  const next = [{ time, reason: 'конфликт: на устройстве', text: local },
+    { time, reason: 'конфликт: в Dropbox', text: cloud },
+    ...(merged === undefined ? [] : [{ time, reason: 'конфликт: результат объединения', text: merged }]),
+    ...previous].slice(0, SNAPSHOT_MAX);
+  localStorage.setItem(key, JSON.stringify(next));
+}
+
+// One resolver for all four conflict entry points. An explicit choice applies
+// only to the versions that were shown, never to a newer unseen cloud version.
+async function dbxResolveConflict() {
+  if (_conflictInProgress || !getToken()) return false;
+  _conflictInProgress = true;
+  clearTimeout(_autosaveTimer);
+  let archiveWritten = false;
+  try {
+    setDbxStatus('Сравнение версий…');
+    const local = document.getElementById('task-list')?.value ?? SorterRuntime.getTasks();
+    const localState = dbxConflictLocalState();
+    const approval = window.SorterUnsavedChanges?.state();
+    const baseline = localStorage.getItem('dbx_last_tasks');
+    const cloud = await dbxReadComparisonFile(DROPBOX_FILE_PATH);
+    let archive = null;
+    try { archive = (await dbxReadComparisonFile(DROPBOX_ARCHIVE_PATH)).text; } catch (_) { /* Explicitly show unavailable. */ }
+    const diff = TaskVersionComparison.compare(local, cloud.text, baseline, archive);
+    const choice = await TaskVersionComparison.show(diff, dbxConflictVersionsHtml(cloud.meta));
+    if (!choice) return false;
+    if (dbxConflictLocalState() !== localState) {
+      await Swal.fire('Список изменился', 'Откройте сравнение заново. Ваши правки сохранены.', 'info');
+      return false;
+    }
+    if (window.SorterUnsavedChanges?.hasDraft()) {
+      await Swal.fire('Редактор ещё открыт', 'Сохраните или отмените правки в редакторе, затем повторите сравнение.', 'info');
+      return false;
+    }
+    dbxBackupConflictVersions(local, cloud.text, choice.kind === 'merge' ? choice.text : undefined);
+    if (choice.kind === 'cloud') {
+      return await dbxAutoDownload('выбрана облачная версия', approval, { ...cloud, localState });
+    }
+    if (choice.kind === 'merge') {
+      // Revalidate BEFORE touching the archive. The final task upload still
+      // uses a revision precondition because the cloud can change after here.
+      const fresh = await dbxReadComparisonFile(DROPBOX_FILE_PATH);
+      if (fresh.meta.rev !== cloud.meta.rev || fresh.text !== cloud.text) {
+        throw new Error('Облако изменилось после сравнения. Откройте сравнение заново.');
+      }
+      if (choice.archivedLines.length) {
+        TaskVersionComparison.validateArchivedSelections(choice,
+          (await dbxReadComparisonFile(DROPBOX_ARCHIVE_PATH)).text);
+      }
+      if (dbxConflictLocalState() !== localState || window.SorterUnsavedChanges?.hasDraft()) {
+        throw new Error('Местные правки изменились. Откройте сравнение заново.');
+      }
+      if (choice.archiveLines.length) {
+        if (!await dbxArchiveCompleted(choice.archiveLines)) {
+          throw new Error('Запись архива не подтверждена. Список не менялся. Проверьте архив перед повтором: запись могла пройти без ответа.');
+        }
+        archiveWritten = true;
+      }
+      if (dbxConflictLocalState() !== localState || window.SorterUnsavedChanges?.hasDraft()) {
+        throw new Error('Местные правки изменились. Они сохранены; откройте сравнение заново.');
+      }
+    }
+    const uploadText = choice.kind === 'merge' ? choice.text : local;
+    const response = await fetch('https://content.dropboxapi.com/2/files/upload', {
+      method: 'POST', headers: { Authorization: 'Bearer ' + getToken(),
+        'Content-Type': 'application/octet-stream',
+        'Dropbox-API-Arg': JSON.stringify({ path: DROPBOX_FILE_PATH,
+          mode: { '.tag': 'update', update: cloud.meta.rev },
+          strict_conflict: true, autorename: false, mute: true }) }, body: uploadText,
+    });
+    if (!response.ok) {
+      await Swal.fire('Версия не заменена', (archiveWritten ? 'Архив уже записан, но общий список не сохранён. ' : '') + (response.status === 409
+        ? 'Облако изменилось после сравнения. Откройте сравнение заново.'
+        : 'Dropbox не подтвердил запись. Правки остаются на устройстве. Проверьте облако перед повтором.'), 'warning');
+      return false;
+    }
+    const meta = await response.json();
+    if (typeof meta.rev !== 'string' || !meta.rev) throw new Error('Dropbox не подтвердил версию записанного файла.');
+    // The user may have edited during upload. Keep those newer local edits dirty.
+    _dbxSaveSyncState(uploadText, meta.rev);
+    if (choice.kind === 'merge') {
+      if (dbxConflictLocalState() === localState && !window.SorterUnsavedChanges?.hasDraft()) {
+        const textarea = document.getElementById('task-list');
+        if (textarea) textarea.value = uploadText;
+        SorterRuntime.setTasks(uploadText);
+        localStorage.setItem('dbx_local_version_time', String(Date.now()));
+        if (typeof window._onDbxLoad === 'function') window._onDbxLoad();
+        if (typeof syncHighlight === 'function') syncHighlight();
+        if (typeof renderFilterBar === 'function') renderFilterBar();
+      } else {
+        await Swal.fire('Облако сохранено', 'За время записи появились новые местные правки. Они не заменены и ещё не синхронизированы. Общий список доступен в истории браузера.', 'info');
+      }
+    }
+    dbxTimestamp('save', choice.kind === 'merge' ? 'версии объединены' : 'выбрана местная версия');
+    return true;
+  } catch (error) {
+    await Swal.fire('Не удалось завершить сравнение',
+      (archiveWritten ? 'Архив уже записан. ' : '') + 'Список на устройстве не заменён. '
+      + String(error.message || error), 'warning');
+    return false;
+  } finally {
+    _conflictInProgress = false;
+    updateDropboxUI();
+  }
+}
+
 function dbxTimestamp(type, detail = '') {
   localStorage.setItem('dbx_last_sync', JSON.stringify({ type, time: Date.now(), detail }));
 }
@@ -327,18 +473,25 @@ async function dbxGetMetadata() {
 
 // ─── Архивирование в archive.txt ────────────────────────────────────────────
 
-// Скачивает текущий archive.txt (или пустую строку если файла нет),
-// дописывает lines в конец и заливает обратно.
-// Возвращает true при успехе.
-async function dbxArchiveCompleted(lines) {
+// Append a confirmed batch without replacing an unreadable or concurrently
+// changed archive. Only Dropbox's explicit path/not_found means an empty file.
+// false means the caller must retain the tasks; it never permits local removal.
+async function dbxArchiveCompleted(lines, allowRefresh = true) {
   const token = getToken();
-  if (!token) return false;
+  if (!token || !Array.isArray(lines) || !lines.length
+    || lines.some(line => typeof line !== 'string' || !line.trim())) return false;
+  const batch = lines.slice();
+  const fail = message => {
+    updateDropboxUI();
+    setDbxStatus(message);
+    return false;
+  };
 
   setDbxStatus('📦 Архивирование…');
 
-  // 1. Скачать текущий archive.txt (он может не существовать)
-  let existing = '';
   try {
+    let existing = '';
+    let mode;
     const dlResp = await fetch('https://content.dropboxapi.com/2/files/download', {
       method:  'POST',
       headers: {
@@ -348,20 +501,34 @@ async function dbxArchiveCompleted(lines) {
     });
     if (dlResp.ok) {
       existing = await dlResp.text();
+      const metadata = JSON.parse(dlResp.headers.get('dropbox-api-result') || '{}');
+      if (typeof metadata.rev !== 'string' || !metadata.rev) {
+        return fail('Архив не записан: не удалось определить его версию');
+      }
+      mode = { '.tag': 'update', update: metadata.rev };
     } else if (dlResp.status === 401) {
+      if (!allowRefresh) return fail('Архив не записан: требуется подключение Dropbox');
       const refreshed = await tryRefreshToken();
-      if (refreshed.ok) return dbxArchiveCompleted(lines);
-      return false;
+      if (refreshed.ok) return dbxArchiveCompleted(batch, false);
+      return fail('Архив не записан: требуется подключение Dropbox');
+    } else if (dlResp.status === 409) {
+      const error = (await dlResp.json()).error;
+      if (error?.['.tag'] !== 'path' || error.path?.['.tag'] !== 'not_found') {
+        return fail('Архив не записан: не удалось прочитать файл');
+      }
+      // A different device may create the archive after this read. add + strict
+      // conflict refuses to replace that new file, even with identical contents.
+      mode = 'add';
+    } else {
+      return fail('Архив не записан: не удалось прочитать файл');
     }
-    // 409 = файл не существует, это нормально — начинаем с пустого
-  } catch (_) { /* сетевая ошибка при скачивании — начнём с пустого */ }
 
-  // 2. Составить новое содержимое
-  const newContent = (existing.trimEnd() ? existing.trimEnd() + '\n' : '') +
-                     lines.join('\n') + '\n';
+    // Preserve the existing archive byte for byte. Only the appended batch is
+    // formatted; duplicate task occurrences must never be collapsed or removed.
+    const separator = !existing || /(?:\r?\n){2}$/.test(existing) ? ''
+      : /\r?\n$/.test(existing) ? '\n' : '\n\n';
+    const newContent = existing + separator + formatTaskList(batch) + '\n';
 
-  // 3. Загрузить обратно (overwrite)
-  try {
     const ulResp = await fetch('https://content.dropboxapi.com/2/files/upload', {
       method:  'POST',
       headers: {
@@ -369,8 +536,9 @@ async function dbxArchiveCompleted(lines) {
         'Content-Type':    'application/octet-stream',
         'Dropbox-API-Arg': JSON.stringify({
           path:       DROPBOX_ARCHIVE_PATH,
-          mode:       'overwrite',
+          mode,
           autorename: false,
+          strict_conflict: true,
           mute:       true,
         }),
       },
@@ -381,22 +549,27 @@ async function dbxArchiveCompleted(lines) {
       return true;
     }
     if (ulResp.status === 401) {
+      if (!allowRefresh) return fail('Архив не записан: требуется подключение Dropbox');
       const refreshed = await tryRefreshToken();
-      if (refreshed.ok) return dbxArchiveCompleted(lines);
+      // A confirmed auth rejection did not commit. Re-read after refreshing;
+      // never reuse a stale archive revision. Network failures are not retried.
+      if (refreshed.ok) return dbxArchiveCompleted(batch, false);
     }
-    console.error('dbxArchiveCompleted upload HTTP', ulResp.status);
-    updateDropboxUI();
-    return false;
-  } catch (err) {
-    console.error('dbxArchiveCompleted upload error:', err);
-    updateDropboxUI();
-    return false;
+    if (ulResp.status === 409) {
+      return fail('Архив изменён другим устройством. Задачи остались в списке');
+    }
+    return fail('Запись архива не подтверждена. Задачи остались в списке');
+  } catch (_) {
+    // A lost upload response is ambiguous: Dropbox may already have committed.
+    // Retain the local batch; an automatic retry could add it a second time.
+    return fail('Архивирование не подтверждено. Проверьте связь и архив перед повтором');
   }
 }
 
 // ─── Автоматическое скачивание (без диалога) ─────────────────────────────────
 
-async function dbxAutoDownload(detail = '', approvedState) {
+async function dbxAutoDownload(detail = '', approvedState, expected) {
+  if (_conflictInProgress && !expected) return false;
   const token = getToken();
   if (!token) return false;
   setDbxStatus('⬇ Загрузка…');
@@ -413,11 +586,18 @@ async function dbxAutoDownload(detail = '', approvedState) {
       const text      = await resp.text();
       const apiResult = JSON.parse(resp.headers.get('dropbox-api-result') || '{}');
 
+      if (expected && (apiResult.rev !== expected.meta.rev || text !== expected.text ||
+          dbxConflictLocalState() !== expected.localState)) {
+        await Swal.fire('Версия изменилась', 'Откройте сравнение заново. Список не заменён.', 'info');
+        return false;
+      }
+
       // Check immediately before replacement: the user may have typed while fetch waited.
       if (window.SorterUnsavedChanges && !await SorterUnsavedChanges.allowReplace(text, approvedState)) {
         setDbxStatus('Загрузка отменена · правки сохранены');
         return false;
       }
+      if (expected && dbxConflictLocalState() !== expected.localState) return false;
       const previousContent = document.getElementById('task-list')?.value ?? SorterRuntime.getTasks();
       SorterRuntime.setItem('tasks_backup', previousContent);
       SorterRuntime.setItem('tasks_backup_time', String(Date.now()));
@@ -437,8 +617,10 @@ async function dbxAutoDownload(detail = '', approvedState) {
 
       return true;
     } else if (resp.status === 401) {
+      if (expected?.refreshed) return false;
       const refreshed = await tryRefreshToken();
-      if (refreshed.ok) return dbxAutoDownload(detail, approvedState);
+      if (refreshed.ok) return dbxAutoDownload(detail, approvedState,
+        expected ? { ...expected, refreshed: true } : undefined);
     } else if (resp.status === 409) {
       // Файла нет на сервере — не ошибка
     } else {
@@ -459,6 +641,7 @@ let _autosaveTimer  = null;
 let _syncInProgress = false;
 
 function scheduleAutosave() {
+  if (_conflictInProgress) return;
   if (isRuntimeDeveloperMode()) return;
   if (!getToken()) return;
   clearTimeout(_autosaveTimer);
@@ -466,6 +649,7 @@ function scheduleAutosave() {
 }
 
 async function dbxAutoUpload(detail = '') {
+  if (_conflictInProgress) return;
   const token = getToken();
   if (!token) return;
   clearTimeout(_autosaveTimer);
@@ -500,26 +684,7 @@ async function dbxAutoUpload(detail = '') {
       updateDropboxUI();
 
     } else if (resp.status === 409) {
-      const meta   = await dbxGetMetadata();
-      const choice = await Swal.fire({
-        title:             '⚠ Конфликт версий',
-        html:              dbxConflictVersionsHtml(meta),
-        icon:              'warning',
-        showCancelButton:  true,
-        showDenyButton:    true,
-        confirmButtonText: '⬇ Взять из облака',
-        denyButtonText:    '☁ Перезаписать моей',
-        cancelButtonText:  'Отмена',
-        confirmButtonColor:'#7c6fcd',
-      });
-      if (choice.isConfirmed) {
-        await dbxAutoDownload('конфликт → скачано');
-      } else if (choice.isDenied) {
-        localStorage.removeItem('dbx_last_rev');
-        await dbxAutoUpload('конфликт → перезаписано');
-      } else {
-        updateDropboxUI();
-      }
+      await dbxResolveConflict();
 
     } else if (resp.status === 401) {
       const refreshed = await tryRefreshToken();
@@ -538,7 +703,7 @@ async function dbxAutoUpload(detail = '') {
 // ─── Проверка при возврате на вкладку ────────────────────────────────────────
 
 async function autoSyncOnFocus(silent = false) {
-  if (!getToken() || _syncInProgress) return;
+  if (!getToken() || _syncInProgress || _conflictInProgress) return;
   _syncInProgress = true;
 
   if (!silent) setDbxStatus('🔄 Проверка…');
@@ -568,25 +733,7 @@ async function autoSyncOnFocus(silent = false) {
     }
 
     // Оба изменились → конфликт
-    const choice = await Swal.fire({
-      title:             '⚠ Конфликт версий',
-      html:              dbxConflictVersionsHtml(meta),
-      icon:              'warning',
-      showCancelButton:  true,
-      showDenyButton:    true,
-      confirmButtonText: '⬇ Взять из облака',
-      denyButtonText:    '☁ Сохранить мою',
-      cancelButtonText:  'Отмена',
-      confirmButtonColor:'#7c6fcd',
-    });
-    if (choice.isConfirmed) {
-      await dbxAutoDownload();
-    } else if (choice.isDenied) {
-      localStorage.removeItem('dbx_last_rev');
-      await dbxAutoUpload();
-    } else {
-      updateDropboxUI();
-    }
+    await dbxResolveConflict();
   } finally {
     _syncInProgress = false;
   }
@@ -602,7 +749,7 @@ async function autoSyncOnFocus(silent = false) {
 
 async function dropboxSmartSync() {
   if (!getToken()) { dropboxLogin(); return; }
-  if (_syncInProgress) return;
+  if (_syncInProgress || _conflictInProgress) return;
   _syncInProgress = true;
   setDbxStatus('🔄 Проверка…');
   try {
@@ -660,21 +807,7 @@ async function dropboxSmartSync() {
     }
 
     // Оба изменились → конфликт
-    const choice = await Swal.fire({
-      title:             '⚠ Конфликт версий',
-      html:              dbxConflictVersionsHtml(meta),
-      icon:              'warning',
-      showCancelButton:  true,
-      showDenyButton:    true,
-      confirmButtonText: '⬇ Взять из облака',
-      denyButtonText:    '☁ Сохранить мою',
-      cancelButtonText:  'Отмена',
-      confirmButtonColor:'#7c6fcd',
-    });
-    _syncInProgress = false;
-    if (choice.isConfirmed)   await dbxAutoDownload('конфликт → скачано');
-    else if (choice.isDenied) { localStorage.removeItem('dbx_last_rev'); await dbxAutoUpload('конфликт → перезаписано'); }
-    else updateDropboxUI();
+    await dbxResolveConflict();
   } catch (err) {
     console.error('dropboxSmartSync error:', err);
     updateDropboxUI();
@@ -687,6 +820,7 @@ async function dropboxSmartSync() {
 // ─── Ручные кнопки (fallback) ─────────────────────────────────────────────────
 
 async function dropboxSave() {
+  if (_conflictInProgress) return;
   if (!getToken()) { dropboxLogin(); return; }
   clearTimeout(_autosaveTimer);
 
@@ -720,26 +854,7 @@ async function dropboxSave() {
       updateDropboxUI();
       Swal.fire({ title: 'Сохранено в Dropbox!', icon: 'success', timer: 1500, showConfirmButton: false });
     } else if (resp.status === 409) {
-      const meta   = await dbxGetMetadata();
-      const choice = await Swal.fire({
-        title:             '⚠ Конфликт версий',
-        html:              dbxConflictVersionsHtml(meta),
-        icon:              'warning',
-        showCancelButton:  true,
-        showDenyButton:    true,
-        confirmButtonText: '⬇ Взять из облака',
-        denyButtonText:    '☁ Перезаписать моей',
-        cancelButtonText:  'Отмена',
-        confirmButtonColor:'#7c6fcd',
-      });
-      if (choice.isConfirmed) {
-        await dbxAutoDownload('конфликт → скачано');
-      } else if (choice.isDenied) {
-        localStorage.removeItem('dbx_last_rev');
-        await dbxAutoUpload('конфликт → перезаписано');
-      } else {
-        updateDropboxUI();
-      }
+      await dbxResolveConflict();
     } else if (resp.status === 401) {
       localStorage.removeItem('dbx_access_token');
       const refreshed = await tryRefreshToken();
@@ -762,6 +877,7 @@ async function dropboxSave() {
 }
 
 async function dropboxLoad() {
+  if (_conflictInProgress) return;
   if (!getToken()) { dropboxLogin(); return; }
 
   const approvedState = window.SorterUnsavedChanges?.state();

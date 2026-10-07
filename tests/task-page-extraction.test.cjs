@@ -13,13 +13,16 @@ new vm.Script(source, { filename: 'tasks-page.js' });
 const scripts = [...html.matchAll(/<script\b([^>]*)>([\s\S]*?)<\/script>/g)];
 const controller = scripts.findIndex(match => /src="tasks-page\.js\?/.test(match[1]));
 assert.ok(controller > 0);
-assert.equal(scripts[controller][1], ' src="tasks-page.js?v=20261006-completion"');
+// Cache versions change with intentional fixes; loading must remain blocking,
+// without async/defer/type=module attributes or an unversioned controller.
+assert.match(scripts[controller][1], /^ src="tasks-page\.js\?v=[\w-]+"$/);
 assert.equal(scripts[controller][2], '');
 assert.match(html.slice(0, scripts[controller].index), /id="list"/);
-assert.match(scripts[controller + 1][1], /src="dropbox\.js/);
-assert.match(scripts[controller + 2][1], /src="ai-dropbox\.js/);
-assert.equal(scripts[controller + 3][1], '');
-assert.equal(controller + 4, scripts.length);
+assert.match(scripts[controller + 1][1], /^ src="task-version-comparison\.js\?v=[\w-]+"$/);
+assert.match(scripts[controller + 2][1], /src="dropbox\.js/);
+assert.match(scripts[controller + 3][1], /src="ai-dropbox\.js/);
+assert.equal(scripts[controller + 4][1], '');
+assert.equal(controller + 5, scripts.length);
 const inline = scripts.filter(match => !/\bsrc=/.test(match[1]));
 assert.equal(inline.length, 1, 'leave only the existing Dropbox integration inline');
 assert.match(inline[0][2], /window\._onDbxLoad\s*=/);
