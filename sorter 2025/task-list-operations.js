@@ -202,8 +202,15 @@
       }
     }
 
-    const withoutDue = raw.replace(/\s*\bdue:\d{4}-\d{2}-\d{2}\b/g, '').trim();
-    return normalizedDate ? `${withoutDue} due:${normalizedDate}` : withoutDue;
+    const withoutDue = taskFormat.mapTaskMetadata(raw, text =>
+      text.replace(/\s*\bdue:\d{4}-\d{2}-\d{2}\b/g, (token, offset) => {
+        // A query/path containing due: is text, not a standalone todo.txt tag.
+        return offset === 0 || /^\s/.test(token) ? '' : token;
+      }));
+    // Appending after ➤совет/➤исходное makes the date part of that field.
+    return normalizedDate
+      ? taskFormat.insertTaskMetadata(withoutDue, `due:${normalizedDate}`)
+      : withoutDue;
   }
 
   /**

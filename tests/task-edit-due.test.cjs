@@ -35,19 +35,23 @@ vm.runInContext(extract('commitEditDraft'), context);
 vm.runInContext(extract('saveEdit'), context);
 vm.runInContext(extract('editTask'), context);
 const original = '(B) 2026-09-01 Проверка @дом #test ⟦исх.: Старый текст⟧';
+function expectedOriginalDue(date) {
+  return '(B) 2026-09-01 Проверка @дом #test'
+    + (date ? ' due:' + date : '') + ' ⟦исх.: Старый текст⟧';
+}
 for (const oldDate of ['', ' due:2026-09-20']) {
   for (const newDate of ['2026-10-12', '']) {
     input.value = original + oldDate;
     picker.value = newDate;
     context.saveEdit(0);
-    assert.equal(saved, original + (newDate ? ' due:' + newDate : ''));
+    assert.equal(saved, expectedOriginalDue(newDate));
     assert.equal(context.items[0]._ignored, true);
     assert.equal(context.editingIdx, -1);
   }
 }
 input.value = original;
 context.setDueOnEdit(0, '2026-11-02');
-assert.equal(input.value, original + ' due:2026-11-02');
+assert.equal(input.value, expectedOriginalDue('2026-11-02'));
 
 // Characterize switching before refactoring: only the edited occurrence changes,
 // the ignored section is retained, and an empty draft is not a deletion.
@@ -80,7 +84,7 @@ for (const exit of ['save', 'switch']) {
       if (exit === 'save') context.saveEdit(0);
       else context.editTask(1);
       assert.equal(context.items[0]._raw,
-        original + ' @телефон +проект' + (newDate ? ' due:' + newDate : ''));
+        expectedOriginalDue(newDate) + ' @телефон +проект');
       assert.equal(context.items[0]._ignored, true);
       assert.equal(context.items[1]._raw, originalRaw, 'duplicate occurrence is untouched');
       assert.equal(context.editingIdx, exit === 'save' ? -1 : 1);
@@ -129,5 +133,6 @@ assert.match(html, /oninput="setDueOnEdit/);
 assert.match(html, /data-mobile-editor-collapse aria-label="Свернуть редактор"/);
 assert.match(html, /SorterIcons\.render\('minimize-2'\)/);
 assert.match(html, /class="task-due-action"/);
-assert.match(html, /applyTaskDueDate\(\$\{idx\},this\.value\)/);
+assert.match(html, /onclick="openTaskDueDate\(\$\{idx\}\)"/);
+assert.doesNotMatch(html, /class="task-due-action"[^]*?<input type="date"[^]*?<\/label>/);
 console.log('PASS unified editor save/switch, due selection/clearing/validation, empty drafts and duplicates');

@@ -98,6 +98,7 @@
       text: before,
       source: cleanInline(match[1]) || null,
       unparsed: cleanInline(after) || null,
+      tailStart: match.index + match[0].length,
     };
   }
 
@@ -121,6 +122,31 @@
       else duplicates.push({ field: current.field, value });
     }
     return { main: raw.slice(0, matches[0].index).trim(), fields, duplicates };
+  }
+
+  /**
+   * todo.txt metadata belongs before GTD fields/source, never inside their text.
+   * Reuse the parser's boundaries and keep the remaining raw text byte-for-byte;
+   * parse/serialize here would also rewrite unrelated tags and source history.
+   */
+  function insertTaskMetadata(rawTask, token) {
+    const raw = String(rawTask == null ? '' : rawTask).trim();
+    const main = splitStructuredFields(stripLegacySource(raw).text).main;
+    const suffix = raw.slice(main.length);
+    return main + (main ? ' ' : '') + token
+      + (suffix && !/^\s/.test(suffix) ? ' ' : '') + suffix;
+  }
+
+  // Only the main text and the legacy tail contain live todo.txt metadata.
+  // Dates quoted in a goal/advice/source (or in a URL) are not the task's due date.
+  function mapTaskMetadata(rawTask, transform) {
+    const raw = String(rawTask == null ? '' : rawTask).trim();
+    const legacy = stripLegacySource(raw);
+    const main = splitStructuredFields(legacy.text).main;
+    const suffix = legacy.tailStart == null
+      ? raw.slice(main.length)
+      : raw.slice(main.length, legacy.tailStart) + transform(raw.slice(legacy.tailStart));
+    return (transform(main).trimEnd() + suffix).trim();
   }
 
   /**
@@ -632,6 +658,8 @@
     FIELD_MARKERS,
     parseTaskLine,
     serializeTaskLine,
+    insertTaskMetadata,
+    mapTaskMetadata,
     mergeOriginalTask,
     parseIsoDateLocal,
     formatCalendarDate,

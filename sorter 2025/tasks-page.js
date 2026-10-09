@@ -419,10 +419,9 @@ const PRI_CHIP_CLS = { A:'pri-a', B:'pri-b', C:'pri-c' };
       <button class="edit-btn" onclick="editTask(${idx})">${SorterIcons.render('pencil')}<span>Редактировать</span></button>
       <button class="proc-btn" onclick="openProcess(${idx})">${SorterIcons.render('list-filter')}<span>Обработать</span></button>
       ${!t.complete && !t._ignored ? `<button class="rank-btn" onclick="rankTask(${idx})">${SorterIcons.render('arrow-up-down')}<span>Отсортировать</span></button>` : ''}
-      <label class="task-due-action">
+      <button type="button" class="task-due-action" onclick="openTaskDueDate(${idx})">
         ${SorterIcons.render('calendar-days')}<span>${t._due ? 'Изменить срок' : 'Добавить срок'}</span>
-        <input type="date" aria-label="${t._due ? 'Изменить срок' : 'Добавить срок'}" value="${esc(t._due || '')}" onchange="applyTaskDueDate(${idx},this.value)">
-      </label>
+      </button>
       ${!t.complete ? `<button onclick="openTaskSnooze(${idx})">${SorterIcons.render('calendar-days')}<span>${t._threshold ? 'Изменить откладывание' : 'Отложить'}</span></button>` : ''}
       <button class="ai-btn" onclick="delegateTaskToAi(${idx})">${SorterIcons.render('bot')}<span>Поручить ИИ</span></button>
       <button onclick="toggleDone(${idx})">${SorterIcons.render(t.complete ? 'undo-2' : 'check')}<span>${t.complete ? 'Не сделано' : 'Сделано'}</span></button>
@@ -910,8 +909,7 @@ const PRI_CHIP_CLS = { A:'pri-a', B:'pri-b', C:'pri-c' };
       // Sync due date picker with edit input
       const duePick = document.getElementById('due-pick-' + idx);
       if (duePick) {
-        const m = inp.value.match(/\bdue:(\d{4}-\d{2}-\d{2})\b/);
-        duePick.value = m ? m[1] : '';
+        duePick.value = TaskFormat.parseTaskLine(inp.value).dueDate || '';
       }
     }
 
@@ -1079,6 +1077,41 @@ const PRI_CHIP_CLS = { A:'pri-a', B:'pri-b', C:'pri-c' };
       updateTagPicker(idx);
       // Do not refocus the textarea: that can dismiss the native calendar or
       // reopen the mobile keyboard before its date selection has completed.
+    }
+
+    // A visible dialog replaces the transparent native date overlay: clicking
+    // a date field's text segment on desktop only focused it, not its calendar.
+    // Like snooze, defer writes until confirmation and reject a stale task index.
+    async function openTaskDueDate(idx) {
+      const task = items[idx];
+      if (!task || task._sectionHeader) return;
+      document.querySelectorAll('.task-actions[open]').forEach(menu => { menu.open = false; });
+      const result = await Swal.fire({
+        title: 'Срок задачи',
+        input: 'date',
+        inputLabel: 'Дата выполнения',
+        inputValue: task._due || '',
+        showCancelButton: true,
+        showDenyButton: Boolean(task._due),
+        confirmButtonText: 'Сохранить',
+        cancelButtonText: 'Отмена',
+        denyButtonText: 'Убрать срок',
+        buttonsStyling: false,
+        customClass: { popup: 'rank-dialog snooze-dialog', confirmButton: 'snooze-confirm' },
+        preConfirm: () => {
+          const date = Swal.getInput().value;
+          if (!date) { Swal.showValidationMessage('Выберите дату'); return false; }
+          try { TaskListOperations.setTaskDueDate(task._raw, date); }
+          catch (_) { Swal.showValidationMessage('Проверьте дату'); return false; }
+          return date;
+        },
+      });
+      if (!result.isConfirmed && !result.isDenied) return;
+      if (items[idx] !== task) {
+        Swal.fire('Задача изменилась', 'Откройте выбор срока заново.', 'warning');
+        return;
+      }
+      applyTaskDueDate(idx, result.isDenied ? '' : result.value);
     }
 
     function applyTaskDueDate(idx, dateVal) {
