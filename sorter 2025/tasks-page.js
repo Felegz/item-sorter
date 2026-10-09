@@ -13,6 +13,17 @@ const PRI_CHIP_CLS = { A:'pri-a', B:'pri-b', C:'pri-c' };
     const collapsedSections = new Set(); // хранит _raw маркеров свёрнутых секций
     let editingIdx = -1;          // индекс задачи в режиме редактирования (-1 = нет)
     let editingTempValue = null;  // временный текст редактируемой задачи
+    let oldTaskMonths = TaskAge.getMonths();
+
+    // Reuse the shared date label and the existing GTD action; no task data is changed.
+    function renderTaskCreation(task, idx, isOld) {
+      if (!TaskFormat.parseIsoDateLocal(task.creationDate)) return '';
+      const date = TaskFormat.renderTaskMetaHtml(task, { includeMeta: ['created'] });
+      const review = isOld
+        ? `<button type="button" class="task-review-btn" onclick="openProcess(${idx})" aria-label="Разобрать старую задачу" title="Разобрать старую задачу">${SorterIcons.render('sparkles')}</button>`
+        : '';
+      return `<div class="task-creation">${date}${review}</div>`;
+    }
 
     function toggleSection(raw) {
       if (collapsedSections.has(raw)) collapsedSections.delete(raw);
@@ -403,26 +414,29 @@ const PRI_CHIP_CLS = { A:'pri-a', B:'pri-b', C:'pri-c' };
         const aiStatus = aiJob
           ? `<button type="button" class="task-ai-status ${aiJob.status}" onclick="openTaskAiJob(event,${idx})">${esc(window.SorterAiDropbox.statusLabel(aiJob))}</button>`
           : '';
-        return `<div class="task-row${t.complete ? ' done' : ''}${t._ignored ? ' ignored-row' : ''}" data-idx="${idx}">
+        const isOld = TaskAge.isOldTask(t, { months: oldTaskMonths });
+        return `<div class="task-row${t.complete ? ' done' : ''}${t._ignored ? ' ignored-row' : ''}${isOld ? ' old-task' : ''}" data-idx="${idx}">
   <input type="checkbox" ${t.complete ? 'checked' : ''} onchange="toggleDone(${idx})">
   <div class="task-body">
     ${TaskFormat.renderTaskHtml(t, {
       variant: 'list',
       terms,
-      leadingMeta: ['contexts', 'hashtags'],
+      leadingMeta: ['contexts', 'projects', 'hashtags'],
+      excludeMeta: isOld ? ['created'] : [],
     })}
+    ${isOld ? renderTaskCreation(t, idx, true) : ''}
     ${aiStatus}
   </div>
   <details class="task-actions">
     <summary aria-label="Действия" title="Действия"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="5" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="12" cy="19" r="1"/></svg></summary>
     <div class="task-actions-menu">
       <button class="edit-btn" onclick="editTask(${idx})">${SorterIcons.render('pencil')}<span>Редактировать</span></button>
-      <button class="proc-btn" onclick="openProcess(${idx})">${SorterIcons.render('list-filter')}<span>Обработать</span></button>
+      <button class="proc-btn" onclick="openProcess(${idx})">${SorterIcons.render('sparkles')}<span>Обработать</span></button>
       ${!t.complete && !t._ignored ? `<button class="rank-btn" onclick="rankTask(${idx})">${SorterIcons.render('arrow-up-down')}<span>Отсортировать</span></button>` : ''}
       <button type="button" class="task-due-action" onclick="openTaskDueDate(${idx})">
         ${SorterIcons.render('calendar-days')}<span>${t._due ? 'Изменить срок' : 'Добавить срок'}</span>
       </button>
-      ${!t.complete ? `<button onclick="openTaskSnooze(${idx})">${SorterIcons.render('calendar-days')}<span>${t._threshold ? 'Изменить откладывание' : 'Отложить'}</span></button>` : ''}
+      ${!t.complete ? `<button onclick="openTaskSnooze(${idx})">${SorterIcons.render('moon')}<span>${t._threshold ? 'Изменить откладывание' : 'Отложить'}</span></button>` : ''}
       <button class="ai-btn" onclick="delegateTaskToAi(${idx})">${SorterIcons.render('bot')}<span>Поручить ИИ</span></button>
       <button onclick="toggleDone(${idx})">${SorterIcons.render(t.complete ? 'undo-2' : 'check')}<span>${t.complete ? 'Не сделано' : 'Сделано'}</span></button>
       <button onclick="${t._ignored ? 'restoreIgnored' : 'moveToIgnored'}(${idx})">${SorterIcons.render(t._ignored ? 'eye' : 'eye-off')}<span>${t._ignored ? 'Вернуть из игнорируемых' : 'В игнорируемые'}</span></button>
@@ -467,8 +481,12 @@ const PRI_CHIP_CLS = { A:'pri-a', B:'pri-b', C:'pri-c' };
     }
 
     function openProcess(idx) {
+      // Pass the duplicate occurrence, not just text, so GTD edits the clicked
+      // instance even when another task has exactly the same raw string.
+      const raw = items[idx]._raw;
+      const occurrence = items.slice(0, idx).filter(item => !item._sectionHeader && item._raw.trim() === raw.trim()).length;
       window.location.href = SorterRuntime.withMode(
-        '/process?task=' + encodeURIComponent(items[idx]._raw) + '&from=tasks',
+        '/process?task=' + encodeURIComponent(raw) + '&occurrence=' + occurrence + '&from=tasks',
       );
     }
 
@@ -657,6 +675,31 @@ const PRI_CHIP_CLS = { A:'pri-a', B:'pri-b', C:'pri-c' };
     }
 
     // --- Event listeners ---
+
+    const oldTaskInput = document.getElementById('old-task-months');
+    const oldTaskNotice = document.getElementById('old-task-notice');
+    oldTaskInput.value = oldTaskMonths;
+    if (!window.dateFns?.addMonths || !window.dateFns?.startOfDay || !window.dateFns?.isMatch) {
+      oldTaskNotice.textContent = 'Не удалось загрузить расчёт возраста. Перезагрузите страницу.';
+    }
+    function changeOldTaskMonths(event) {
+      // Apply valid typing immediately. Empty/intermediate values never replace
+      // the saved preference; blur reports the native number-field validation.
+      if (!oldTaskInput.checkValidity()) {
+        if (event.type === 'change') oldTaskInput.reportValidity();
+        return;
+      }
+      if (Number(oldTaskInput.value) === oldTaskMonths) return;
+      try {
+        oldTaskMonths = TaskAge.setMonths(oldTaskInput.value);
+        oldTaskNotice.textContent = window.dateFns?.isMatch ? '' : 'Не удалось загрузить расчёт возраста. Перезагрузите страницу.';
+        render();
+      } catch (_) {
+        oldTaskNotice.textContent = 'Не удалось сохранить настройку в этом браузере.';
+      }
+    }
+    oldTaskInput.addEventListener('input', changeOldTaskMonths);
+    oldTaskInput.addEventListener('change', changeOldTaskMonths);
 
     // Tabs
     document.querySelectorAll('.tab').forEach(btn => {

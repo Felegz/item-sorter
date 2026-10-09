@@ -15,12 +15,13 @@
   <script src="https://cdn.jsdelivr.net/npm/@date-fns/cdn@4.4.0/locale/ru/cdn.min.js"></script>
   <script src="markers.js?v=20260911-ignored-filter"></script>
   <script src="mobile-edit-mode.js?v=20260917-collapse"></script>
-  <script src="task-format.js?v=20261009-due-fields"></script>
+  <script src="task-format.js?v=20261009-task-age"></script>
+  <script src="task-age.js?v=20261009-task-age"></script>
   <script src="task-list-operations.js?v=20261009-due-fields"></script>
   <script src="ai-exchange.js?v=20260906-ai-bridge"></script>
   <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-  <script src="icons.js?v=20261005-due-menu"></script>
-  <link rel="stylesheet" href="tasks.css?v=20261009-due-menu" />
+  <script src="icons.js?v=20261009-gtd-finish"></script>
+  <link rel="stylesheet" href="tasks.css?v=20261009-task-age" />
   <link rel="stylesheet" href="task-format.css?v=20261008-merge" />
 </head>
 <body>
@@ -142,6 +143,12 @@
     <button id="ai-jobs-btn" class="btn--ghost btn--sm" onclick="SorterAiDropbox.showJobsDialog()">Поручения ИИ</button>
     <button id="dbx-sync-btn" hidden tabindex="-1" aria-hidden="true">Синхронизировать</button>
   </div>
+  <div class="task-age-settings">
+    <label for="old-task-months">Старая задача через</label>
+    <input type="number" id="old-task-months" min="1" step="1" required inputmode="numeric" aria-describedby="old-task-notice" title="Возраст по дате создания. Настройка хранится только в этом браузере.">
+    <span>мес.</span>
+    <span id="old-task-notice" role="status"></span>
+  </div>
   </section>
 
   <div class="tasklist" id="list"></div>
@@ -167,7 +174,7 @@
   </div>
 
   <!-- Classic blocking script: keep globals shared with the Dropbox integration below. -->
-  <script src="tasks-page.js?v=20261009-due-fields"></script>
+  <script src="tasks-page.js?v=20261009-gtd-finish"></script>
   <script src="task-version-comparison.js?v=20261008-merge"></script>
   <script src="dropbox.js?v=20261008-merge"></script>
   <script src="ai-dropbox.js?v=20260906-ai-bridge"></script>

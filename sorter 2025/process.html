@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content" />
-  <title>Помогатор</title>
+  <title>Разбор задачи</title>
   <link rel="icon" type="image/x-icon" href="data:image/x-icon;base64,AAABAAEAEBAQAAEABAAoAQAAFgAAACgAAAAQAAAAIAAAAAEABAAAAAAAgAAAAAAAAAAAAAAAEAAAAAAAAAAAAAAA/4QAAADZ/wAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAERERERERERESAAAAAAAAARIAAAAAAAABEgAAABEgAAESAAABESAAARIAABEREgABEgABESESAAESABESAREgARIBESAAESABEhESAAARIAESESAAABEQARIAAAAAARABEgAAAAABEAESAAAAAAAAARIiIiIiIiIhEREREREREREAAAAAP/4AAD/+AAA/HgAAPh4AADwOAAA4DgAAMIYAACHGAAADxgAAB8YAAD/mAAA/5gAAP/4AAAAAAAAAAAAA" />
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
@@ -142,7 +142,30 @@
       letter-spacing: 0.08em; text-transform: uppercase; color: var(--fg-m); margin-bottom: 0.35rem; }
     .note { font-size: 0.8rem; color: var(--fg-m); margin-top: 0.5rem; }
     .note.ok { color: #86efac; }
+    .note.error { color: #fca5a5; }
+    /* Completion has one green save action; copy and navigation are secondary. */
+    h1 { display: flex; align-items: center; gap: 0.4rem; }
+    .lucide-icon { flex: 0 0 auto; vertical-align: middle; }
+    .btn { min-height: 44px; text-decoration: none; white-space: normal; line-height: 1.3; }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; box-shadow: none; }
+    .btn:focus-visible, .back:focus-visible { outline: 2px solid var(--primary); outline-offset: 3px; }
+    .completion-date { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: end; gap: 0.6rem; margin: 1rem 0; }
+    .completion-date label { display: block; font-size: 0.85rem; margin-bottom: 0.35rem; }
+    .completion-date input { margin: 0; min-height: 44px; color-scheme: dark; }
+    .completion-date .note { grid-column: 1 / -1; margin: 0; }
+    .completion-save { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 0.6rem; }
+    .completion-nav { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 1rem; padding-top: 0.75rem; border-top: 1px solid var(--border); }
+    .completion-nav .btn { flex: 1 1 auto; }
+    .save-status { margin: 0.6rem 0; min-height: 1.3em; }
+    #out-line::selection { background: #305a3e; color: var(--fg); }
+    @media (max-width: 480px) {
+      .completion-save, .completion-date { grid-template-columns: minmax(0, 1fr); }
+      .completion-date .btn { justify-self: start; }
+    }
     .hidden { display: none !important; }
+
+    /* The shared collapse action only leaves focus mode; it never saves or resets a GTD answer. */
+    .mobile-editor-collapse { display: none; }
 
     /* Mobile focus mode spends the keyboard-reduced viewport on the current answer. */
     @media (max-width: 760px) {
@@ -201,6 +224,24 @@
         overflow: hidden;
       }
 
+      body.mobile-editor-active .card:focus-within .mobile-editor-collapse {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        align-self: flex-end;
+        flex: 0 0 44px;
+        width: 44px;
+        height: 44px;
+        margin-bottom: 6px;
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        background: var(--bg-el);
+        color: var(--fg);
+        cursor: pointer;
+      }
+
+      .mobile-editor-collapse:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+
       body.mobile-editor-active .step-q {
         flex: 0 0 auto;
         margin-bottom: 6px;
@@ -235,13 +276,32 @@
       body.mobile-editor-active .out-action:focus {
         min-height: 140px;
       }
+      /* The shared visualViewport height reserves room for text and Save.
+         Date, copy and secondary navigation return when the editor collapses. */
+      body.mobile-editor-active #out-area .completion-date,
+      body.mobile-editor-active #out-area .completion-nav,
+      body.mobile-editor-active #out-area #next-task-btn,
+      body.mobile-editor-active #out-area #out-goal,
+      body.mobile-editor-active #out-area #out-note,
+      body.mobile-editor-active #out-area #out-title,
+      body.mobile-editor-active #out-area #offer-mutny { display: none; }
+      body.mobile-editor-active #out-area #out-note.error {
+        display: block;
+        flex: 0 0 auto;
+        max-height: 4.5em;
+        overflow: auto;
+      }
+      body.mobile-editor-active #out-area .completion-save { display: flex; flex: 0 0 auto; }
+      body.mobile-editor-active #out-area #save-task-btn { width: 100%; }
+      body.mobile-editor-active #out-area .out-card { display: flex; flex-direction: column; padding: 10px; margin-bottom: 6px; }
+      body.mobile-editor-active #out-area .out-action { flex: 1; min-height: 0; overflow: auto; margin: 0; padding: 6px; border: 0; }
     }
   </style>
 </head>
 <body>
 <div class="page">
   <header>
-    <h1>&#x2699; Помогатор</h1>
+    <h1><span data-sorter-icon="sparkles"></span>Разбор задачи</h1>
     <a id="back-link" href="/" class="back">&#x2190; К списку</a>
     <script>(function(){
       var f = new URLSearchParams(window.location.search).get('from');
@@ -263,6 +323,7 @@
   </div>
 
   <div id="edit-area" class="card hidden" data-mobile-editor-shell>
+    <button type="button" class="mobile-editor-collapse" data-mobile-editor-collapse aria-label="Свернуть редактор" title="Свернуть редактор"><span data-sorter-icon="minimize-2"></span></button>
     <div class="badge" id="edit-badge"></div>
     <div class="step-q">Что нужно обработать?</div>
     <div class="step-hint">Отредактируй текст задачи если нужно</div>
@@ -276,28 +337,36 @@
 
   <div id="out-area" class="hidden">
     <div class="card" data-mobile-editor-shell>
-      <div class="badge">Готово</div>
+      <button type="button" class="mobile-editor-collapse" data-mobile-editor-collapse aria-label="Свернуть редактор" title="Свернуть редактор"><span data-sorter-icon="minimize-2"></span></button>
       <div class="step-q" id="out-title" style="margin-bottom:0.75rem"></div>
       <div class="out-card">
         <div class="out-action" id="out-line" contenteditable="true" spellcheck="false" title="Нажми, чтобы отредактировать" data-mobile-editor></div>
         <div class="out-goal" id="out-goal"></div>
       </div>
-      <div class="act-row">
-        <button class="btn btn-p" onclick="copyOut()">&#x1F4CB; Копировать</button>
-        <button class="btn" onclick="addToList()">&#x2795; В список</button>
-        <button id="google-calendar-btn" class="btn" onclick="openGoogleCalendar()" disabled>В Google Calendar</button>
-        <button id="next-task-btn" class="btn btn-p hidden" onclick="nextTask()">&#x27A1; Следующая задача</button>
-        <button class="btn btn-g" onclick="resetAll()">&#x21BA; Ещё одну</button>
+      <div class="completion-date">
+        <div>
+          <label for="out-due">Срок задачи</label>
+          <input id="out-due" type="date" onchange="setOutputDue(this.value)" />
+        </div>
+        <button id="google-calendar-btn" class="btn" onclick="openGoogleCalendar()" disabled title="Выберите срок; создание события нужно подтвердить в Google"><span data-sorter-icon="calendar-days"></span>Google Calendar</button>
+        <p class="note">Google Calendar открывает форму события. Подтвердите создание там.</p>
       </div>
-      <div class="note" id="out-note"></div>
-      <label for="out-due">Срок задачи</label>
-      <input id="out-due" type="date" onchange="setOutputDue(this.value)" />
-      <p class="note">«В список» сохраняет задачу. Google Calendar открывает форму события; сохранение нужно подтвердить там.</p>
+      <div class="note save-status" id="out-save-status" role="status" aria-live="polite">Не сохранено</div>
+      <div class="completion-save">
+        <button id="save-task-btn" class="btn btn-p" onclick="addToList()"><span data-sorter-icon="check"></span>Сохранить в список</button>
+        <button id="next-task-btn" class="btn" onclick="nextTask()"><span data-sorter-icon="sparkles"></span>Сохранить и разобрать ещё</button>
+      </div>
+      <div class="completion-nav">
+        <a id="bottom-back-link" class="btn btn-g" href="/">К списку</a>
+        <button class="btn btn-g" onclick="copyOut()"><span data-sorter-icon="copy"></span>Копировать</button>
+        <button class="btn btn-g" onclick="resetAll()"><span data-sorter-icon="undo-2"></span>Новый разбор</button>
+      </div>
+      <div class="note" id="out-note" role="status" aria-live="polite"></div>
     </div>
     <div id="offer-mutny" class="card hidden">
       <div class="step-q" style="font-size:1rem;margin-bottom:0.5rem">Задача мутная? Запустить разбор?</div>
       <div class="act-row">
-        <button class="btn btn-p" onclick="continueWithMutny()">&#x1F52E; Разобрать мутную задачу</button>
+        <button class="btn" onclick="continueWithMutny()"><span data-sorter-icon="sparkles"></span>Разобрать мутную задачу</button>
         <button class="btn btn-g" onclick="el('offer-mutny').classList.add('hidden')">Нет, и так всё ясно</button>
       </div>
     </div>
@@ -308,11 +377,12 @@
 <script src="markers.js?v=20260911-ignored-filter"></script>
 <script src="task-format.js?v=20261009-due-fields"></script>
 <script src="task-list-operations.js?v=20261009-due-fields"></script>
-<script src="gtd-task-tools.js?v=20260917"></script>
+<script src="gtd-task-tools.js?v=20261009-gtd-finish"></script>
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <script src="unsaved-changes.js?v=20260917-gtd"></script>
-<script src="flows.js"></script>
-<script src="mobile-edit-mode.js?v=20260911-edit-return"></script>
+<script src="flows.js?v=20261009-gtd-finish"></script>
+<script src="icons.js?v=20261009-gtd-finish"></script>
+<script src="mobile-edit-mode.js?v=20261009-gtd-collapse"></script>
 <script>
 // ==========================================================================
 //  ДВИЖОК (алгоритм — в flows.js)
@@ -321,7 +391,9 @@
 const S = {
   task:'', originalTask:'', mode:null, flow:null, stepIdx:0, history:[],
   outcome:'', action:'', delegate:'', dueDate:'',
+  // Historical flow field: red/green means a heart project, never todo.txt A/B.
   priority:null, contexts:[], feelings:'', advice:'',
+  occurrence:null, openedDocument:null, savedOutput:null,
 };
 
 function el(id)       { return document.getElementById(id); }
@@ -373,6 +445,8 @@ function renderStep(idx) {
   const hintHtml = step.hintHtmlFn ? step.hintHtmlFn() : (step.hintHtml || '');
 
   let h = '<div class="card" data-mobile-editor-shell>';
+  // Text steps are generated after DOMContentLoaded, so render their icon directly.
+  if (step.type === 'text') h += '<button type="button" class="mobile-editor-collapse" data-mobile-editor-collapse aria-label="Свернуть редактор" title="Свернуть редактор">' + SorterIcons.render('minimize-2') + '</button>';
   h += '<div class="badge">' + mlabel + ' &mdash; шаг ' + (idx+1) + ' / ' + total + '</div>';
   h += '<div class="step-q">' + esc(step.q) + '</div>';
   if (hint) h += '<div class="step-hint">' + esc(hint) + '</div>';
@@ -555,34 +629,34 @@ function finalize() { showOutput(S.mode === 'korz' ? 'next_action' : 'output'); 
 function showOutput(action) {
   hide('step-area'); show('out-area'); hide('offer-mutny');
   const t = todayStr();
-  let line='', title='Готово', goalHtml='';
+  let line='', title='Результат разбора', goalHtml='';
 
   if (action === 'trash') {
-    title='🗑 Удалить'; line='# УДАЛЕНО: ' + S.task;
+    title='Удалить'; line='# УДАЛЕНО: ' + S.task;
   } else if (action === 'someday') {
-    title='💡 Когда-нибудь'; line=S.task + ' +someday-maybe';
+    title='Когда-нибудь'; line=S.task + ' +someday-maybe';
   } else if (action === 'ref') {
-    title='📂 Справочная информация'; line=S.task + ' +information';
+    title='Справочная информация'; line=S.task + ' +information';
   } else if (action === 'delegate') {
-    title='👆 Делегировано';
+    title='Делегировано';
     const who = S.delegate ? ' @' + S.delegate.replace(/\s+/g,'_') : '';
     line=S.task + ' @ожидание' + who + ' due:' + t;
   } else if (action === 'calendar') {
-    title='📅 В календарь'; line=S.task + ' due:' + (S.dueDate || t);
+    title='В календарь'; line=S.task + ' due:' + (S.dueDate || t);
   } else if (action === 'now') {
-    title='⚡ Сделать прямо сейчас'; line='x ' + t + ' ' + S.task;
+    title='Сделать прямо сейчас'; line='x ' + t + ' ' + S.task;
   } else if (action === 'next_action') {
-    title='📋 Следующее действие'; line=buildNextLine(t);
+    title='Следующее действие'; line=buildNextLine(t);
     if (S.mode==='korz') show('offer-mutny');
   } else if (action === 'output') {
-    title='✅ Разобрано'; line=buildMutnyLine(t);
+    title='Результат разбора'; line=buildMutnyLine(t);
     // Show goal, difficulty and advice separately in the UI (they're also embedded in the line)
-    if (S.outcome)  goalHtml += '<div class="out-field"><span class="out-field-lbl">🎯 Цель</span>' + esc(S.outcome)  + '</div>';
-    if (S.feelings) goalHtml += '<div class="out-field"><span class="out-field-lbl">😰 Сложность</span>' + esc(S.feelings) + '</div>';
-    if (S.advice)   goalHtml += '<div class="out-field"><span class="out-field-lbl">💜 Совет</span>' + esc(S.advice)   + '</div>';
+    if (S.outcome)  goalHtml += '<div class="out-field"><span class="out-field-lbl">Цель</span>' + esc(S.outcome)  + '</div>';
+    if (S.feelings) goalHtml += '<div class="out-field"><span class="out-field-lbl">Сложность</span>' + esc(S.feelings) + '</div>';
+    if (S.advice)   goalHtml += '<div class="out-field"><span class="out-field-lbl">Совет</span>' + esc(S.advice)   + '</div>';
   }
 
-  if (action !== 'trash') line = TaskGtd.prepareOutput(line, S.originalTask, todayStr());
+  if (action !== 'trash') line = TaskGtd.withColor(TaskGtd.prepareOutput(line, S.originalTask, todayStr()), S.priority);
   if (action === 'calendar') line = TaskGtd.withDueDate(line, S.dueDate || t);
   el('out-title').textContent = title;
   el('out-line').textContent  = line;
@@ -590,14 +664,12 @@ function showOutput(action) {
   el('out-goal').innerHTML    = goalHtml;
   el('out-note').textContent  = '';
   el('out-note').className    = 'note';
-  // Show "next task" button only when we came from a task list
-  if (S.originalTask) show('next-task-btn'); else hide('next-task-btn');
+  updateSaveStatus();
+  updateNextTask();
 }
 
 function buildNextLine(t) {
-  const pri = S.priority==='red' ? '(A)' : S.priority==='green' ? '(B)' : null;
   return TaskFormat.serializeTaskLine({
-    priority: pri ? pri.slice(1, 2) : null,
     creationDate: t,
     text: S.action || S.task,
     contexts: S.contexts.map(context => context.replace(/^@/, '')),
@@ -606,9 +678,7 @@ function buildNextLine(t) {
 }
 
 function buildMutnyLine(t) {
-  const pri = S.priority==='red' ? '(A)' : S.priority==='green' ? '(B)' : null;
   return TaskFormat.serializeTaskLine({
-    priority: pri ? pri.slice(1, 2) : null,
     creationDate: t,
     text: S.action || S.task,
     contexts: S.contexts.map(context => context.replace(/^@/, '')),
@@ -628,8 +698,36 @@ function continueWithMutny() {
 
 function copyOut() {
   navigator.clipboard.writeText(el('out-line').textContent.trim()).then(() => {
-    el('out-note').textContent='Скопировано!'; el('out-note').className='note ok';
+    setOutputNote('Скопировано', 'ok');
+  }).catch(() => {
+    setOutputNote('Не удалось скопировать. Выделите текст и скопируйте вручную.', 'error');
   });
+}
+
+function setOutputNote(message, state = '') {
+  el('out-note').textContent = message;
+  el('out-note').className = 'note' + (state ? ' ' + state : '');
+}
+
+function updateSaveStatus() {
+  const deleted = el('out-line').textContent.startsWith('# УДАЛЕНО');
+  const saved = S.savedOutput !== null && S.savedOutput === el('out-line').textContent;
+  el('out-save-status').textContent = deleted
+    ? 'Удаление из списка здесь пока не выполняется.' : saved ? 'Сохранено в список' : 'Не сохранено';
+  el('out-save-status').className = 'note save-status' + (saved ? ' ok' : '');
+  el('save-task-btn').disabled = deleted;
+}
+
+function updateNextTask() {
+  const document = SorterRuntime.getTasks();
+  let currentIndex = -1;
+  try { if (S.originalTask) currentIndex = TaskGtd.findTaskIndex(document, S.originalTask, S.occurrence); }
+  catch (_) { /* Save reports a stale/ambiguous task; do not guess its occurrence. */ }
+  const candidate = TaskGtd.nextUnprocessedTask(document, currentIndex);
+  const deleted = el('out-line').textContent.startsWith('# УДАЛЕНО');
+  el('next-task-btn').disabled = deleted || !candidate;
+  el('next-task-btn').title = candidate ? 'Сохранить результат и открыть следующую неразобранную задачу'
+    : 'Других неразобранных задач нет';
 }
 
 // process.html does not load dropbox.js, so it records the same local-version
@@ -642,44 +740,43 @@ function saveProcessedTaskDocument(text, savedLine) {
   }
   // Subsequent saves edit the same task instead of duplicating a no-longer-matching original.
   if (savedLine) S.originalTask = savedLine;
+  S.openedDocument = text;
+  S.savedOutput = savedLine;
   savedProcessState = processDraftState();
 }
 
 function addToList() {
-  let line = el('out-line').textContent.trim();
-  if (!line || line.startsWith('# УДАЛЕНО')) {
-    el('out-note').textContent='Помечено как удалённое \u2014 в список не добавляется.'; return;
-  }
-  line = TaskGtd.prepareOutput(line, S.originalTask, todayStr());
-  el('out-line').textContent = line;
-  syncOutputDate();
-  const existing = SorterRuntime.getTasks();
-  const lines = existing ? existing.split('\n') : [];
-  // If came from a specific task, replace it instead of prepending
-  if (S.originalTask) {
-    const idx = lines.findIndex(l => l.trim() === S.originalTask.trim());
-    const finalLine = TaskFormat.mergeOriginalTask(line, S.originalTask);
-    if (idx !== -1) {
-      lines[idx] = finalLine;
-      saveProcessedTaskDocument(formatTaskList(lines), finalLine);
-      el('out-note').textContent = 'Задача обновлена!';
-      el('out-note').className = 'note ok';
-      return;
+  try {
+    const existing = SorterRuntime.getTasks();
+    if (S.openedDocument !== null && existing !== S.openedDocument) {
+      throw new Error('Список изменился во время разбора. Текст не потерян: скопируйте результат и откройте актуальную задачу.');
     }
-    // Original not found — prepend
-    saveProcessedTaskDocument(formatTaskList([finalLine, ...existing.split(/\r?\n/)]), finalLine);
-    el('out-note').textContent='Добавлено в список!'; el('out-note').className='note ok';
-    return;
+    const output = el('out-line').textContent.trim();
+    // A heart explicitly edited in the result wins over the earlier answer.
+    const color = TaskGtd.taskColor(output) || S.priority;
+    const result = TaskGtd.saveOutputInDocument(existing, S.originalTask,
+      output, todayStr(), { color, occurrence: S.occurrence });
+    // Persist before changing UI state or allowing the next navigation.
+    saveProcessedTaskDocument(result.document, result.line);
+    S.occurrence = result.occurrence;
+    el('out-line').textContent = result.line;
+    syncOutputDate();
+    savedProcessState = processDraftState();
+    updateSaveStatus();
+    updateNextTask();
+    setOutputNote(el('next-task-btn').disabled ? 'Других неразобранных задач нет.' : '', 'ok');
+    return true;
+  } catch (error) {
+    setOutputNote('Не удалось завершить сохранение. ' + error.message, 'error');
+    return false;
   }
-  // Otherwise prepend
-  saveProcessedTaskDocument(formatTaskList([line, ...existing.split(/\r?\n/)]), line);
-  el('out-note').textContent='Добавлено в список!'; el('out-note').className='note ok';
 }
 
 async function resetAll() {
   if (!await SorterUnsavedChanges.confirmDiscard('Начать другой разбор без сохранения текущего?', 'Начать другой')) return;
   Object.assign(S, { task:'', originalTask:'', mode:null, flow:null, stepIdx:0, history:[],
-    outcome:'',action:'',delegate:'',dueDate:'',priority:null,contexts:[],feelings:'',advice:'' });
+    outcome:'',action:'',delegate:'',dueDate:'',priority:null,contexts:[],feelings:'',advice:'',
+    occurrence:null,openedDocument:SorterRuntime.getTasks(),savedOutput:null });
   hide('step-area','out-area','task-cap','edit-area'); show('mode-sel'); window.scrollTo(0,0);
   el('task-input').value = '';
   el('out-line').textContent = '';
@@ -687,25 +784,16 @@ async function resetAll() {
 }
 
 function nextTask() {
-  const lines = SorterRuntime.getTasks().split('\n');
-  const curIdx = lines.findIndex(l => l.trim() === (S.originalTask || '').trim());
-  const start = curIdx !== -1 ? curIdx + 1 : 0;
-  let inIgnored = false;
-  for (let i = start; i < lines.length; i++) {
-    const l = lines[i].trim();
-    if (!l) continue;
-    if (MARKERS.isIgnored(l)) { inIgnored = true; continue; }
-    if (inIgnored) continue;
-    if (MARKERS.isAnyMarker(l)) continue;
-    if (/^x\s/.test(l)) continue;
-    if (/\+someday-maybe/.test(l)) continue;
-    window.location.href = SorterRuntime.withMode(
-      '/process?task=' + encodeURIComponent(lines[i]) + '&from=tasks',
-    );
-    return;
-  }
-  el('out-note').textContent = 'Больше задач для обработки нет!';
-  el('out-note').className = 'note ok';
+  // This button explicitly promises Save first. Any failure keeps the draft here.
+  if (!addToList()) return;
+  const document = SorterRuntime.getTasks();
+  const index = TaskGtd.findTaskIndex(document, S.originalTask, S.occurrence);
+  const next = TaskGtd.nextUnprocessedTask(document, index);
+  if (!next) { setOutputNote('Других неразобранных задач нет.', 'ok'); return; }
+  const occurrence = document.split(/\r?\n/).slice(0, next.index).filter(line => line.trim() === next.line.trim()).length;
+  const from = new URLSearchParams(window.location.search).get('from') === 'tasks' ? 'tasks' : 'list';
+  window.location.href = SorterRuntime.withMode('/process?task=' + encodeURIComponent(next.line)
+    + '&occurrence=' + occurrence + '&from=' + from);
 }
 
 function esc(s) {
@@ -723,15 +811,18 @@ function syncOutputDate() {
   el('google-calendar-btn').disabled = deleted || !TaskGtd.validDate(task.dueDate);
 }
 function setOutputDue(value) {
-  S.dueDate = value;
-  el('out-line').textContent = TaskGtd.withDueDate(el('out-line').textContent, value);
-  syncOutputDate();
+  try {
+    el('out-line').textContent = TaskGtd.withDueDate(el('out-line').textContent, value);
+    S.dueDate = value;
+    syncOutputDate();
+    updateSaveStatus();
+  } catch (error) { setOutputNote(error.message, 'error'); }
 }
 function openGoogleCalendar() {
   // This explicit action sends only the current title and due date to Google.
   window.open(TaskGtd.googleCalendarUrl(el('out-line').textContent), '_blank', 'noopener,noreferrer');
 }
-el('out-line').addEventListener('input', syncOutputDate);
+el('out-line').addEventListener('input', () => { syncOutputDate(); updateSaveStatus(); updateNextTask(); });
 
 let savedProcessState = null;
 function processDraftState() {
@@ -750,6 +841,11 @@ window.addEventListener('DOMContentLoaded', () => {
   const params = new URLSearchParams(window.location.search);
   const tp   = params.get('task');
   const flow = params.get('flow') || 'korz';
+  S.openedDocument = SorterRuntime.getTasks();
+  const back = el('back-link');
+  const bottomBack = el('bottom-back-link');
+  bottomBack.href = SorterRuntime.withMode(back.getAttribute('href'));
+  if (params.get('from') === 'tasks') { back.textContent = '← К задачам'; bottomBack.textContent = 'К задачам'; }
   if (tp) {
     const fullTask = tp; // URLSearchParams already decodes once; literal % must survive.
     const parsedTask = TaskFormat.parseTaskLine(fullTask);
@@ -760,7 +856,11 @@ window.addEventListener('DOMContentLoaded', () => {
     S.advice = parsedTask.advice || '';
     S.contexts = parsedTask.contexts.map(context => '@' + context);
     S.dueDate = parsedTask.dueDate || '';
-    S.priority = parsedTask.priority === 'A' ? 'red' : parsedTask.priority ? 'green' : null;
+    S.priority = TaskGtd.taskColor(fullTask);
+    const occurrence = params.get('occurrence');
+    if (occurrence !== null && /^\d+$/.test(occurrence) && Number.isSafeInteger(Number(occurrence))) {
+      S.occurrence = Number(occurrence);
+    }
     el('task-cap').textContent = S.task;
     show('task-cap');
     startFlow(FLOWS[flow] ? flow : 'korz');

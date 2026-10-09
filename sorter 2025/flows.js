@@ -151,11 +151,11 @@ const FLOWS = {
       ],
     },
     { id: 'priority',
-      q: 'Какой приоритет?',
+      q: 'Красная или зелёная задача?',
       hint: '',
       type: 'choice',
       choices: [
-        { label: '❤️ Красный — если не выполнить, случится что-то плохое',    style: 'danger', pri: 'red',   next: 'context' },
+        { label: '🩷 Красный — если не выполнить, случится что-то плохое',    style: 'danger', pri: 'red',   next: 'context' },
         { label: '💚 Зелёный — если выполнить, стану ближе к своим целям',      style: 'yes',    pri: 'green', next: 'context' },
       ],
     },

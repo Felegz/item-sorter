@@ -650,7 +650,12 @@
       ? renderTaskMetaHtml(task, { ...options, includeMeta: leadingMeta, position: 'before' })
       : '';
     const content = renderTaskContentHtml(task, options);
-    const trailing = renderTaskMetaHtml(task, { ...options, excludeMeta: leadingMeta });
+    // A screen may place creation metadata beside its own controls. Honor its
+    // exclusions as well as suppressing tags already rendered before the title.
+    const trailing = renderTaskMetaHtml(task, {
+      ...options,
+      excludeMeta: [...(Array.isArray(options.excludeMeta) ? options.excludeMeta : []), ...leadingMeta],
+    });
     return leading + content + trailing;
   }
 

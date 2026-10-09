@@ -125,6 +125,14 @@ assert.equal((contextsAndHashtagsFirst.match(/#здоровье/g) || []).length
 const defaultTaskHtml = TaskFormat.renderTaskHtml(parsed, { now: fixedNow, dateFns: fakeDateFns });
 assert.ok(defaultTaskHtml.indexOf('сфотать') < defaultTaskHtml.indexOf('@дома'));
 
+const separateCreation = TaskFormat.renderTaskHtml(parsed, {
+  now: fixedNow, dateFns: fakeDateFns,
+  leadingMeta: ['contexts', 'hashtags'], excludeMeta: ['created'],
+});
+assert.doesNotMatch(separateCreation, /Создано/);
+assert.equal((separateCreation.match(/@дома/g) || []).length, 1);
+assert.match(TaskFormat.renderTaskMetaHtml(parsed, { includeMeta: ['created'], now: fixedNow }), /Создано/);
+
 const legacyTailDates = TaskFormat.parseTaskLine(
   '2026-09-07 Найти адрес ⟦исх.: Найти организацию.⟧ заметка due:2026-09-14 t:2026-09-10'
 );

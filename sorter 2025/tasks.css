@@ -1156,6 +1156,37 @@ button:disabled {
 .task-row:hover { background: rgba(255, 255, 255, 0.025); }
 .task-row.done { opacity: 0.58; }
 
+/* Age is a quiet review cue, not an overdue deadline or a change of priority. */
+.task-row.old-task { background: rgba(240, 198, 116, 0.045); }
+.task-row.old-task:hover { background: rgba(240, 198, 116, 0.07); }
+.task-row.old-task .t.t-created { color: var(--warning); }
+.task-creation { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+.task-creation .task-tags { margin: 0; min-width: 0; }
+.task-creation .t.t-created { white-space: normal; }
+.task-review-btn {
+  display: inline-flex; align-items: center; justify-content: center;
+  flex: 0 0 auto; width: 36px; height: 36px; padding: 0;
+  background: transparent; color: var(--fg-m); border: 1px solid var(--border);
+  border-radius: 8px; cursor: pointer;
+}
+.task-review-btn:hover { background: var(--bg-el); color: var(--fg); }
+.task-review-btn:focus-visible,
+#old-task-months:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+.task-age-settings {
+  display: flex; align-items: center; flex-wrap: wrap; gap: 8px;
+  margin-bottom: 12px; color: var(--fg-m); font-size: 0.78rem;
+}
+#old-task-months {
+  width: 74px; min-height: 38px; padding: 6px 8px;
+  background: var(--bg-el); color: var(--fg); border: 1px solid var(--border);
+  border-radius: 8px; font: inherit;
+}
+#old-task-notice:not(:empty) { flex-basis: 100%; color: var(--warning); }
+@media (max-width: 760px), (pointer: coarse) {
+  .task-review-btn { width: 44px; height: 44px; }
+  #old-task-months { min-height: 44px; font-size: 1rem; }
+}
+
 .task-row input[type="checkbox"] {
   width: 22px;
   height: 22px;
