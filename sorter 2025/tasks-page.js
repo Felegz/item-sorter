@@ -480,6 +480,27 @@ const PRI_CHIP_CLS = { A:'pri-a', B:'pri-b', C:'pri-c' };
       render();
     }
 
+    // Select from the full saved document, independent of screen filters/sort.
+    // Like openProcess, navigation uses the existing beforeunload draft guard;
+    // it does not silently save a draft or add a second confirmation dialog.
+    async function openOldTaskReview() {
+      try {
+        const documentText = SorterRuntime.getTasks();
+        const candidate = TaskGtd.firstOldUnprocessedTask(documentText, { months: oldTaskMonths });
+        if (!candidate) {
+          await Swal.fire({ text: 'Нет старых неразобранных задач', confirmButtonText: 'Понятно' });
+          return;
+        }
+        const occurrence = documentText.split(/\r?\n/).slice(0, candidate.index)
+          .filter(line => line.trim() === candidate.line.trim()).length;
+        const params = new URLSearchParams({ task: candidate.line.trim(), flow: 'korz', from: 'tasks', occurrence: String(occurrence) });
+        window.location.href = SorterRuntime.withMode('/process?' + params);
+      } catch (error) {
+        await Swal.fire({ icon: 'error', title: 'Не удалось начать разбор', text: error.message, confirmButtonText: 'Понятно' });
+      }
+    }
+    document.getElementById('old-task-review-btn')?.addEventListener('click', openOldTaskReview);
+
     function openProcess(idx) {
       // Pass the duplicate occurrence, not just text, so GTD edits the clicked
       // instance even when another task has exactly the same raw string.

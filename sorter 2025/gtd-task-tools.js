@@ -62,7 +62,7 @@
     return root.TaskFormat.parseTaskLine(line).tagList.some(tag => tag.key === 'gtd' && validDate(tag.value));
   }
 
-  function nextUnprocessedTask(document, currentIndex = -1) {
+  function nextUnprocessedTask(document, currentIndex = -1, acceptTask = null) {
     const markers = typeof MARKERS !== 'undefined' ? MARKERS : root.MARKERS;
     const lines = String(document || '').split(/\r?\n/);
     const candidates = [];
@@ -77,10 +77,23 @@
       // Preserve the existing exclusion of someday tasks; do not choose markers,
       // completed x/X tasks, or an occurrence saved by a previous GTD session.
       if (task.completed || !task.text || task.projects.includes('someday-maybe') || isProcessed(raw)) return;
+      if (acceptTask && !acceptTask(task)) return;
       candidates.push({ line, index });
     });
     // Continue below the current task, then wrap to the top of the whole list.
     return candidates.find(candidate => candidate.index > currentIndex) || candidates[0] || null;
+  }
+
+  // Same GTD eligibility and document order as Continue, with the shared age
+  // preference. Read-only: never reorder, stamp or remove tasks while choosing.
+  function firstOldUnprocessedTask(document, options = {}) {
+    const age = root.TaskAge;
+    const dateFns = options.dateFns || root.dateFns;
+    if (!age || !dateFns?.addMonths || !dateFns?.startOfDay || !dateFns?.isMatch) {
+      throw new Error('Не загрузились инструменты определения возраста. Обновите страницу и попробуйте снова.');
+    }
+    const ageOptions = { ...options, months: options.months ?? age.getMonths(), dateFns };
+    return nextUnprocessedTask(document, -1, task => age.isOldTask(task, ageOptions));
   }
 
   function findTaskIndex(document, original, occurrence = null) {
@@ -129,5 +142,5 @@
   }
 
   root.TaskGtd = { prepareOutput, withDueDate, validDate, googleCalendarUrl,
-    withColor, taskColor, isProcessed, nextUnprocessedTask, findTaskIndex, saveOutputInDocument };
+    withColor, taskColor, isProcessed, nextUnprocessedTask, firstOldUnprocessedTask, findTaskIndex, saveOutputInDocument };
 })(globalThis);

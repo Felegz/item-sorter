@@ -1176,6 +1176,8 @@ button:disabled {
   display: flex; align-items: center; flex-wrap: wrap; gap: 8px;
   margin-bottom: 12px; color: var(--fg-m); font-size: 0.78rem;
 }
+.old-task-review-action { margin-bottom: 12px; }
+.old-task-review-action button { min-height: 44px; }
 #old-task-months {
   width: 74px; min-height: 38px; padding: 6px 8px;
   background: var(--bg-el); color: var(--fg); border: 1px solid var(--border);
