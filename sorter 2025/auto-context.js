@@ -20,6 +20,12 @@
       home: 'дом',
       away: 'город',
     }),
+    // Auto mode writes these alternatives into the visible search field.
+    // A future settings UI should let the user edit these names.
+    autoSearchContexts: Object.freeze({
+      ноут: Object.freeze(['ноут', 'ПК']),
+      дом: Object.freeze(['дом', 'дома']),
+    }),
     homeRadiusMeters: 200,
     maxLocationAccuracyMeters: 1000,
   });
@@ -53,6 +59,19 @@
     return operator === 'and'
       ? selected.every(context => taskSet.has(context))
       : selected.some(context => taskSet.has(context));
+  }
+
+  // Keep /auto's device and place choices in the same user-visible search
+  // language. AND groups alternatives so aliases do not become extra demands.
+  function buildAutoSearchQuery(selectedContexts, operator = 'or') {
+    const groups = [...selectedContexts].map(context => {
+      const name = normalizeContext(context);
+      return (CONFIG.autoSearchContexts[name] || [name]).filter(Boolean).map(value => `@${value}`);
+    }).filter(group => group.length);
+    if (operator === 'and') {
+      return groups.map(group => group.length > 1 ? `(${group.join(' ИЛИ ')})` : group[0]).join(' И ');
+    }
+    return [...new Set(groups.flat())].join(' ИЛИ ');
   }
 
   function getContextOperator(storage) {
@@ -194,6 +213,7 @@
     STORAGE_KEYS,
     isAutoUrl,
     matchesSelectedContexts,
+    buildAutoSearchQuery,
     getContextOperator,
     setContextOperator,
     getHomeCoordinates,

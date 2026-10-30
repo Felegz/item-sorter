@@ -8,22 +8,53 @@
   const isDeveloperMode = isLocal && params.get('mode') === 'developer';
   const developerPrefix = 'sorter_dev_';
   const defaultDeveloperTasks = Object.freeze([
-    'Задача один',
-    'Задача три',
-    'Задача восемь',
-    'Задача двадцать один',
-    'Задача пять',
-    'Задача тринадцать',
-    'Задача тридцать четыре',
-    'Задача два',
-    'Задача пятьдесят пять',
-    'Задача восемьдесят девять',
+    'Задача один @дом +быт #тест',
+    'Задача три @телефон +связь #короткое',
+    'Задача восемь @ноут +работа #важное',
+    'Задача двадцать один @город +дела #вне-дома',
+    'Задача пять @дом @телефон +быт #проверка',
+    'Задача тринадцать @ноут +учёба #читать',
+    'Задача тридцать четыре @город @телефон +покупки #покупки',
+    'Задача два @дом +быт #два',
+    'Задача пятьдесят пять @ноут +длинное-название-проекта #длинный-хештег-для-проверки-переноса',
+    'Задача восемьдесят девять @телефон @дом +связь #review',
   ]);
 
   const storageKey = name => isDeveloperMode ? `${developerPrefix}${name}` : name;
   const getItem = name => root.localStorage.getItem(storageKey(name));
   const setItem = (name, value) => root.localStorage.setItem(storageKey(name), String(value));
   const removeItem = name => root.localStorage.removeItem(storageKey(name));
+
+  // Owner-requested fixture update. Run once, only on isolated developer data,
+  // and only after the shared parser has loaded. Never reseed an existing list.
+  // A backup precedes the write; positions, duplicate occurrences and separators
+  // are preserved by line-level edits. Normal/production getTasks stays read-only.
+  function getTasks() {
+    const text = getItem('tasks') || '';
+    if (!isDeveloperMode || getItem('fixture_tags_v1') || !root.TaskFormat) return text;
+    const markers = typeof MARKERS !== 'undefined' ? MARKERS : root.MARKERS;
+    if (!markers) return text;
+    const format = root.TaskFormat;
+    const seeds = defaultDeveloperTasks.map(line => format.parseTaskLine(line));
+    let taskIndex = 0;
+    const next = text.split('\n').map(line => {
+      if (!line.trim() || markers.isAnyMarker(line)) return line;
+      const task = format.parseTaskLine(line);
+      const seed = seeds.find(item => item.text === task.text) || seeds[taskIndex % seeds.length];
+      taskIndex++;
+      if (!task.text || (task.contexts.length && task.projects.length && task.hashtags.length)) return line;
+      if (!task.contexts.length) task.contexts = [...seed.contexts];
+      if (!task.projects.length) task.projects = [...seed.projects];
+      if (!task.hashtags.length) task.hashtags = [...seed.hashtags];
+      return format.serializeTaskLine(task) + (line.endsWith('\r') ? '\r' : '');
+    }).join('\n');
+    if (next !== text) {
+      if (getItem('fixture_tags_backup_v1') === null) setItem('fixture_tags_backup_v1', text);
+      setItem('tasks', next);
+    }
+    setItem('fixture_tags_v1', '1');
+    return next;
+  }
 
   /**
    * Keep developer mode on local navigation and normalize extensionless routes
@@ -50,7 +81,7 @@
     getItem,
     setItem,
     removeItem,
-    getTasks: () => getItem('tasks') || '',
+    getTasks,
     setTasks: value => setItem('tasks', value),
     withMode,
   });

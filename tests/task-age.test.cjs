@@ -12,6 +12,9 @@ const anniversaries = {
   '2024-01-31/1': '2024-02-29',
   '2026-01-31/2': '2026-03-31',
   '2026-08-09/3': '2026-11-09',
+  '2026-09-11/1': '2026-10-11',
+  '2026-10-10/1': '2026-11-10',
+  '2026-11-01/1': '2026-12-01',
 };
 const fixtureDateFns = {
   isMatch(value, pattern) {
@@ -65,7 +68,12 @@ assert.equal(TaskAge.getMonths({ getItem() { throw Error('Storage denied'); } })
 const page = fs.readFileSync('sorter 2025/tasks-page.js', 'utf8');
 const start = page.indexOf('    function renderTaskCreation(');
 const end = page.indexOf('\n    function ', start + 1);
-const context = vm.createContext({ TaskFormat, SorterIcons: { render: () => '<svg></svg>' } });
+const gtdContext = vm.createContext({ TaskFormat, TaskAge });
+vm.runInContext(fs.readFileSync('sorter 2025/gtd-task-tools.js', 'utf8'), gtdContext);
+const reminderOptions = { now: new Date(2026, 9, 11), dateFns, taskFormat: TaskFormat };
+const context = vm.createContext({ TaskFormat, oldTaskMonths: 2,
+  TaskGtd: { needsReview: (line, options) => gtdContext.TaskGtd.needsReview(line, { ...options, ...reminderOptions }) },
+  SorterIcons: { render: () => '<svg></svg>' } });
 vm.runInContext(page.slice(start, end), context);
 const raw = '2026-01-31 Задача @дом #review due:2027-01-01';
 const task = TaskFormat.parseTaskLine(raw);
@@ -75,6 +83,41 @@ assert.equal((context.renderTaskCreation(task, 17, true).match(/Создано/g
 assert.doesNotMatch(context.renderTaskCreation(task, 17, false), /<button/);
 assert.equal(context.renderTaskCreation(TaskFormat.parseTaskLine('Без даты'), 17, true), '');
 assert.equal(task.raw, raw);
+for (const line of [raw + ' gtd:2026-10-10', raw + ' gtd:2026-11-01']) {
+  const parsed = TaskFormat.parseTaskLine(line);
+  // Test both the shared parser object and the page's _raw task adapter.
+  for (const record of [parsed, { ...parsed, _raw: line, raw: undefined }]) {
+    const rendered = context.renderTaskCreation(record, 17, true);
+    assert.doesNotMatch(rendered, /task-review-btn|openProcess/, 'Saved review hides its age shortcut');
+    assert.match(rendered, /Создано/, 'Creation date remains visible');
+    assert.equal(record._raw ?? record.raw, line, 'Rendering never changes task text');
+  }
+}
+assert.match(context.renderTaskCreation(TaskFormat.parseTaskLine(raw + ' gtd:2026-02-30'), 17, true), /openProcess\(17\)/,
+  'Invalid GTD date is not treated as a saved review');
+const reminder = (line, now, options = {}) => gtdContext.TaskGtd.needsReview(line, {
+  ...reminderOptions, ...options, now: TaskFormat.parseIsoDateLocal(now),
+});
+const reviewed = raw + ' gtd:2026-09-11';
+assert.equal(reminder(reviewed, '2026-10-10'), false, 'Day before the review anniversary');
+assert.equal(reminder(reviewed, '2026-10-11'), true, 'Calendar month boundary is inclusive');
+assert.equal(reminder(reviewed, '2026-10-12'), true, 'Stays visible after the anniversary');
+assert.equal(reminder(raw + ' gtd:2026-01-31', '2026-02-27'), false);
+assert.equal(reminder(raw + ' gtd:2026-01-31', '2026-02-28'), true, 'End-of-month clamp uses shared date-fns rule');
+assert.equal(reminder(raw + ' gtd:2024-01-31', '2024-02-29'), true, 'Leap-year anniversary');
+assert.equal(reminder(raw + ' gtd:2026-09-11 gtd:2026-10-10', '2026-10-11'), false, 'Latest review resets the reminder');
+for (const mark of ['x', 'X']) {
+  const completed = `${mark} 2026-10-11 ${reviewed}`;
+  assert.equal(reminder(completed, '2026-10-11', { isOld: true }), false);
+  assert.doesNotMatch(context.renderTaskCreation(TaskFormat.parseTaskLine(completed), 17, true), /<button/);
+}
+const youngReviewed = '2026-09-11 Новая задача gtd:2026-09-11';
+assert.match(context.renderTaskCreation(TaskFormat.parseTaskLine(youngReviewed), 17, false), /openProcess\(17\)/,
+  'Stale review returns the icon independently of the two-month creation threshold');
+assert.match(context.renderTaskCreation(TaskFormat.parseTaskLine('Нет даты gtd:2026-09-11'), 17, false), /openProcess\(17\)/);
+assert.doesNotMatch(context.renderTaskCreation(TaskFormat.parseTaskLine('Нет даты gtd:2026-09-11'), 17, false), /Создано/,
+  'Unknown creation date is not invented');
+assert.equal(reminder(reviewed, '2026-10-11', { dateFns: {} }), false, 'No guessed boundary if date-fns is unavailable');
 assert.match(page, /TaskAge\.isOldTask\(t, \{ months: oldTaskMonths \}\)/);
 const html = fs.readFileSync('sorter 2025/tasks.html', 'utf8');
 assert.match(html, /id="old-task-months" min="1" step="1" required/);

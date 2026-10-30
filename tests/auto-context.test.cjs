@@ -39,6 +39,12 @@ function geolocationReturning(value) {
     true,
   );
   assert.equal(AutoContext.matchesSelectedContexts([], [], 'and'), true);
+  const atHome = ['ноут', 'дом'];
+  assert.equal(AutoContext.buildAutoSearchQuery(atHome), '@ноут ИЛИ @ПК ИЛИ @дом ИЛИ @дома');
+  assert.equal(AutoContext.buildAutoSearchQuery(atHome, 'and'), '(@ноут ИЛИ @ПК) И (@дом ИЛИ @дома)');
+  assert.equal(AutoContext.buildAutoSearchQuery(['телефон', 'дом']), '@телефон ИЛИ @дом ИЛИ @дома');
+  assert.equal(AutoContext.buildAutoSearchQuery(['ноут', 'город']), '@ноут ИЛИ @ПК ИЛИ @город');
+  assert.equal(AutoContext.matchesSelectedContexts(['@ПК'], atHome, 'or'), false);
 
   const settings = createStorage();
   assert.equal(AutoContext.getContextOperator(settings), 'or');

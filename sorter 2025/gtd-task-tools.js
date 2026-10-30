@@ -62,6 +62,21 @@
     return root.TaskFormat.parseTaskLine(line).tagList.some(tag => tag.key === 'gtd' && validDate(tag.value));
   }
 
+  // Presentation reminder, not GTD queue eligibility. A saved review hides its
+  // shortcut for one calendar month; completion always hides it. Reuse date-fns
+  // through TaskAge rather than treating a month as a fixed number of days.
+  function needsReview(line, options = {}) {
+    const task = root.TaskFormat.parseTaskLine(line);
+    if (task.completed) return false;
+    const dates = task.tagList.filter(tag => tag.key === 'gtd' && validDate(tag.value)).map(tag => tag.value);
+    if (dates.length) {
+      // Repeated legacy gtd fields cannot let an older date override a new review.
+      const latest = dates.reduce((a, b) => a > b ? a : b);
+      return root.TaskAge.isOldTask({ creationDate: latest }, { ...options, months: 1 });
+    }
+    return validDate(task.creationDate) && (options.isOld ?? root.TaskAge.isOldTask(task, options));
+  }
+
   function nextUnprocessedTask(document, currentIndex = -1, acceptTask = null) {
     const markers = typeof MARKERS !== 'undefined' ? MARKERS : root.MARKERS;
     const lines = String(document || '').split(/\r?\n/);
@@ -142,5 +157,5 @@
   }
 
   root.TaskGtd = { prepareOutput, withDueDate, validDate, googleCalendarUrl,
-    withColor, taskColor, isProcessed, nextUnprocessedTask, firstOldUnprocessedTask, findTaskIndex, saveOutputInDocument };
+    withColor, taskColor, isProcessed, needsReview, nextUnprocessedTask, firstOldUnprocessedTask, findTaskIndex, saveOutputInDocument };
 })(globalThis);

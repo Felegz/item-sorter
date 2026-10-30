@@ -78,7 +78,7 @@ assert.equal(ui.items[1]._raw, original);
 
 // Filtering changes visibility, never the stored task instances or section.
 Object.assign(ui, {
-  tab: 'active', sortMode: 'order', showFuture: false, showIgnored: false,
+  tab: 'active', sortMode: 'order', showFuture: false, showIgnored: false, autoMode: false,
   priF: null, ctxF: new Set(), projF: null, hashtagF: null, searchQ: '',
   SorterAutoContext: { matchesSelectedContexts: () => true },
 });

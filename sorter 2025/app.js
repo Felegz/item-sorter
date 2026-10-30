@@ -79,20 +79,16 @@ function chooseWindow(task, progress) {
   let doneResult = null;
   let latestText = task;
   const progressBar = progress
-    ? `<div style="margin-bottom:0.5rem">
-        <div style="display:flex;justify-content:space-between;font-size:0.72rem;color:#888;margin-bottom:4px">
-          <span>Filter Tasks</span><span>${progress.current} / ${progress.total}</span>
-        </div>
-        <div style="height:3px;background:#2a2a2a;border-radius:2px;overflow:hidden">
-          <div style="height:100%;width:${Math.round(progress.current/progress.total*100)}%;background:#4ade80;border-radius:2px"></div>
-        </div>
-      </div>`
+    ? TaskDialog.progress({ value: progress.current, max: progress.total,
+        label: `Filter Tasks · ${progress.current} / ${progress.total}` })
     : '';
 
   return Swal.fire({
+    ...TaskDialog.options(),
     title: '\u0417\u0430\u0434\u0430\u0447\u0430:',
-    html: progressBar,
+    html: `${progressBar}<div id="filter-task-preview">${TaskDialog.renderTask(task)}</div>`,
     input: 'textarea',
+    inputLabel: 'Текст задачи',
     inputValue: task,
     showDenyButton: true,
     showCancelButton: true,
@@ -106,14 +102,20 @@ function chooseWindow(task, progress) {
       const input = Swal.getInput();
       if (input) {
         latestText = input.value;
-        input.addEventListener('input', () => { latestText = input.value; });
+        // Preview is display-only: keep the exact draft in SweetAlert's input,
+        // including metadata, duplicates and source fields, until a decision.
+        input.addEventListener('input', () => {
+          latestText = input.value;
+          const preview = document.getElementById('filter-task-preview');
+          if (preview) preview.innerHTML = TaskDialog.renderTask(latestText.trim() || task);
+        });
       }
       const actions = document.querySelector('.swal2-actions');
       const deleteButton = document.querySelector('.swal2-cancel');
       const doneButton = document.createElement('button');
       doneButton.type = 'button';
       doneButton.id = 'filter-done-button';
-      doneButton.className = 'swal2-confirm swal2-styled filter-done-button';
+      doneButton.className = 'task-dialog__action filter-done-button';
       doneButton.textContent = 'Сделано';
       doneButton.addEventListener('click', () => {
         const text = (Swal.getInput()?.value || '').trim() || task;
@@ -218,8 +220,8 @@ async function merge(left, right) {
 }
 
 /**
- * Заменяет старую compareTasks на SweetAlert2‑версию,
- * где task1 и task2 — это сами надписи на кнопках.
+ * Общий диалог для восстановленных алгоритмов. Меняется только отображение:
+ * исходные строки и ответы -1/1 передаются алгоритмам без преобразования.
  *
  * @param {string} task1 — текст первой задачи (кнопка «ДА»)
  * @param {string} task2 — текст второй задачи (кнопка «НЕТ»)
@@ -237,35 +239,19 @@ async function compareTasks(task1, task2, progress = null) {
         ? 'Подготовка…'
         : `✓ Выбрано ${progress.tasksDone} из ${progress.tasksTotal}`)
     : '';
-  const progressHtml = progress ? `
-    <div style="margin-bottom:0.75rem">
-      <div style="display:flex;justify-content:space-between;align-items:baseline;font-size:0.75rem;margin-bottom:4px">
-        <span style="color:#86efac;font-weight:500">${_statusText}</span>
-        <span style="color:#4ade80">${_pct}%</span>
-      </div>
-      <div style="height:5px;background:#2e2e2e;border-radius:3px;overflow:hidden;margin-bottom:5px">
-        <div style="height:100%;width:${_pct}%;background:linear-gradient(90deg,#4ade80,#86efac);border-radius:3px;transition:width 0.15s ease"></div>
-      </div>
-      <div style="font-size:0.7rem;color:#6a6488;text-align:right">
-        ещё ~${_remaining} сравнений
-      </div>
-    </div>` : '';
+  const progressHtml = progress ? TaskDialog.progress({ value: _pct, max: 100,
+    label: `${_statusText} · ${_pct}%`, detail: `ещё ~${_remaining} сравнений` }) : '';
 
   return new Promise(resolve => {
     Swal.fire({
-      title: `${counter}. ${question}`,
+      ...TaskDialog.options(),
+      titleText: `${counter}. ${question}`,
       html: `
         ${progressHtml}
-        <div style="text-align:left; word-wrap:break-word; margin-bottom:1rem;">
-          <p>Выберите более важную задачу:</p>
-        </div>
-        <div style="display:flex; flex-direction:column; gap:0.5rem;">
-          <button id="swal-btn1" class="swal2-confirm swal2-styled" style="white-space:normal; width:100%;">
-            ${task1}
-          </button>
-          <button id="swal-btn2" class="swal2-deny swal2-styled" style="white-space:normal; width:100%;">
-            ${task2}
-          </button>
+        <p class="task-dialog__note">Выберите более важную задачу:</p>
+        <div class="task-dialog__choices">
+          ${TaskDialog.renderTask(task1, { choiceId: 'swal-btn1' })}
+          ${TaskDialog.renderTask(task2, { choiceId: 'swal-btn2' })}
         </div>
       `,
       showConfirmButton: false,

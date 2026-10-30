@@ -8,6 +8,7 @@ const PRI_CHIP_CLS = { A:'pri-a', B:'pri-b', C:'pri-c' };
     const autoMode = SorterAutoContext.isAutoUrl(window.location);
     let contextOperator = SorterAutoContext.getContextOperator(localStorage);
     let autoContextState = null;
+    let autoSearchEdited = false;
     let sortMode = 'order', searchQ = '';
     let showIgnored = false, showFuture = false, rightClickedIdx = -1;
     const collapsedSections = new Set(); // хранит _raw маркеров свёрнутых секций
@@ -16,12 +17,15 @@ const PRI_CHIP_CLS = { A:'pri-a', B:'pri-b', C:'pri-c' };
     let oldTaskMonths = TaskAge.getMonths();
 
     // Reuse the shared date label and the existing GTD action; no task data is changed.
-    function renderTaskCreation(task, idx, isOld) {
-      if (!TaskFormat.parseIsoDateLocal(task.creationDate)) return '';
-      const date = TaskFormat.renderTaskMetaHtml(task, { includeMeta: ['created'] });
-      const review = isOld
+    function renderTaskCreation(task, idx, isOld, reviewDue = TaskGtd.needsReview(task._raw ?? task.raw, { isOld, months: oldTaskMonths })) {
+      const date = TaskFormat.parseIsoDateLocal(task.creationDate)
+        ? TaskFormat.renderTaskMetaHtml(task, { includeMeta: ['created'] }) : '';
+      // A stale review may need a shortcut even before the task is old, or when
+      // its creation date is unknown. Never invent a creation date for display.
+      const review = reviewDue
         ? `<button type="button" class="task-review-btn" onclick="openProcess(${idx})" aria-label="Разобрать старую задачу" title="Разобрать старую задачу">${SorterIcons.render('sparkles')}</button>`
         : '';
+      if (!date && !review) return '';
       return `<div class="task-creation">${date}${review}</div>`;
     }
 
@@ -33,40 +37,71 @@ const PRI_CHIP_CLS = { A:'pri-a', B:'pri-b', C:'pri-c' };
 
     // --- Boolean search ---
 
-    function searchMatches(rawText, q) {
-      if (!q.trim()) return true;
-      const text = rawText.toLowerCase();
+    function tokenizeSearch(q) {
       const tokens = [];
-      const re = /"([^"]+)"|(OR|\|\||AND|&&)|(-[\w\u0400-\u04FF]+)|([\w\u0400-\u04FF]+)/gi;
+      const re = /"([^"]+)"|(\|\||&&|[()])|([^\s()]+)/gu;
       let m;
       while ((m = re.exec(q)) !== null) {
-        if (m[1] !== undefined) tokens.push({ type: 'phrase', val: m[1].toLowerCase() });
-        else if (m[2] !== undefined) tokens.push({ type: /^(OR|\|\|)$/i.test(m[2]) ? 'OR' : 'AND' });
-        else if (m[3] !== undefined) tokens.push({ type: 'NOT', val: m[3].slice(1).toLowerCase() });
-        else tokens.push({ type: 'word', val: m[4].toLowerCase() });
+        if (m[1] !== undefined) {
+          tokens.push({ type: 'term', val: m[1].toLocaleLowerCase('ru'), negated: false });
+          continue;
+        }
+        const value = m[2] || m[3];
+        const upper = value.toLocaleUpperCase('ru');
+        if (upper === 'OR' || upper === 'ИЛИ' || value === '||') tokens.push({ type: 'OR' });
+        else if (upper === 'AND' || upper === 'И' || value === '&&') tokens.push({ type: 'AND' });
+        else if (value === '(' || value === ')') tokens.push({ type: value });
+        else tokens.push({ type: 'term', val: value.replace(/^-/, '').toLocaleLowerCase('ru'), negated: value.startsWith('-') });
       }
-      // Split by OR into groups; each group is implicitly ANDed
-      const orGroups = [[]];
-      for (const tok of tokens) {
-        if (tok.type === 'OR') orGroups.push([]);
-        else if (tok.type !== 'AND') orGroups[orGroups.length - 1].push(tok);
+      return tokens;
+    }
+
+    function searchMatches(task, q) {
+      if (!q.trim()) return true;
+      const tokens = tokenizeSearch(q);
+      const text = (task._raw || '').toLocaleLowerCase('ru');
+      const contexts = new Set((task.contexts || []).map(context => String(context).toLocaleLowerCase('ru')));
+      let index = 0;
+      const termMatches = token => {
+        // @context checks parsed task contexts, so @дом does not match @дома or prose.
+        const found = token.val.startsWith('@')
+          ? contexts.has(token.val.slice(1)) : text.includes(token.val);
+        return token.negated ? !found : found;
+      };
+      function parseAtom() {
+        const token = tokens[index++];
+        if (token?.type !== '(') return token?.type === 'term' && termMatches(token);
+        const result = parseOr();
+        if (tokens[index]?.type === ')') index++;
+        return result;
       }
-      return orGroups.some(group =>
-        group.every(tok => tok.type === 'NOT' ? !text.includes(tok.val) : text.includes(tok.val))
-      );
+      function parseAnd() {
+        let result = true;
+        let found = false;
+        while (index < tokens.length && tokens[index].type !== 'OR' && tokens[index].type !== ')') {
+          if (tokens[index].type === 'AND') { index++; continue; }
+          const value = parseAtom();
+          result = result && value;
+          found = true;
+        }
+        return found && result;
+      }
+      function parseOr() {
+        let result = parseAnd();
+        while (tokens[index]?.type === 'OR') {
+          index++;
+          const value = parseAnd();
+          result = result || value;
+        }
+        return result;
+      }
+      return parseOr();
     }
 
     function queryTerms(q) {
       if (!q.trim()) return [];
-      const terms = [];
-      const re = /"([^"]+)"|(OR|\|\||AND|&&)|(-[\w\u0400-\u04FF]+)|([\w\u0400-\u04FF]+)/gi;
-      let m;
-      while ((m = re.exec(q)) !== null) {
-        if (m[1] !== undefined) terms.push(m[1].toLowerCase());       // quoted phrase
-        else if (m[4] !== undefined) terms.push(m[4].toLowerCase());  // plain word
-        // operators (m[2]) and NOT (m[3]) are skipped
-      }
-      return terms;
+      return tokenizeSearch(q).filter(token => token.type === 'term' && !token.negated && !token.val.startsWith('@'))
+        .map(token => token.val);
     }
 
     // --- Parsing ---
@@ -161,10 +196,11 @@ const PRI_CHIP_CLS = { A:'pri-a', B:'pri-b', C:'pri-c' };
           if (tab === 'done'   && !t.complete) return false;
           if (tab === 'active' && !showFuture && t._threshold && t._threshold > TaskListOperations.localIsoDate()) return false;
           if (priF  && t.priority !== priF) return false;
-          if (!SorterAutoContext.matchesSelectedContexts(t.contexts, ctxF, contextOperator)) return false;
+          // /auto uses its visible search expression; chips must not filter it a second time.
+          if (!autoMode && !SorterAutoContext.matchesSelectedContexts(t.contexts, ctxF, contextOperator)) return false;
           if (projF && !(t.projects && t.projects.includes(projF))) return false;
           if (hashtagF && !(t._hashtags && t._hashtags.includes(hashtagF))) return false;
-          if (searchQ && !searchMatches(t._raw, searchQ)) return false;
+          if (searchQ && !searchMatches(t, searchQ)) return false;
           return true;
         });
       }
@@ -176,12 +212,12 @@ const PRI_CHIP_CLS = { A:'pri-a', B:'pri-b', C:'pri-c' };
         list = list.filter(t => !t._threshold || t._threshold <= today);
       }
       if (priF)  list = list.filter(t => t.priority === priF);
-      if (ctxF.size) list = list.filter(t =>
+      if (!autoMode && ctxF.size) list = list.filter(t =>
         SorterAutoContext.matchesSelectedContexts(t.contexts, ctxF, contextOperator)
       );
       if (projF) list = list.filter(t => t.projects && t.projects.includes(projF));
       if (hashtagF) list = list.filter(t => t._hashtags && t._hashtags.includes(hashtagF));
-      if (searchQ) list = list.filter(t => searchMatches(t._raw, searchQ));
+      if (searchQ) list = list.filter(t => searchMatches(t, searchQ));
       return list;
     }
 
@@ -415,6 +451,7 @@ const PRI_CHIP_CLS = { A:'pri-a', B:'pri-b', C:'pri-c' };
           ? `<button type="button" class="task-ai-status ${aiJob.status}" onclick="openTaskAiJob(event,${idx})">${esc(window.SorterAiDropbox.statusLabel(aiJob))}</button>`
           : '';
         const isOld = TaskAge.isOldTask(t, { months: oldTaskMonths });
+        const reviewDue = TaskGtd.needsReview(t._raw, { isOld, months: oldTaskMonths });
         return `<div class="task-row${t.complete ? ' done' : ''}${t._ignored ? ' ignored-row' : ''}${isOld ? ' old-task' : ''}" data-idx="${idx}">
   <input type="checkbox" ${t.complete ? 'checked' : ''} onchange="toggleDone(${idx})">
   <div class="task-body">
@@ -422,9 +459,9 @@ const PRI_CHIP_CLS = { A:'pri-a', B:'pri-b', C:'pri-c' };
       variant: 'list',
       terms,
       leadingMeta: ['contexts', 'projects', 'hashtags'],
-      excludeMeta: isOld ? ['created'] : [],
+      excludeMeta: isOld || reviewDue ? ['created'] : [],
     })}
-    ${isOld ? renderTaskCreation(t, idx, true) : ''}
+    ${isOld || reviewDue ? renderTaskCreation(t, idx, isOld, reviewDue) : ''}
     ${aiStatus}
   </div>
   <details class="task-actions">
@@ -512,8 +549,6 @@ const PRI_CHIP_CLS = { A:'pri-a', B:'pri-b', C:'pri-c' };
     }
 
     function compareTaskRank(candidateRaw, existingRaw, progress) {
-      const candidate = TaskFormat.parseTaskLine(candidateRaw);
-      const existing = TaskFormat.parseTaskLine(existingRaw);
       const step = progress?.maxComparisons
         ? `Сравнение ${progress.comparison} из максимум ${progress.maxComparisons}`
         : 'Выберите, что нужно сделать раньше';
@@ -527,28 +562,17 @@ const PRI_CHIP_CLS = { A:'pri-a', B:'pri-b', C:'pri-c' };
           Swal.close();
         };
         Swal.fire({
+          ...TaskDialog.options(),
           title: 'Что делать раньше?',
-          html: `<p class="rank-progress">${esc(step)}</p>
-            <div class="rank-choices">
-              <button type="button" id="rank-candidate" class="rank-choice">
-                ${TaskFormat.renderTaskHtml(candidate, {
-                  variant: 'choice',
-                  leadingMeta: ['contexts', 'hashtags'],
-                })}
-              </button>
-              <button type="button" id="rank-existing" class="rank-choice">
-                ${TaskFormat.renderTaskHtml(existing, {
-                  variant: 'choice',
-                  leadingMeta: ['contexts', 'hashtags'],
-                })}
-              </button>
+          html: `<p class="task-dialog__note">${esc(step)}</p>
+            <div class="task-dialog__choices">
+              ${TaskDialog.renderTask(candidateRaw, { choiceId: 'rank-candidate' })}
+              ${TaskDialog.renderTask(existingRaw, { choiceId: 'rank-existing' })}
             </div>`,
           showConfirmButton: false,
           showCancelButton: true,
           cancelButtonText: 'Отмена',
-          buttonsStyling: false,
           allowOutsideClick: false,
-          customClass: { popup: 'rank-dialog', cancelButton: 'rank-cancel' },
           didOpen: () => {
             document.getElementById('rank-candidate')?.addEventListener('click', () => choose(-1));
             document.getElementById('rank-existing')?.addEventListener('click', () => choose(1));
@@ -640,6 +664,7 @@ const PRI_CHIP_CLS = { A:'pri-a', B:'pri-b', C:'pri-c' };
     function setCtx(c) {
       if (ctxF.has(c)) ctxF.delete(c);
       else ctxF.add(c);
+      updateAutoSearchQuery(true);
       render();
     }
     function setProj(p) { projF = projF === p ? null : p; render(); }
@@ -657,6 +682,7 @@ const PRI_CHIP_CLS = { A:'pri-a', B:'pri-b', C:'pri-c' };
       const si = document.getElementById('search');
       si.value = '';
       document.getElementById('search-clear').style.display = 'none';
+      updateAutoSearchQuery(true);
       render();
     }
 
@@ -741,6 +767,7 @@ const PRI_CHIP_CLS = { A:'pri-a', B:'pri-b', C:'pri-c' };
 
     document.getElementById('context-match-mode').onchange = event => {
       contextOperator = SorterAutoContext.setContextOperator(localStorage, event.target.value);
+      updateAutoSearchQuery(true);
       render();
     };
 
@@ -752,6 +779,7 @@ const PRI_CHIP_CLS = { A:'pri-a', B:'pri-b', C:'pri-c' };
     const searchClear = document.getElementById('search-clear');
     const searchHint  = document.querySelector('.search-hint');
     searchInput.oninput = () => {
+      if (autoMode) { autoSearchEdited = true; ctxF.clear(); }
       searchQ = searchInput.value;
       searchClear.style.display = searchQ ? '' : 'none';
       render();
@@ -759,6 +787,7 @@ const PRI_CHIP_CLS = { A:'pri-a', B:'pri-b', C:'pri-c' };
     searchInput.addEventListener('focus', () => searchHint?.classList.add('visible'));
     searchInput.addEventListener('blur',  () => { if (!searchQ) searchHint?.classList.remove('visible'); });
     searchClear.onclick = () => {
+      if (autoMode) { autoSearchEdited = true; ctxF.clear(); }
       searchInput.value = ''; searchQ = '';
       searchClear.style.display = 'none';
       searchHint?.classList.remove('visible');
@@ -842,7 +871,10 @@ const PRI_CHIP_CLS = { A:'pri-a', B:'pri-b', C:'pri-c' };
       }
       if (e.key === 'Escape' && active === searchInput) {
         searchInput.blur();
-        if (searchQ) { searchInput.value = ''; searchQ = ''; searchClear.style.display = 'none'; render(); }
+        if (searchQ) {
+          if (autoMode) { autoSearchEdited = true; ctxF.clear(); }
+          searchInput.value = ''; searchQ = ''; searchClear.style.display = 'none'; render();
+        }
       }
     });
 
@@ -1286,8 +1318,7 @@ const PRI_CHIP_CLS = { A:'pri-a', B:'pri-b', C:'pri-c' };
       const summary = document.getElementById('auto-context-summary');
       if (!banner || !summary || !autoMode) return;
       banner.hidden = false;
-      const joiner = contextOperator === 'and' ? ' и ' : ' или ';
-      const selected = [...ctxF].map(context => `@${context}`).join(joiner);
+      const selected = searchQ;
       let suffix = '';
       if (autoContextState?.location === 'loading') suffix = ' · определяю место';
       else if (autoContextState?.location === 'unset') suffix = ' · координаты дома не заданы';
@@ -1295,11 +1326,22 @@ const PRI_CHIP_CLS = { A:'pri-a', B:'pri-b', C:'pri-c' };
       summary.textContent = `${selected || 'контексты не выбраны'}${suffix}`;
     }
 
+    function updateAutoSearchQuery(force = false) {
+      // Geolocation may answer after the user starts typing. Preserve that query.
+      if (!autoMode || (autoSearchEdited && !force)) return;
+      autoSearchEdited = false;
+      searchQ = SorterAutoContext.buildAutoSearchQuery(ctxF, contextOperator);
+      const input = document.getElementById('search');
+      input.value = searchQ;
+      document.getElementById('search-clear').style.display = searchQ ? '' : 'none';
+    }
+
     async function initAutoContextMode() {
       if (!autoMode) return;
       const deviceContext = SorterAutoContext.detectDeviceContext(navigator, window.innerWidth);
       ctxF.add(deviceContext);
       autoContextState = { contexts: [deviceContext], location: 'loading', error: null };
+      updateAutoSearchQuery();
       renderAutoContextBanner();
       render();
 
@@ -1309,8 +1351,11 @@ const PRI_CHIP_CLS = { A:'pri-a', B:'pri-b', C:'pri-c' };
         navigatorLike: navigator,
         viewportWidth: window.innerWidth,
       });
-      ctxF.clear();
-      autoContextState.contexts.forEach(context => ctxF.add(context));
+      if (!autoSearchEdited) {
+        ctxF.clear();
+        autoContextState.contexts.forEach(context => ctxF.add(context));
+        updateAutoSearchQuery();
+      }
       renderAutoContextBanner();
       render();
     }

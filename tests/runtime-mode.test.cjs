@@ -91,6 +91,59 @@ function createRuntime(urlString, initialStorage = {}) {
   assert.equal(production.runtime.getTasks(), 'Production tasks');
   assert.equal(production.storage.has('sorter_dev_tasks'), false);
 
+  const loadParsers = test => {
+    for (const file of ['markers.js', 'task-format.js']) {
+      vm.runInContext(fs.readFileSync(path.join(projectRoot, 'sorter 2025', file), 'utf8'), test.context);
+    }
+  };
+  loadParsers(developer);
+  for (const line of developer.runtime.defaultDeveloperTasks) {
+    const task = developer.context.TaskFormat.parseTaskLine(line);
+    assert(task.contexts.length && task.projects.length && task.hashtags.length, 'All ten demo tasks exercise every tag family');
+  }
+  const oldFixture = 'Задача один\r\n\r\nINBOX SORTED\r\nЗадача три\r\n\r\nSORTED (2026.10.21)\r\n'
+    + '(B) 2026-01-31 Задача восемь due:2026-11-01 gtd:2026-10-21 ➤совет:Отдохнуть ➤исходное:Старый текст\r\n\r\n'
+    + 'Задача один\r\n\r\nPARTIALLY SORTED (2026.10.21)\r\nЗадача два @свой +свой #свой\r\n\r\n'
+    + 'IGNORED TASKS (2026.10.21)\r\nx 2026-10-21 2026-01-31 Сделана\r\n\r\n';
+  const enriched = createRuntime('http://localhost:4173/?mode=developer', {
+    tasks: 'Не менять рабочие задачи', sorter_dev_tasks: oldFixture,
+  });
+  loadParsers(enriched);
+  const updated = enriched.runtime.getTasks();
+  assert.equal(enriched.storage.get('tasks'), 'Не менять рабочие задачи');
+  assert.equal(enriched.storage.get('sorter_dev_fixture_tags_backup_v1'), oldFixture);
+  assert.equal(enriched.storage.get('sorter_dev_fixture_tags_v1'), '1');
+  assert.equal(updated.split('\n').length, oldFixture.split('\n').length);
+  const beforeLines = oldFixture.split('\n');
+  const afterLines = updated.split('\n');
+  beforeLines.forEach((line, index) => {
+    if (!line.trim() || enriched.context.MARKERS?.isAnyMarker?.(line) || /^(?:INBOX SORTED|SORTED|PARTIALLY SORTED|IGNORED TASKS)/.test(line)) {
+      assert.equal(afterLines[index], line, 'Keep markers and blank separators exactly');
+      return;
+    }
+    const before = enriched.context.TaskFormat.parseTaskLine(line);
+    const after = enriched.context.TaskFormat.parseTaskLine(afterLines[index]);
+    for (const key of ['text', 'completed', 'completionDate', 'creationDate', 'priority', 'dueDate', 'goal', 'advice', 'source']) {
+      assert.equal(after[key], before[key], 'Preserve ' + key);
+    }
+    assert(after.contexts.length && after.projects.length && after.hashtags.length);
+    if (before.contexts.length) assert.deepEqual(after.contexts, before.contexts);
+    if (before.projects.length) assert.deepEqual(after.projects, before.projects);
+    if (before.hashtags.length) assert.deepEqual(after.hashtags, before.hashtags);
+    assert(afterLines[index].endsWith('\r'), 'Keep CRLF separators');
+  });
+  assert.equal(enriched.runtime.getTasks(), updated, 'One-time migration is idempotent');
+  enriched.runtime.setTasks('Новая developer-задача без тегов');
+  assert.equal(enriched.runtime.getTasks(), 'Новая developer-задача без тегов', 'Do not silently tag later user input');
+  assert.equal(enriched.storage.get('sorter_dev_fixture_tags_backup_v1'), oldFixture);
+  for (const test of [normal, production]) {
+    loadParsers(test);
+    const original = test.storage.get('tasks');
+    assert.equal(test.runtime.getTasks(), original);
+    assert(!test.storage.has('sorter_dev_fixture_tags_v1'));
+    assert(!test.storage.has('fixture_tags_v1'));
+  }
+
   let fetchCalls = 0;
   developer.context.fetch = async () => {
     fetchCalls += 1;

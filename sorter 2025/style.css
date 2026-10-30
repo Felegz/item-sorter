@@ -997,31 +997,6 @@ button:disabled {
 .tool-status[data-state="success"] { color: var(--primary); }
 .tool-status[data-state="error"] { color: var(--danger); }
 
-/* Four Filter Tasks outcomes form one action group; mobile uses a compact 2×2 grid. */
-.swal2-actions.filter-task-actions {
-  display: grid !important;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 0.5rem;
-  width: calc(100% - 2rem);
-  margin-inline: 1rem;
-}
-
-.filter-task-actions .swal2-styled {
-  min-width: 0;
-  margin: 0;
-  padding-inline: 0.75rem;
-}
-
-.filter-task-actions .filter-done-button {
-  background-color: #3f7f63 !important;
-}
-
-@media (max-width: 600px) {
-  .swal2-actions.filter-task-actions {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-}
-
 .bulk-date-picker {
   min-height: 40px;
   padding: 0 10px;
@@ -1236,7 +1211,7 @@ footer a {
   }
 
   .primary-actions #insert-button { grid-column: auto; }
-  .primary-actions button { min-height: 38px; padding: 0 10px; font-size: 0.78rem; }
+  .primary-actions button { min-height: 44px; padding: 0 10px; font-size: 0.78rem; }
   .sync-badge { min-height: 30px; padding: 0 8px; font-size: 0.74rem; }
 }
 

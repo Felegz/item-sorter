@@ -1,0 +1,104 @@
+/* Shared task-dialog component for comparison, report, empty and error states.
+ * Change these tokens to adjust sorting, filtering, ranking and audit windows.
+ * The launch button inherits .primary-actions with the other commands. */
+.task-dialog {
+  --task-dialog-surface: var(--bg-elevated, var(--bg-el));
+  --task-dialog-muted: var(--fg-muted, var(--fg-m));
+  --task-dialog-width: 42rem;
+  --task-dialog-space: 16px;
+  --task-dialog-gap: 12px;
+  --task-dialog-control-height: 44px;
+  --task-dialog-font-size: 1rem;
+  --task-dialog-title-size: 1.12rem;
+  --task-dialog-task-size: 1rem;
+}
+.swal2-popup.task-dialog {
+  width: min(var(--task-dialog-width), calc(100vw - 24px));
+  max-height: calc(100dvh - 24px);
+  padding: 0;
+  overflow-y: auto;
+  background: var(--bg);
+  color: var(--fg);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  text-align: left;
+  font-family: var(--font-family, 'Inter', system-ui, sans-serif);
+  font-size: var(--task-dialog-font-size);
+  line-height: 1.5;
+}
+.task-dialog .swal2-title {
+  padding: var(--task-dialog-space);
+  color: inherit;
+  font-size: var(--task-dialog-title-size);
+  line-height: 1.4;
+  text-align: left;
+}
+.task-dialog .swal2-html-container { margin: 0 var(--task-dialog-space); color: inherit; font-size: var(--task-dialog-font-size); text-align: left; }
+.task-dialog .swal2-actions { flex-wrap: wrap; gap: var(--task-dialog-gap); margin: var(--task-dialog-space); }
+.task-dialog__choices { display: grid; gap: var(--task-dialog-gap); }
+.task-dialog__task { min-width: 0; overflow: hidden; background: var(--task-dialog-surface); border: 1px solid var(--border); border-radius: 12px; overflow-wrap: anywhere; }
+.task-dialog__task-body { padding: var(--task-dialog-gap); }
+.task-dialog__note { margin: 0 0 var(--task-dialog-gap); color: var(--task-dialog-muted); font-size: 0.82rem; line-height: 1.5; }
+.task-dialog__summary { font-weight: 600; }
+.task-dialog .task-text { display: block; font-size: var(--task-dialog-task-size); line-height: 1.5; }
+.task-dialog .task-tags-leading { margin: 0 0 8px; }
+.task-dialog .task-tags { display: flex; flex-wrap: wrap; gap: 5px; }
+.task-dialog .t { max-width: 100%; white-space: normal; overflow-wrap: anywhere; }
+.task-dialog .t-pri { color: var(--fg); }
+.task-dialog .task-link { color: #9dc7f0; text-decoration: underline; text-underline-offset: 3px; overflow-wrap: anywhere; }
+.task-dialog :is(.task-dialog__choice, .task-dialog__action) {
+  min-height: var(--task-dialog-control-height);
+  min-width: 0;
+  max-width: 100%;
+  margin: 0;
+  padding: 10px 14px;
+  white-space: normal;
+  font: inherit;
+  color: var(--fg);
+  background: var(--task-dialog-surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  cursor: pointer;
+}
+.task-dialog .task-dialog__choice { width: 100%; background: transparent; border-width: 1px 0 0; border-radius: 0; }
+.task-dialog .task-dialog__action--primary { background: var(--primary); color: #08120d; border-color: var(--primary); font-weight: 600; }
+.task-dialog .task-dialog__action--primary:hover { background: var(--primary-hover, var(--primary-h, var(--primary))); color: #08120d; }
+.task-dialog button:focus-visible { outline: 2px solid var(--primary); outline-offset: -3px; }
+.task-dialog button:hover { background: var(--bg-card); transform: none; box-shadow: none; }
+.task-dialog details > summary { cursor: pointer; }
+.task-dialog__pair { display: grid; gap: var(--task-dialog-gap); margin-top: var(--task-dialog-space); padding-top: var(--task-dialog-space); border-top: 1px solid var(--border); }
+.task-dialog__pair .task-dialog__note { margin: 0; }
+.task-dialog__preview { margin-top: var(--task-dialog-space); }
+.task-dialog__preview-list { display: grid; gap: var(--task-dialog-gap); max-height: 40dvh; margin-top: var(--task-dialog-gap); overflow-y: auto; }
+.task-dialog__progress { margin-bottom: var(--task-dialog-gap); }
+.task-dialog__progress progress { display: block; width: 100%; height: 6px; margin: 6px 0; accent-color: var(--primary); }
+.task-dialog__progress progress::-webkit-progress-bar { background: var(--border); border-radius: 3px; }
+.task-dialog__progress progress::-webkit-progress-value { background: var(--primary); border-radius: 3px; }
+.task-dialog__progress progress::-moz-progress-bar { background: var(--primary); border-radius: 3px; }
+.task-dialog .swal2-input-label { margin: var(--task-dialog-gap) var(--task-dialog-space) 0; color: var(--task-dialog-muted); font-size: 0.82rem; text-align: left; }
+.task-dialog .swal2-textarea {
+  box-sizing: border-box;
+  width: calc(100% - 2 * var(--task-dialog-space)) !important;
+  max-width: none;
+  height: clamp(8rem, 30dvh, 18rem) !important;
+  min-height: 8rem;
+  margin: 8px var(--task-dialog-space) 0 !important;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--task-dialog-surface);
+  color: var(--fg);
+  font: inherit;
+  line-height: 1.5;
+  resize: vertical;
+}
+.task-dialog .swal2-textarea:focus-visible { outline: 2px solid var(--primary); outline-offset: -2px; }
+.task-dialog .filter-task-actions { display: grid !important; grid-template-columns: repeat(4, minmax(0, 1fr)); width: auto; }
+.task-dialog .filter-task-actions .swal2-cancel { color: var(--danger, #ff8a8a); }
+@media (max-width: 600px) {
+  .task-dialog .filter-task-actions { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 480px) {
+  .task-dialog { --task-dialog-space: 12px; }
+  .task-dialog .task-dialog__action { width: 100%; }
+}

@@ -4,8 +4,8 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content">
   <title>Tasks</title>
-  <script src="runtime-mode.js?v=20260911-auto-context"></script>
-  <script src="auto-context.js?v=20260911-auto-context"></script>
+  <script src="runtime-mode.js?v=20261021-demo-tags"></script>
+  <script src="auto-context.js?v=20261030-auto-search"></script>
   <!-- vanilla-context-menu 1.6.0 — MIT license, github.com/GeorgianStan/vanilla-context-menu -->
   <!-- Native text-selection menus must remain available, including inside the editor. -->
   <script src="task-action-menu.js?v=20260917"></script>
@@ -16,14 +16,16 @@
   <script src="markers.js?v=20260911-ignored-filter"></script>
   <script src="mobile-edit-mode.js?v=20260917-collapse"></script>
   <script src="task-format.js?v=20261009-task-age"></script>
+  <script src="task-dialog.js?v=20261021-all-modes"></script>
   <script src="task-age.js?v=20261009-task-age"></script>
   <script src="task-list-operations.js?v=20261009-due-fields"></script>
-  <script src="gtd-task-tools.js?v=20261010-old-review"></script>
+  <script src="gtd-task-tools.js?v=20261011-review-reminder"></script>
   <script src="ai-exchange.js?v=20260906-ai-bridge"></script>
   <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
   <script src="icons.js?v=20261009-gtd-finish"></script>
-  <link rel="stylesheet" href="tasks.css?v=20261010-old-review" />
+  <link rel="stylesheet" href="tasks.css?v=20261021-task-dialog" />
   <link rel="stylesheet" href="task-format.css?v=20261008-merge" />
+  <link rel="stylesheet" href="task-dialog.css?v=20261021-all-modes" />
 </head>
 <body>
   <!--
@@ -68,7 +70,7 @@
       <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg>
     </button>
   </div>
-  <div class="search-hint">Операторы: <code>-слово</code> исключить &nbsp; <code>OR</code> или <code>||</code> &nbsp; <code>AND</code> или <code>&&</code> &nbsp; <code>"точная фраза"</code></div>
+  <div class="search-hint">Операторы: <code>-слово</code> исключить &nbsp; <code>ИЛИ</code> / <code>OR</code> / <code>||</code> &nbsp; <code>И</code> / <code>AND</code> / <code>&&</code> &nbsp; <code>( )</code> группы &nbsp; <code>@контекст</code> &nbsp; <code>"точная фраза"</code></div>
 
   <!-- Tabs -->
   <div class="tasks-tabs-row">
@@ -178,7 +180,7 @@
   </div>
 
   <!-- Classic blocking script: keep globals shared with the Dropbox integration below. -->
-  <script src="tasks-page.js?v=20261010-old-review"></script>
+  <script src="tasks-page.js?v=20261030-auto-search"></script>
   <script src="task-version-comparison.js?v=20261008-merge"></script>
   <script src="dropbox.js?v=20261008-merge"></script>
   <script src="ai-dropbox.js?v=20260906-ai-bridge"></script>

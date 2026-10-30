@@ -79,6 +79,7 @@ function createRuntime() {
   });
   vm.runInContext(markersSource, context, { filename: 'markers.js' });
   vm.runInContext(taskFormatSource, context, { filename: 'task-format.js' });
+  vm.runInContext(fs.readFileSync('sorter 2025/task-dialog.js', 'utf8'), context, { filename: 'task-dialog.js' });
   vm.runInContext(taskOperationsSource, context, { filename: 'task-list-operations.js' });
   vm.runInContext([
     ...restoredNames.map(extractFunction),
@@ -132,8 +133,26 @@ function installComparator(context, ranks, trace) {
     text: 'task NEW ARRAY text\nNEW ARRAY\nranked batch',
   }]);
 
+  // The audit's Apply button uses the same recoverable writer as sorting.
+  // Check the real writer snapshots the prior text before replacing it.
+  const beforeAuditApply = 'SORTED (2026.10.21)\nПервая\n\nВторая';
+  const afterAuditApply = 'SORTED (2026.10.21)\nВторая\n\nПервая';
+  let inputEvents = 0;
+  context.taskList = { value: beforeAuditApply,
+    dispatchEvent(event) { if (event.type === 'input') inputEvents++; },
+  };
+  context.SorterRuntime.setTasks(beforeAuditApply);
+  assert.equal(support.applyTaskListMutation({ changed: true, text: afterAuditApply },
+    'перед перестановкой SORTED после проверки порядка'), true);
+  assert.deepEqual(plain(migrationSnapshots.at(-1)), {
+    reason: 'перед перестановкой SORTED после проверки порядка',
+    text: beforeAuditApply,
+  });
+  assert.equal(storage.get('tasks'), afterAuditApply);
+  assert.equal(inputEvents, 1);
+
   // The restored comparison window returns the selected side and renders the
-  // historical raw task strings. Rendering will be adapted in a separate step.
+  // task strings through the shared safe renderer without changing decisions.
   let comparisonHtml = '';
   context.counter = 0;
   context.userQuestion = { value: 'Что важнее?' };
