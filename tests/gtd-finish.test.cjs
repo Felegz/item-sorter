@@ -93,7 +93,7 @@ const elements = new Map();
 c.document = { getElementById(id) {
   if (!elements.has(id)) elements.set(id, {
     value: '', textContent: '', className: '', innerHTML: '', href: '/',
-    classList: { add() {}, remove() {} }, focus() {}, addEventListener() {}, getAttribute() { return this.href; },
+    classList: { add() {}, remove() {}, toggle() {} }, focus() {}, addEventListener() {}, getAttribute() { return this.href; },
   });
   return elements.get(id);
 } };
@@ -151,6 +151,37 @@ const beforeConflict = stored;
 assert.equal(c.addToList(), false);
 assert.equal(stored, beforeConflict, 'A changed document is never overwritten');
 assert(elements.get('out-note').textContent.includes('Список изменился'));
+
+// The former trash dead end now completes exactly the selected occurrence.
+const same = '2026-01-01 Одинаковая задача @дом +дела';
+stored = [same, '', 'SORTED (2026.09.01)', same, '', 'Другая задача'].join('\n');
+vm.runInContext("S.originalTask = '2026-01-01 Одинаковая задача @дом +дела'; S.task = 'Одинаковая задача'; S.occurrence = 1; S.priority = null; S.savedOutput = null; S.openedDocument = SorterRuntime.getTasks();", c);
+c.showOutput('trash');
+const completionPreview = elements.get('out-line').textContent;
+assert(parse(completionPreview).completed);
+assert(!completionPreview.includes('# УДАЛЕНО:'));
+assert.equal(elements.get('save-task-label').textContent, 'Сохранить как сделанную');
+assert.equal(elements.get('save-task-btn').disabled, false);
+storageFails = true;
+assert.equal(c.addToList(), false);
+assert.equal(stored.split('\n').filter(row => row === same).length, 2, 'Failed save keeps both copies');
+storageFails = false;
+elements.get('out-line').textContent = completionPreview.replace(/^x \d{4}-\d{2}-\d{2} /, '');
+assert(c.addToList());
+const taskRows = stored.split('\n').filter(Boolean);
+assert.equal(taskRows.filter(row => row === same).length, 1);
+const finished = taskRows.find(row => parse(row).completed);
+assert.equal(parse(finished).completionDate, c.todayStr());
+assert.equal(parse(finished).tags.gtd, c.todayStr());
+assert(taskRows.includes('Другая задача'));
+assert(taskRows.includes('SORTED (2026.09.01)'));
+assert(!stored.includes('# УДАЛЕНО:'));
+assert.equal(elements.get('out-save-status').textContent, 'Сохранено в список');
+const afterCompletion = stored;
+assert.equal(elements.get('next-task-btn').disabled, false);
+c.nextTask();
+assert.equal(stored, afterCompletion, 'Continue does not duplicate or rewrite the completed task');
+assert.equal(new URL(c.window.location.href, 'http://127.0.0.1:4173/').searchParams.get('task'), 'Другая задача');
 
 assert.match(html, /id="save-task-btn" class="btn btn-p"/);
 assert.match(html, /id="next-task-btn" class="btn"[^>]*>[\s\S]*?Сохранить и разобрать ещё<\/button>/);

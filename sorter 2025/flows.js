@@ -33,7 +33,7 @@ const FLOWS = {
       hint: '',
       type: 'choice',
       choices: [
-        { label: '\uD83D\uDDD1 Удалить \u2014 это мусор',                      style: 'danger', action: 'trash'   },
+        { label: 'Это мусор — отметить сделанной',                       style: 'danger', action: 'trash'   },
         { label: '\uD83D\uDCA1 Когда-нибудь / Идея / Может быть',              style: 'warn',   action: 'someday' },
         { label: '\uD83D\uDCC2 Справочная информация',                           style: '',       action: 'ref'     },
       ],

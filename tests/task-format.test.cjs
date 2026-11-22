@@ -72,7 +72,11 @@ const fixedNow = new Date(2026, 8, 6, 10, 0, 0);
 assert.equal(TaskFormat.formatCalendarDate('2026-09-06', { now: fixedNow, dateFns: fakeDateFns }), 'сегодня');
 assert.equal(TaskFormat.formatCalendarDate('2026-09-08', { now: fixedNow, dateFns: fakeDateFns }), 'послезавтра');
 assert.equal(TaskFormat.formatCalendarDate('2026-09-09', { now: fixedNow, dateFns: fakeDateFns }), 'в следующую среду');
-assert.equal(TaskFormat.formatTaskDate('2026-09-09', { now: fixedNow, dateFns: fakeDateFns, kind: 'due' }), 'Срок · в следующую среду');
+assert.equal(TaskFormat.formatTaskDate('2026-09-09', { now: fixedNow, kind: 'due' }), 'Срок через 3 дня, 9 сент. (среда)');
+assert.equal(TaskFormat.formatTaskDate('2026-09-05', { now: fixedNow, kind: 'due' }), 'Срок прошёл вчера, 5 сент. (суббота)');
+assert.equal(TaskFormat.formatTaskDate('2026-08-23', { now: fixedNow, kind: 'due' }), 'Срок прошёл 2 недели назад, 23 авг. (воскресенье)');
+assert.equal(TaskFormat.formatTaskDate('2026-09-06', { now: fixedNow, kind: 'due' }), 'Срок сегодня, 6 сент. (воскресенье)');
+assert.equal(TaskFormat.formatTaskDate('2026-09-08', { now: fixedNow, kind: 'due' }), 'Срок послезавтра, 8 сент. (вторник)');
 assert.equal(TaskFormat.formatRelativeAge('2026-09-04', { now: fixedNow, dateFns: fakeDateFns }), 'позавчера');
 assert.equal(TaskFormat.formatRelativeAge('2026-07-06', { now: fixedNow, dateFns: fakeDateFns }), '2 месяца назад');
 const oldCreationDateFns = {
@@ -83,7 +87,7 @@ const oldCreationDateFns = {
 };
 assert.equal(
   TaskFormat.formatTaskDate('2026-05-05', { now: fixedNow, dateFns: oldCreationDateFns, kind: 'created' }),
-  'Создано · 5 мая · 4 месяца назад'
+  'Создано 4 месяца назад, 5 мая'
 );
 assert.equal(
   TaskFormat.formatTaskDate('2026-08-20', {
@@ -91,8 +95,18 @@ assert.equal(
     kind: 'created',
     dateFns: { ...oldCreationDateFns, format() { return '20 авг.'; }, differenceInMonths() { return 0; } },
   }),
-  'Создано · 20 авг.'
+  'Создано 17 дней назад, 20 авг.'
 );
+assert.equal(TaskFormat.formatTaskDate('2026-08-30', { now: fixedNow, kind: 'created' }), 'Создано неделю назад, 30 авг.');
+assert.equal(TaskFormat.formatTaskDate('2026-08-06', { now: fixedNow, kind: 'created', dateFns: { differenceInMonths() { return 1; } } }), 'Создано месяц назад, 6 авг.');
+assert.equal(TaskFormat.formatTaskDate('2026-07-06', { now: fixedNow, kind: 'reviewed', dateFns: { differenceInMonths() { return 2; } } }), 'Разобрано 2 месяца назад, 6 июл.');
+assert.equal(TaskFormat.formatTaskDate('2026-09-08', { now: fixedNow, kind: 'threshold' }), 'Отложено до послезавтра, 8 сент.');
+assert.equal(TaskFormat.formatTaskDate('2026-09-06', { now: fixedNow, kind: 'threshold' }), 'Отложено на сегодня, 6 сент.');
+assert.equal(TaskFormat.formatTaskDate('2026-09-09', { now: fixedNow, kind: 'threshold' }), 'Отложено ещё на 3 дня, до 9 сент.');
+assert.equal(TaskFormat.formatTaskDate('2026-09-05', { now: fixedNow, kind: 'completed' }), 'Сделано вчера, 5 сент.');
+assert.equal(TaskFormat.formatTaskDate('2026-01-31', { now: new Date(2026, 1, 28), kind: 'created', dateFns: { differenceInMonths() { return 1; } } }), 'Создано месяц назад, 31 янв.');
+assert.match(TaskFormat.formatTaskDate('2026-12-31', { now: new Date(2027, 0, 2), kind: 'due' }), /31 дек\. 2026/);
+assert.equal(TaskFormat.formatTaskDate('2026-02-31', { now: fixedNow, kind: 'due' }), 'Срок 2026-02-31');
 assert.match(
   TaskFormat.formatVersionMoment('2026-07-06T12:30:00+02:00', { now: fixedNow, dateFns: fakeDateFns }),
   /6 июля 2026.*12:30.*2 месяца назад/
@@ -110,6 +124,17 @@ const meta = TaskFormat.renderTaskMetaHtml(parsed, { now: fixedNow, dateFns: fak
 assert.match(meta, /@дома/);
 assert.match(meta, /#здоровье/);
 assert.match(meta, /Создано/);
+const datedMeta = TaskFormat.renderTaskMetaHtml(
+  '2026-05-05 Задача due:2026-09-09 snz:2026-09-08 gtd:2026-07-06 gtd:2026-08-06 #тест',
+  { now: fixedNow, dateFns: { differenceInMonths(later, earlier) { return earlier.getMonth() === 7 ? 1 : 4; } } },
+);
+assert(datedMeta.indexOf('Срок') < datedMeta.indexOf('Отложено'));
+assert(datedMeta.indexOf('Отложено') < datedMeta.indexOf('Разобрано'));
+assert(datedMeta.indexOf('Разобрано') < datedMeta.indexOf('Создано'));
+assert.match(datedMeta, /Разобрано месяц назад, 6 авг\./);
+assert.doesNotMatch(datedMeta, /gtd:2026/);
+assert.doesNotMatch(datedMeta, / · /);
+assert.match(datedMeta, /#тест/);
 
 const contextsAndHashtagsFirst = TaskFormat.renderTaskHtml(parsed, {
   now: fixedNow,
@@ -141,7 +166,7 @@ assert.equal(legacyTailDates.thresholdDate, '2026-09-10');
 assert.equal(legacyTailDates.unparsed, 'заметка');
 const tailMeta = TaskFormat.renderTaskMetaHtml(legacyTailDates, { now: fixedNow, dateFns: fakeDateFns });
 assert.match(tailMeta, /Срок/);
-assert.match(tailMeta, /Отложено до/);
+assert.match(tailMeta, /Отложено ещё на 4 дня, до/);
 const tailContent = TaskFormat.renderTaskContentHtml(legacyTailDates, { variant: 'list' });
 assert.doesNotMatch(tailContent, /Хвост строки: due:/);
 

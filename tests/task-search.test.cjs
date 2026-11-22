@@ -5,6 +5,7 @@ const AutoContext = require('../sorter 2025/auto-context.js');
 const TaskFormat = require('../sorter 2025/task-format.js');
 
 const source = fs.readFileSync('sorter 2025/tasks-page.js', 'utf8');
+const page = fs.readFileSync('sorter 2025/tasks.html', 'utf8');
 const start = source.indexOf('    function tokenizeSearch(');
 const end = source.indexOf('    // --- Parsing ---', start);
 assert(start >= 0 && end > start, 'search functions must be present on the tasks page');
@@ -39,17 +40,32 @@ assert.equal(searchMatches(task('Работа', ['дома']), '@дом'), false
 assert.equal(searchMatches(task('Поговорить дома'), '@дома'), false);
 assert.equal(searchMatches(task('Работа', ['дома']), '-@дом'), true);
 
-const homeOr = AutoContext.buildAutoSearchQuery(['ноут', 'дом']);
+const homeOr = AutoContext.buildAutoSearchQuery(['ноут', 'дом'], 'or');
 const homeAnd = AutoContext.buildAutoSearchQuery(['ноут', 'дом'], 'and');
-for (const contexts of [['ноут'], ['ПК'], ['дом'], ['дома']]) {
-  assert.equal(searchMatches(task('Задача', contexts), homeOr), true, contexts.join(','));
+const phoneHome = AutoContext.buildAutoSearchQuery(['телефон', 'дом'], 'and');
+const desktopCity = AutoContext.buildAutoSearchQuery(['ноут', 'город'], 'and');
+const phoneCity = AutoContext.buildAutoSearchQuery(['телефон', 'город'], 'and');
+const visibility = (contexts, query) => searchMatches(task('Задача', contexts), query);
+for (const query of [homeAnd, phoneHome, desktopCity, phoneCity]) {
+  assert.equal(visibility([], query), true, 'untagged tasks stay visible');
+  assert.equal(visibility(['телефон', 'ноут'], query), true, 'dual-device tasks stay visible');
+  assert.equal(visibility(['телефон', 'ПК'], query), true, 'phone and PC tasks stay visible');
 }
+assert.equal(visibility(['ПК'], homeAnd), true);
+assert.equal(visibility(['ПК'], phoneHome), false);
+assert.equal(visibility(['телефон'], homeAnd), false);
+assert.equal(visibility(['телефон'], phoneHome), true);
+assert.equal(visibility(['дом'], phoneHome), true);
+assert.equal(visibility(['дом'], phoneCity), false);
+assert.equal(visibility(['дома'], desktopCity), false);
+assert.equal(visibility(['город'], homeAnd), false);
+assert.equal(visibility(['город'], desktopCity), true);
 assert.equal(searchMatches(task('Задача', ['ПК', 'дома']), homeAnd), true);
 assert.equal(searchMatches(task('Задача', ['ноут', 'дом']), homeAnd), true);
 const parsedTask = TaskFormat.parseTaskLine('Задача @ПК @дома');
 assert.equal(searchMatches({ ...parsedTask, _raw: parsedTask.raw }, homeAnd), true);
-assert.equal(searchMatches(task('Задача', ['ПК']), homeAnd), false);
-assert.equal(searchMatches(task('Задача', ['город']), homeOr), false);
+assert.equal(searchMatches(task('Задача', ['ПК']), homeAnd), true);
+assert.equal(searchMatches(task('Задача', ['город']), homeOr), true);
 assert.deepEqual([...queryTerms('купить И хлеб ИЛИ @дом -молоко')], ['купить', 'хлеб']);
 
 // The tasks page must use the visible query as the only context condition in /auto.
@@ -66,9 +82,46 @@ function filtered(autoMode, searchQ) {
     projF: null, hashtagF: null,
   });
 }
-assert.equal(filtered(true, homeOr).length, 1);
-assert.equal(filtered(true, homeOr)[0]._raw, 'Первое');
+assert.equal(filtered(true, homeAnd).length, 1);
+assert.equal(filtered(true, homeAnd)[0]._raw, 'Первое');
 assert.equal(filtered(false, '').length, 0);
+
+// The banner offers a real exit and points to the existing home setting.
+assert.match(page, /id="auto-context-exit"[^>]*aria-label="Выйти из автофильтра"/);
+assert.match(page, /id="auto-home-help"[^>]*>Дом не задан\. Настроить: Список → Ещё инструменты → Автоконтекст/);
+const bannerStart = source.indexOf('    function renderAutoContextBanner(');
+const bannerEnd = source.indexOf('    function updateAutoSearchQuery(', bannerStart);
+assert(bannerStart >= 0 && bannerEnd > bannerStart);
+const banner = { hidden: true };
+const summary = { textContent: '' };
+const help = { hidden: true, href: '' };
+const exit = { onclick: null };
+const currentUrl = 'http://localhost:4173/tasks.html?auto=1&mode=developer';
+let exitDestination = '';
+const bannerContext = vm.createContext({
+  autoMode: true, searchQ: homeAnd, autoContextState: { location: 'unset' },
+  document: { getElementById(id) {
+    return ({ 'auto-context-banner': banner, 'auto-context-summary': summary,
+      'auto-home-help': help, 'auto-context-exit': exit })[id];
+  } },
+  SorterAutoContext: AutoContext,
+  SorterRuntime: { withMode(input) {
+    const url = new URL(input, currentUrl);
+    if (!url.searchParams.has('mode')) url.searchParams.set('mode', 'developer');
+    return url.pathname + url.search + url.hash;
+  } },
+  window: { location: { href: currentUrl, replace(value) { exitDestination = value; } } },
+});
+vm.runInContext(source.slice(bannerStart, bannerEnd), bannerContext);
+bannerContext.renderAutoContextBanner();
+assert.equal(banner.hidden, false);
+assert.equal(help.hidden, false);
+assert.equal(help.href, '/?mode=developer');
+exit.onclick();
+assert.equal(exitDestination, '/tasks.html?mode=developer');
+bannerContext.autoContextState = { location: 'home' };
+bannerContext.renderAutoContextBanner();
+assert.equal(help.hidden, true);
 
 const autoStart = source.indexOf('    function updateAutoSearchQuery(');
 const autoEnd = source.indexOf('    const originalRender = render;', autoStart);
@@ -80,7 +133,7 @@ function autoRuntime() {
   const location = new Promise(resolve => { resolveLocation = resolve; });
   const context = vm.createContext({
     autoMode: true, autoSearchEdited: false, searchQ: '',
-    ctxF: new Set(), contextOperator: 'or', autoContextState: null,
+    ctxF: new Set(), contextOperator: 'and', autoContextState: null,
     SorterAutoContext: {
       ...AutoContext,
       detectDeviceContext: () => 'ноут',
@@ -105,10 +158,10 @@ function autoRuntime() {
 (async () => {
   const normal = autoRuntime();
   const normalRun = normal.api.initAutoContextMode();
-  assert.equal(normal.input.value, '@ноут ИЛИ @ПК');
+  assert.equal(normal.input.value, '@ноут ИЛИ @ПК ИЛИ -@телефон');
   normal.resolveLocation({ contexts: ['ноут', 'дом'], location: 'home', error: null });
   await normalRun;
-  assert.equal(normal.input.value, homeOr);
+  assert.equal(normal.input.value, homeAnd);
 
   const edited = autoRuntime();
   const editedRun = edited.api.initAutoContextMode();

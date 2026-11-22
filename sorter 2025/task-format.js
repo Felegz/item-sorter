@@ -499,45 +499,65 @@
     return relative ? `${absolute} · ${relative}` : absolute;
   }
 
-  /**
-   * Creation dates older than one full month show both the calendar date and
-   * their age. date-fns owns month boundaries and Russian plural forms.
-   */
-  function formatOldCreationAge(isoDate, options = {}) {
-    const target = parseIsoDateLocal(isoDate);
-    if (!target) return '';
-    const base = startOfLocalDay(options.now || new Date());
-    const dateFns = getDateFns(options);
-    const locale = getRussianLocale(dateFns);
-    const completedMonths = dateFns && typeof dateFns.differenceInMonths === 'function'
-      ? dateFns.differenceInMonths(base, target)
-      : Math.floor((base.getTime() - target.getTime()) / 2629800000);
-    if (completedMonths < 1) return '';
+  function exactTaskDate(isoDate) {
+    const date = parseIsoDateLocal(isoDate);
+    if (!date) return null;
+    const [year, month, day] = isoDate.split('-').map(Number);
+    return date.getFullYear() === year && date.getMonth() + 1 === month && date.getDate() === day
+      ? date : null;
+  }
 
-    if (dateFns && typeof dateFns.formatDistanceStrict === 'function' && locale) {
-      return dateFns.formatDistanceStrict(target, base, {
-        addSuffix: true,
-        locale,
-        unit: 'month',
-        roundingMethod: 'floor',
-      });
-    }
-    return new Intl.RelativeTimeFormat('ru-RU', { numeric: 'always', style: 'long' })
-      .format(-completedMonths, 'month');
+  function taskDateLabel(date, today) {
+    const dayAndMonth = new Intl.DateTimeFormat('ru-RU', { day: 'numeric', month: 'short' }).format(date);
+    const year = date.getFullYear() === today.getFullYear() ? '' : ` ${date.getFullYear()}`;
+    return `${dayAndMonth}${year}`;
+  }
+
+  // Intl owns Russian inflection. date-fns counts complete calendar months
+  // when it is loaded; without it we stay with exact calendar days.
+  function taskDateDistance(target, today, options) {
+    const days = calendarDayDifference(target, today);
+    const auto = new Intl.RelativeTimeFormat('ru-RU', { numeric: 'auto', style: 'long' });
+    if (Math.abs(days) <= 2) return auto.format(days, 'day');
+    const earlier = days < 0 ? target : today;
+    const later = days < 0 ? today : target;
+    const dateFns = getDateFns(options);
+    const months = dateFns && typeof dateFns.differenceInMonths === 'function'
+      ? dateFns.differenceInMonths(later, earlier) : 0;
+    let amount = Math.abs(days), unit = 'day';
+    if (months >= 12) { amount = Math.floor(months / 12); unit = 'year'; }
+    else if (months >= 1) { amount = months; unit = 'month'; }
+    else if (amount >= 7 && amount % 7 === 0) { amount /= 7; unit = 'week'; }
+    const numeric = new Intl.RelativeTimeFormat('ru-RU', { numeric: 'always', style: 'long' });
+    const parts = numeric.formatToParts(days > 0 ? amount : -amount, unit);
+    return (amount === 1 && unit !== 'day'
+      ? parts.filter(part => part.type !== 'integer') : parts)
+      .map(part => part.value).join('').replace(/\s+/g, ' ').trim();
   }
 
   function formatTaskDate(isoDate, options = {}) {
     const kind = options.kind || 'date';
-    const value = formatCalendarDate(isoDate, options);
-    if (!value) return '';
-    if (kind === 'due') return `Срок · ${value}`;
-    if (kind === 'created') {
-      const age = formatOldCreationAge(isoDate, options);
-      return age ? `Создано · ${value} · ${age}` : `Создано · ${value}`;
+    const target = exactTaskDate(isoDate);
+    if (!target) {
+      const label = { due: 'Срок', threshold: 'Отложено до', reviewed: 'Разобрано', created: 'Создано', completed: 'Сделано' }[kind];
+      return label && isoDate ? `${label} ${isoDate}` : String(isoDate || '');
     }
-    if (kind === 'completed') return `Готово · ${value}`;
-    if (kind === 'threshold') return `Отложено до · ${value}`;
-    return value;
+    const today = startOfLocalDay(options.now || new Date());
+    const date = taskDateLabel(target, today);
+    const relative = taskDateDistance(target, today, options);
+    const days = calendarDayDifference(target, today);
+    if (kind === 'due') {
+      const weekday = new Intl.DateTimeFormat('ru-RU', { weekday: 'long' }).format(target);
+      return `Срок ${days < 0 ? `прошёл ${relative}` : relative}, ${date} (${weekday})`;
+    }
+    if (kind === 'threshold') {
+      if (days > 2) return `Отложено ${relative.replace(/^через /, 'ещё на ')}, до ${date}`;
+      if (days === 0) return `Отложено на сегодня, ${date}`;
+      return days >= 0 ? `Отложено до ${relative}, ${date}` : `Отложено до ${date}`;
+    }
+    const label = { created: 'Создано', reviewed: 'Разобрано', completed: 'Сделано' }[kind];
+    if (label) return days <= 0 ? `${label} ${relative}, ${date}` : `${label} ${date}`;
+    return date;
   }
 
   function absoluteDateTitle(isoDate) {
@@ -601,6 +621,7 @@
     'tags',
     'due',
     'threshold',
+    'reviewed',
     'created',
     'completed',
   ]);
@@ -624,9 +645,6 @@
     if (shouldRenderMeta('hashtags', options)) {
       for (const hashtag of task.hashtags) badges.push(`<span class="t t-hash">#${escapeHtml(hashtag)}</span>`);
     }
-    if (shouldRenderMeta('tags', options)) {
-      for (const tag of task.tagList) badges.push(`<span class="t t-meta">${escapeHtml(tag.key)}:${escapeHtml(tag.value)}</span>`);
-    }
     if (shouldRenderMeta('due', options) && task.dueDate) {
       const due = parseIsoDateLocal(task.dueDate);
       const today = startOfLocalDay(options.now || new Date());
@@ -635,8 +653,17 @@
       badges.push(`<span class="t t-due${stateClass}" title="${escapeHtml(absoluteDateTitle(task.dueDate))}">${escapeHtml(formatTaskDate(task.dueDate, { ...options, kind: 'due' }))}</span>`);
     }
     if (shouldRenderMeta('threshold', options) && task.thresholdDate) badges.push(`<span class="t t-threshold" title="${escapeHtml(absoluteDateTitle(task.thresholdDate))}">${escapeHtml(formatTaskDate(task.thresholdDate, { ...options, kind: 'threshold' }))}</span>`);
+    const reviewed = task.tagList.filter(tag => tag.key === 'gtd' && exactTaskDate(tag.value))
+      .map(tag => tag.value).sort().at(-1);
+    if (shouldRenderMeta('reviewed', options) && reviewed) badges.push(`<span class="t t-reviewed" title="${escapeHtml(absoluteDateTitle(reviewed))}">${escapeHtml(formatTaskDate(reviewed, { ...options, kind: 'reviewed' }))}</span>`);
     if (shouldRenderMeta('created', options) && task.creationDate) badges.push(`<span class="t t-date t-created" title="${escapeHtml(absoluteDateTitle(task.creationDate))}">${escapeHtml(formatTaskDate(task.creationDate, { ...options, kind: 'created' }))}</span>`);
     if (shouldRenderMeta('completed', options) && task.completed && task.completionDate) badges.push(`<span class="t t-date" title="${escapeHtml(absoluteDateTitle(task.completionDate))}">${escapeHtml(formatTaskDate(task.completionDate, { ...options, kind: 'completed' }))}</span>`);
+    if (shouldRenderMeta('tags', options)) {
+      for (const tag of task.tagList) {
+        if (tag.key === 'gtd' && exactTaskDate(tag.value)) continue;
+        badges.push(`<span class="t t-meta">${escapeHtml(tag.key)}:${escapeHtml(tag.value)}</span>`);
+      }
+    }
     const positionClass = options.position === 'before' ? ' task-tags-leading' : '';
     return badges.length ? `<div class="task-tags${positionClass}">${badges.join('')}</div>` : '';
   }

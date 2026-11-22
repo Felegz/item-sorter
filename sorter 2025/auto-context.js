@@ -20,11 +20,14 @@
       home: 'дом',
       away: 'город',
     }),
-    // Auto mode writes these alternatives into the visible search field.
+    // A tagged task may name both devices or both places. Positive tags must
+    // win; missing opposite tags also admit tasks whose context is undecided.
     // A future settings UI should let the user edit these names.
     autoSearchContexts: Object.freeze({
-      ноут: Object.freeze(['ноут', 'ПК']),
-      дом: Object.freeze(['дом', 'дома']),
+      ноут: Object.freeze({ any: Object.freeze(['ноут', 'ПК']), absent: Object.freeze(['телефон']) }),
+      телефон: Object.freeze({ any: Object.freeze(['телефон']), absent: Object.freeze(['ноут', 'ПК']) }),
+      дом: Object.freeze({ any: Object.freeze(['дом', 'дома']), absent: Object.freeze(['город']) }),
+      город: Object.freeze({ any: Object.freeze(['город']), absent: Object.freeze(['дом', 'дома']) }),
     }),
     homeRadiusMeters: 200,
     maxLocationAccuracyMeters: 1000,
@@ -41,6 +44,13 @@
   function isAutoUrl(locationLike) {
     const url = toUrl(locationLike);
     return url.searchParams.has('auto') || url.pathname.split('/').includes('auto');
+  }
+
+  function exitAutoUrl(locationLike) {
+    const url = toUrl(locationLike);
+    url.searchParams.delete('auto');
+    url.pathname = url.pathname.replace(/\/auto\/?$/, '') || '/tasks';
+    return `${url.pathname}${url.search}${url.hash}`;
   }
 
   function normalizeContext(value) {
@@ -61,24 +71,27 @@
       : selected.some(context => taskSet.has(context));
   }
 
-  // Keep /auto's device and place choices in the same user-visible search
-  // language. AND groups alternatives so aliases do not become extra demands.
-  function buildAutoSearchQuery(selectedContexts, operator = 'or') {
+  // Keep /auto's device and place choices in the visible search language.
+  // Missing opposite tags are a fallback; multiple exclusions must use AND.
+  function buildAutoSearchQuery(selectedContexts, operator = 'and') {
     const groups = [...selectedContexts].map(context => {
       const name = normalizeContext(context);
-      return (CONFIG.autoSearchContexts[name] || [name]).filter(Boolean).map(value => `@${value}`);
-    }).filter(group => group.length);
-    if (operator === 'and') {
-      return groups.map(group => group.length > 1 ? `(${group.join(' ИЛИ ')})` : group[0]).join(' И ');
-    }
-    return [...new Set(groups.flat())].join(' ИЛИ ');
+      if (!name) return '';
+      const rule = CONFIG.autoSearchContexts[name] || { any: [name], absent: [] };
+      const positive = rule.any.map(value => `@${value}`).join(' ИЛИ ');
+      const negative = rule.absent.map(value => `-@${value}`).join(' И ');
+      return negative ? `${positive} ИЛИ ${rule.absent.length > 1 ? `(${negative})` : negative}` : positive;
+    }).filter(Boolean);
+    if (groups.length < 2) return groups[0] || '';
+    return groups.map(group => `(${group})`).join(operator === 'and' ? ' И ' : ' ИЛИ ');
   }
 
-  function getContextOperator(storage) {
+  function getContextOperator(storage, fallback = 'or') {
     try {
-      return storage && storage.getItem(STORAGE_KEYS.contextOperator) === 'and' ? 'and' : 'or';
+      const saved = storage?.getItem(STORAGE_KEYS.contextOperator);
+      return saved === 'and' || saved === 'or' ? saved : fallback === 'and' ? 'and' : 'or';
     } catch (_) {
-      return 'or';
+      return fallback === 'and' ? 'and' : 'or';
     }
   }
 
@@ -212,6 +225,7 @@
     CONFIG,
     STORAGE_KEYS,
     isAutoUrl,
+    exitAutoUrl,
     matchesSelectedContexts,
     buildAutoSearchQuery,
     getContextOperator,

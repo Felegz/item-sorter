@@ -40,14 +40,18 @@ function geolocationReturning(value) {
   );
   assert.equal(AutoContext.matchesSelectedContexts([], [], 'and'), true);
   const atHome = ['ноут', 'дом'];
-  assert.equal(AutoContext.buildAutoSearchQuery(atHome), '@ноут ИЛИ @ПК ИЛИ @дом ИЛИ @дома');
-  assert.equal(AutoContext.buildAutoSearchQuery(atHome, 'and'), '(@ноут ИЛИ @ПК) И (@дом ИЛИ @дома)');
-  assert.equal(AutoContext.buildAutoSearchQuery(['телефон', 'дом']), '@телефон ИЛИ @дом ИЛИ @дома');
-  assert.equal(AutoContext.buildAutoSearchQuery(['ноут', 'город']), '@ноут ИЛИ @ПК ИЛИ @город');
+  assert.equal(AutoContext.buildAutoSearchQuery(atHome, 'and'), '(@ноут ИЛИ @ПК ИЛИ -@телефон) И (@дом ИЛИ @дома ИЛИ -@город)');
+  assert.equal(AutoContext.buildAutoSearchQuery(['телефон', 'дом'], 'and'), '(@телефон ИЛИ (-@ноут И -@ПК)) И (@дом ИЛИ @дома ИЛИ -@город)');
+  assert.equal(AutoContext.buildAutoSearchQuery(['ноут', 'город'], 'and'), '(@ноут ИЛИ @ПК ИЛИ -@телефон) И (@город ИЛИ (-@дом И -@дома))');
+  assert.equal(AutoContext.buildAutoSearchQuery(['ноут', 'дом'], 'or'), '(@ноут ИЛИ @ПК ИЛИ -@телефон) ИЛИ (@дом ИЛИ @дома ИЛИ -@город)');
+  assert.equal(AutoContext.buildAutoSearchQuery(['телефон'], 'and'), '@телефон ИЛИ (-@ноут И -@ПК)');
   assert.equal(AutoContext.matchesSelectedContexts(['@ПК'], atHome, 'or'), false);
+  assert.equal(AutoContext.exitAutoUrl('https://example.test/tasks.html?auto=1&mode=developer#list'), '/tasks.html?mode=developer#list');
+  assert.equal(AutoContext.exitAutoUrl('https://example.test/tasks/auto?mode=developer'), '/tasks?mode=developer');
 
   const settings = createStorage();
   assert.equal(AutoContext.getContextOperator(settings), 'or');
+  assert.equal(AutoContext.getContextOperator(settings, 'and'), 'and');
   assert.equal(AutoContext.setContextOperator(settings, 'and'), 'and');
   assert.equal(AutoContext.getContextOperator(settings), 'and');
 

@@ -408,10 +408,14 @@ async function mergeArraysUI() {
     return;
   }
 
+  const isDone = line => TaskFormat.parseTaskLine(line).completed;
   const merged = await mergeGalloping(
-    [...parsed.sorted],
-    [...parsed.inboxSorted],
+    parsed.sorted.filter(line => !isDone(line)),
+    parsed.inboxSorted.filter(line => !isDone(line)),
   );
+  // Merge consumes INBOX SORTED, so retain its completed occurrences in SORTED
+  // after the ranked tasks. They are never candidates for comparison.
+  merged.push(...parsed.sorted.filter(isDone), ...parsed.inboxSorted.filter(isDone));
   const { year, month, day } = getDateParts();
   const model = {
     inboxUnsorted: [...parsed.inboxUnsorted],
@@ -564,13 +568,21 @@ async function insertUnsortedTasksUI(unsortedTasks) {
 
     // Для каждой новой задачи делаем бинарную вставку (сравнения через await compareTasks)
     for (const newTask of unsortedTasks) {
+      if (TaskFormat.parseTaskLine(newTask).completed) {
+        sorted.push(newTask);
+        continue;
+      }
+      // Completed rows keep their relative order and slots, but are never
+      // candidates in the binary search for an active task.
+      const activePositions = sorted.flatMap((line, index) =>
+        TaskFormat.parseTaskLine(line).completed ? [] : [index]);
       let lo = 0;
-      let hi = sorted.length;
+      let hi = activePositions.length;
 
       while (lo < hi) {
         const mid = Math.floor((lo + hi) / 2);
         // compareTasks(a,b) возвращает -1 если a важнее b
-        const cmp = await compareTasks(newTask, sorted[mid]);
+        const cmp = await compareTasks(newTask, sorted[activePositions[mid]]);
         if (cmp === -1) {
           hi = mid;
         } else {
@@ -578,8 +590,9 @@ async function insertUnsortedTasksUI(unsortedTasks) {
         }
       }
 
-      sorted.splice(lo, 0, newTask);
-      console.log(`Inserted "${newTask}" at index`, lo);
+      const insertAt = lo < activePositions.length ? activePositions[lo] : sorted.length;
+      sorted.splice(insertAt, 0, newTask);
+      console.log(`Inserted "${newTask}" at index`, insertAt);
     }
 
     // Preserve the historical marker and task order, but use the shared text

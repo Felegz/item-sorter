@@ -433,6 +433,34 @@ function installComparator(context, ranks, trace) {
   assert.deepEqual(trace, [['A', 'B'], ['C', 'B'], ['C', 'D']]);
   assert.doesNotMatch(context.taskList.value, /(?:^|\n)(?:NEW ARRAY|INBOX SORTED)(?:\n|$)/);
 
+  // Completed occurrences stay in SORTED after merging, but never consume a vote.
+  trace = [];
+  installComparator(context, ranks, trace);
+  context.taskList.value = [
+    'INBOX SORTED', 'B', 'x 2026-09-01 completed batch', 'D',
+    'SORTED (2026.09.01)', 'A', 'x 2026-09-02 completed main',
+    'C', 'x 2026-09-02 completed main',
+  ].join('\n');
+  await sorting.mergeArraysUI();
+  assert.deepEqual(trace, [['A', 'B'], ['C', 'B'], ['C', 'D']]);
+  assert.deepEqual(context.taskList.value.split('\n').filter(Boolean), [
+    'SORTED (2026.09.01)', 'A', 'B', 'C', 'D',
+    'x 2026-09-02 completed main', 'x 2026-09-02 completed main',
+    'x 2026-09-01 completed batch',
+  ]);
+
+  trace = [];
+  context.taskList.value = [
+    'INBOX SORTED', 'x 2026-09-01 completed batch',
+    'SORTED (2026.09.01)', 'A', 'x 2026-09-02 completed main',
+  ].join('\n');
+  await sorting.mergeArraysUI();
+  assert.deepEqual(trace, [], 'An all-completed incoming batch needs no comparisons');
+  assert.deepEqual(context.taskList.value.split('\n').filter(Boolean), [
+    'SORTED (2026.09.01)', 'A',
+    'x 2026-09-02 completed main', 'x 2026-09-01 completed batch',
+  ]);
+
   trace = [];
   installComparator(context, ranks, trace);
   const withoutIncomingBatch = context.taskList.value;
@@ -508,6 +536,21 @@ function installComparator(context, ranks, trace) {
   assert.deepEqual(trace, [
     ['B', 'E'], ['B', 'C'], ['B', 'A'],
     ['F', 'C'], ['F', 'G'], ['F', 'E'],
+  ]);
+
+  // Existing and incoming completed lines bypass binary search without loss.
+  trace = [];
+  installComparator(context, ranks, trace);
+  context.taskList.value = [
+    'SORTED (2026.09.01)', 'A', 'x 2026-09-01 completed old', 'C', 'E',
+    'x 2026-09-01 completed old', 'IGNORED TASKS (2026.09.01)', 'ignored',
+  ].join('\n');
+  await sorting.insertUnsortedTasksUI(['B', 'x 2026-09-02 completed new', 'D']);
+  assert.deepEqual(trace, [['B', 'C'], ['B', 'A'], ['D', 'C'], ['D', 'E']]);
+  assert.deepEqual(context.taskList.value.split('\n').filter(Boolean), [
+    'SORTED (2026.09.01)', 'A', 'x 2026-09-01 completed old',
+    'B', 'C', 'D', 'E', 'x 2026-09-01 completed old',
+    'x 2026-09-02 completed new', 'IGNORED TASKS (2026.09.01)', 'ignored',
   ]);
 
   // Filter Tasks preserves section membership, duplicate occurrences and

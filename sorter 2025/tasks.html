@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content">
   <title>Tasks</title>
   <script src="runtime-mode.js?v=20261021-demo-tags"></script>
-  <script src="auto-context.js?v=20261030-auto-search"></script>
+  <script src="auto-context.js?v=20261122-auto-rules"></script>
   <!-- vanilla-context-menu 1.6.0 — MIT license, github.com/GeorgianStan/vanilla-context-menu -->
   <!-- Native text-selection menus must remain available, including inside the editor. -->
   <script src="task-action-menu.js?v=20260917"></script>
@@ -15,7 +15,7 @@
   <script src="https://cdn.jsdelivr.net/npm/@date-fns/cdn@4.4.0/locale/ru/cdn.min.js"></script>
   <script src="markers.js?v=20260911-ignored-filter"></script>
   <script src="mobile-edit-mode.js?v=20260917-collapse"></script>
-  <script src="task-format.js?v=20261009-task-age"></script>
+  <script src="task-format.js?v=20261122-date-labels"></script>
   <script src="task-dialog.js?v=20261021-all-modes"></script>
   <script src="task-age.js?v=20261009-task-age"></script>
   <script src="task-list-operations.js?v=20261009-due-fields"></script>
@@ -23,7 +23,7 @@
   <script src="ai-exchange.js?v=20260906-ai-bridge"></script>
   <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
   <script src="icons.js?v=20261009-gtd-finish"></script>
-  <link rel="stylesheet" href="tasks.css?v=20261021-task-dialog" />
+  <link rel="stylesheet" href="tasks.css?v=20261122-auto-rules" />
   <link rel="stylesheet" href="task-format.css?v=20261008-merge" />
   <link rel="stylesheet" href="task-dialog.css?v=20261021-all-modes" />
 </head>
@@ -85,6 +85,8 @@
   <div class="auto-context-banner" id="auto-context-banner" hidden aria-live="polite">
     <span class="auto-context-key">AUTO</span>
     <span id="auto-context-summary"></span>
+    <button type="button" id="auto-context-exit" class="auto-context-exit" aria-label="Выйти из автофильтра" title="Выйти из автофильтра">×</button>
+    <a id="auto-home-help" class="auto-home-help" href="/" hidden>Дом не задан. Настроить: Список → Ещё инструменты → Автоконтекст</a>
   </div>
 
   <section class="mobile-tools-panel" id="mobile-tools-panel" aria-label="Настройка списка">
@@ -180,7 +182,7 @@
   </div>
 
   <!-- Classic blocking script: keep globals shared with the Dropbox integration below. -->
-  <script src="tasks-page.js?v=20261030-auto-search"></script>
+  <script src="tasks-page.js?v=20261122-auto-rules"></script>
   <script src="task-version-comparison.js?v=20261008-merge"></script>
   <script src="dropbox.js?v=20261008-merge"></script>
   <script src="ai-dropbox.js?v=20260906-ai-bridge"></script>

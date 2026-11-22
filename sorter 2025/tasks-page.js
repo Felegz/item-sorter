@@ -6,7 +6,7 @@ const PRI_CHIP_CLS = { A:'pri-a', B:'pri-b', C:'pri-c' };
     let tab = 'active', priF = null, projF = null, hashtagF = null;
     const ctxF = new Set();
     const autoMode = SorterAutoContext.isAutoUrl(window.location);
-    let contextOperator = SorterAutoContext.getContextOperator(localStorage);
+    let contextOperator = SorterAutoContext.getContextOperator(localStorage, autoMode ? 'and' : 'or');
     let autoContextState = null;
     let autoSearchEdited = false;
     let sortMode = 'order', searchQ = '';
@@ -1321,10 +1321,19 @@ const PRI_CHIP_CLS = { A:'pri-a', B:'pri-b', C:'pri-c' };
       const selected = searchQ;
       let suffix = '';
       if (autoContextState?.location === 'loading') suffix = ' · определяю место';
-      else if (autoContextState?.location === 'unset') suffix = ' · координаты дома не заданы';
       else if (autoContextState?.error) suffix = ` · ${autoContextState.error}`;
       summary.textContent = `${selected || 'контексты не выбраны'}${suffix}`;
+      const homeHelp = document.getElementById('auto-home-help');
+      if (homeHelp) {
+        homeHelp.hidden = autoContextState?.location !== 'unset';
+        homeHelp.href = SorterRuntime.withMode('/');
+      }
     }
+
+    const autoExit = document.getElementById('auto-context-exit');
+    if (autoExit) autoExit.onclick = () => {
+      window.location.replace(SorterRuntime.withMode(SorterAutoContext.exitAutoUrl(window.location)));
+    };
 
     function updateAutoSearchQuery(force = false) {
       // Geolocation may answer after the user starts typing. Preserve that query.

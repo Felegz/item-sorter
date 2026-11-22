@@ -1037,8 +1037,9 @@ button:disabled {
 }
 
 .auto-context-banner {
-  display: flex;
-  align-items: baseline;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: start;
   gap: 8px;
   min-width: 0;
   margin: -2px 0 12px;
@@ -1065,6 +1066,30 @@ button:disabled {
   min-width: 0;
   overflow-wrap: anywhere;
 }
+
+.auto-context-exit {
+  width: 28px;
+  height: 28px;
+  margin: -4px -4px -4px 0;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: var(--bg-el);
+  color: var(--fg);
+  font-size: 1.25rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.auto-home-help {
+  grid-column: 1 / -1;
+  margin-top: 5px;
+  color: var(--primary);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.auto-home-help[hidden] { display: none; }
 
 .chip,
 .tag-pick-chip {
@@ -1255,6 +1280,16 @@ button:disabled {
   font-size: 0.68rem;
   line-height: 1.2;
   font-weight: 600;
+}
+
+.task-tags .t-due,
+.task-tags .t-threshold,
+.task-tags .t-reviewed,
+.task-tags .t-created,
+.task-tags .t-date {
+  max-width: 100%;
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
 
 .task-tags .t-pri-A,

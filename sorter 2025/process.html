@@ -343,7 +343,7 @@
         <div class="out-action" id="out-line" contenteditable="true" spellcheck="false" title="Нажми, чтобы отредактировать" data-mobile-editor></div>
         <div class="out-goal" id="out-goal"></div>
       </div>
-      <div class="completion-date">
+      <div class="completion-date" id="completion-date">
         <div>
           <label for="out-due">Срок задачи</label>
           <input id="out-due" type="date" onchange="setOutputDue(this.value)" />
@@ -353,7 +353,7 @@
       </div>
       <div class="note save-status" id="out-save-status" role="status" aria-live="polite">Не сохранено</div>
       <div class="completion-save">
-        <button id="save-task-btn" class="btn btn-p" onclick="addToList()"><span data-sorter-icon="check"></span>Сохранить в список</button>
+        <button id="save-task-btn" class="btn btn-p" onclick="addToList()"><span data-sorter-icon="check"></span><span id="save-task-label">Сохранить в список</span></button>
         <button id="next-task-btn" class="btn" onclick="nextTask()"><span data-sorter-icon="sparkles"></span>Сохранить и разобрать ещё</button>
       </div>
       <div class="completion-nav">
@@ -375,7 +375,7 @@
 
 <script src="runtime-mode.js?v=20261021-demo-tags"></script>
 <script src="markers.js?v=20260911-ignored-filter"></script>
-<script src="task-format.js?v=20261009-due-fields"></script>
+<script src="task-format.js?v=20261122-date-labels"></script>
 <script src="task-list-operations.js?v=20261009-due-fields"></script>
   <script src="gtd-task-tools.js?v=20261011-review-reminder"></script>
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
@@ -393,7 +393,7 @@ const S = {
   outcome:'', action:'', delegate:'', dueDate:'',
   // Historical flow field: red/green means a heart project, never todo.txt A/B.
   priority:null, contexts:[], feelings:'', advice:'',
-  occurrence:null, openedDocument:null, savedOutput:null,
+  occurrence:null, openedDocument:null, savedOutput:null, resultAction:null,
 };
 
 function el(id)       { return document.getElementById(id); }
@@ -630,9 +630,12 @@ function showOutput(action) {
   hide('step-area'); show('out-area'); hide('offer-mutny');
   const t = todayStr();
   let line='', title='Результат разбора', goalHtml='';
+  S.resultAction = action;
 
   if (action === 'trash') {
-    title='Удалить'; line='# УДАЛЕНО: ' + S.task;
+    title='Отметить сделанной';
+    line = TaskListOperations.setTaskCompletion(
+      TaskGtd.prepareOutput(S.task, S.originalTask, t), true, { completionDate: t });
   } else if (action === 'someday') {
     title='Когда-нибудь'; line=S.task + ' +someday-maybe';
   } else if (action === 'ref') {
@@ -660,6 +663,8 @@ function showOutput(action) {
   if (action === 'calendar') line = TaskGtd.withDueDate(line, S.dueDate || t);
   el('out-title').textContent = title;
   el('out-line').textContent  = line;
+  el('save-task-label').textContent = action === 'trash' ? 'Сохранить как сделанную' : 'Сохранить в список';
+  el('completion-date').classList.toggle('hidden', action === 'trash');
   syncOutputDate();
   el('out-goal').innerHTML    = goalHtml;
   el('out-note').textContent  = '';
@@ -710,12 +715,10 @@ function setOutputNote(message, state = '') {
 }
 
 function updateSaveStatus() {
-  const deleted = el('out-line').textContent.startsWith('# УДАЛЕНО');
   const saved = S.savedOutput !== null && S.savedOutput === el('out-line').textContent;
-  el('out-save-status').textContent = deleted
-    ? 'Удаление из списка здесь пока не выполняется.' : saved ? 'Сохранено в список' : 'Не сохранено';
+  el('out-save-status').textContent = saved ? 'Сохранено в список' : 'Не сохранено';
   el('out-save-status').className = 'note save-status' + (saved ? ' ok' : '');
-  el('save-task-btn').disabled = deleted;
+  el('save-task-btn').disabled = false;
 }
 
 function updateNextTask() {
@@ -724,8 +727,7 @@ function updateNextTask() {
   try { if (S.originalTask) currentIndex = TaskGtd.findTaskIndex(document, S.originalTask, S.occurrence); }
   catch (_) { /* Save reports a stale/ambiguous task; do not guess its occurrence. */ }
   const candidate = TaskGtd.nextUnprocessedTask(document, currentIndex);
-  const deleted = el('out-line').textContent.startsWith('# УДАЛЕНО');
-  el('next-task-btn').disabled = deleted || !candidate;
+  el('next-task-btn').disabled = !candidate;
   el('next-task-btn').title = candidate ? 'Сохранить результат и открыть следующую неразобранную задачу'
     : 'Других неразобранных задач нет';
 }
@@ -751,7 +753,11 @@ function addToList() {
     if (S.openedDocument !== null && existing !== S.openedDocument) {
       throw new Error('Список изменился во время разбора. Текст не потерян: скопируйте результат и откройте актуальную задачу.');
     }
-    const output = el('out-line').textContent.trim();
+    const editedOutput = el('out-line').textContent.trim();
+    // The trash branch means "done" even if its editable preview lost the x prefix.
+    const output = S.resultAction === 'trash'
+      ? TaskListOperations.setTaskCompletion(editedOutput, true, { completionDate: todayStr() })
+      : editedOutput;
     // A heart explicitly edited in the result wins over the earlier answer.
     const color = TaskGtd.taskColor(output) || S.priority;
     const result = TaskGtd.saveOutputInDocument(existing, S.originalTask,
@@ -776,7 +782,7 @@ async function resetAll() {
   if (!await SorterUnsavedChanges.confirmDiscard('Начать другой разбор без сохранения текущего?', 'Начать другой')) return;
   Object.assign(S, { task:'', originalTask:'', mode:null, flow:null, stepIdx:0, history:[],
     outcome:'',action:'',delegate:'',dueDate:'',priority:null,contexts:[],feelings:'',advice:'',
-    occurrence:null,openedDocument:SorterRuntime.getTasks(),savedOutput:null });
+    occurrence:null,openedDocument:SorterRuntime.getTasks(),savedOutput:null,resultAction:null });
   hide('step-area','out-area','task-cap','edit-area'); show('mode-sel'); window.scrollTo(0,0);
   el('task-input').value = '';
   el('out-line').textContent = '';
@@ -805,10 +811,9 @@ function todayStr() { return TaskListOperations.localIsoDate(); }
 
 function syncOutputDate() {
   const task = TaskFormat.parseTaskLine(el('out-line').textContent);
-  const deleted = el('out-line').textContent.startsWith('# УДАЛЕНО');
   el('out-due').value = task.dueDate || '';
-  el('out-due').disabled = deleted;
-  el('google-calendar-btn').disabled = deleted || !TaskGtd.validDate(task.dueDate);
+  el('out-due').disabled = S.resultAction === 'trash';
+  el('google-calendar-btn').disabled = S.resultAction === 'trash' || !TaskGtd.validDate(task.dueDate);
 }
 function setOutputDue(value) {
   try {
