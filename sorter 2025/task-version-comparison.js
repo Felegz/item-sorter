@@ -31,12 +31,40 @@
         pairs.push({ local: row, cloud: right[other], left: index, right: other });
       }
     });
+    const completed = row => /^[xX]\s+/.test(row.line);
+    const baselineRows = baseline === null ? [] : entries(baseline);
+    const baselineByTask = buckets(baselineRows, row => archiveKey(row.line));
+    const pairedByTask = buckets(pairs, pair => archiveKey(pair.local.line));
+    const completionChanges = [];
+    const matchedLocal = new Set();
+    const available = new Map();
+    for (const [key, indices] of baselineByTask) {
+      // Two identical baseline tasks have no stable IDs. A completion on one
+      // side cannot identify which occurrence changed, so leave both for review.
+      if (indices.length === 1 && !pairedByTask.get(key)?.length) available.set(key, 1);
+    }
+    for (const row of onlyLocal) {
+      const key = archiveKey(row.line);
+      if (!available.get(key)) continue;
+      const candidates = [...unmatched].filter(([, other]) => archiveKey(other.line) === key && completed(other) !== completed(row));
+      const match = candidates.find(([, other]) => other.listName === row.listName) || candidates[0];
+      if (!match) continue;
+      const [rightIndex, cloudRow] = match;
+      unmatched.delete(rightIndex);
+      matchedLocal.add(row.index);
+      available.set(key, available.get(key) - 1);
+      completionChanges.push({ local: row, cloud: cloudRow, left: row.index, right: rightIndex,
+        baselineCompleted: completed(baselineRows[baselineByTask.get(key)[0]]) });
+    }
+    const remainingLocal = onlyLocal.filter(row => !matchedLocal.has(row.index));
     const onlyCloud = [...unmatched].map(([index, row]) => ({ ...row, index }));
+    const possibleCompletions = remainingLocal.some(row => onlyCloud.some(other =>
+      archiveKey(other.line) === archiveKey(row.line) && completed(other) !== completed(row)));
     const common = buckets(pairs, pair => pair.local.line);
     const old = baseline === null ? null : buckets(entries(baseline), row => row.line);
     const archived = archive === null ? null : buckets(entries(archive), row => archiveKey(row.line));
     // Archive is a bounded-count hint, not evidence that this exact task was archived.
-    for (const rows of [onlyLocal, onlyCloud]) {
+    for (const rows of [remainingLocal, onlyCloud]) {
       const seen = new Map(), archiveSeen = new Map();
       rows.forEach(row => {
         const occurrence = (seen.get(row.line) || 0) + 1;
@@ -53,7 +81,8 @@
     // Compare relative order of shared occurrences, not absolute indices shifted by additions.
     const reordered = pairs.some((pair, index) => index && pair.right < pairs[index - 1].right);
     const markers = text => parseTaskDocument(text).entries.filter(row => row.kind === 'marker').map(row => row.line);
-    return { onlyLocal, onlyCloud, moved, reordered, shared: pairs.length,
+    return { onlyLocal: remainingLocal, onlyCloud, completionChanges, possibleCompletions,
+      moved, reordered, shared: pairs.length,
       markersChanged: JSON.stringify(markers(local)) !== JSON.stringify(markers(cloud)),
       identical: local === cloud, baselineAvailable: baseline !== null, archiveAvailable: archive !== null,
       local, cloud, baseline, archive, pairs };
@@ -78,16 +107,21 @@
       ${rows.length ? `<ul>${rows.map(row).join('')}</ul>` : '<p>Нет таких задач.</p>'}</details>`;
     const moves = result.moved.map(pair => `<li><div class="conflict-task">${esc(pair.local.line)}</div>
       <small>На устройстве: ${labels[pair.local.listName]}. В облаке: ${labels[pair.cloud.listName]}.</small></li>`).join('');
+    const completions = result.completionChanges.map(pair => `<li><div class="conflict-task">${esc(archiveKey(pair.local.line))}</div>
+      <small>На устройстве: ${/^[xX]\s+/.test(pair.local.line) ? 'выполнена' : 'активна'}. В облаке: ${/^[xX]\s+/.test(pair.cloud.line) ? 'выполнена' : 'активна'}.</small></li>`).join('');
     return `<div class="conflict-diff">
-      <div class="conflict-verdict"><p><strong>Выбрать облако:</strong> ${result.onlyLocal.length ? `вне списка: ${recordCount(result.onlyLocal.length)} с устройства.` : 'все тексты задач с устройства есть в облаке.'}</p>
-      <p><strong>Выбрать устройство:</strong> ${result.onlyCloud.length ? `вне списка: ${recordCount(result.onlyCloud.length)} из облака.` : 'все тексты облачных задач есть на устройстве.'}</p></div>
-      <p>Объединение сохранит обе стороны. Разные тексты одной задачи могут остаться двумя записями: лишний вариант можно не включать.</p>
+      <div class="conflict-verdict"><p><strong>Выбрать облако:</strong> ${result.onlyLocal.length ? `вне списка: ${recordCount(result.onlyLocal.length)} с устройства.` : 'другие задачи с устройства не пропадут.'}</p>
+      <p><strong>Выбрать устройство:</strong> ${result.onlyCloud.length ? `вне списка: ${recordCount(result.onlyCloud.length)} из облака.` : 'другие задачи из облака не пропадут.'}</p>
+      ${result.completionChanges.length ? `<p>Статус выполнения различается у ${recordCount(result.completionChanges.length)}. Ниже видно, какая версия оставит задачу активной.</p>` : ''}</div>
+      <p>При объединении изменения статуса сверяются с последней синхронизацией. Разные тексты одной задачи могут остаться двумя записями: лишний вариант можно не включать.</p>
+      ${completions ? `<details class="conflict-group" open><summary>Активна в одной версии, выполнена в другой: ${result.completionChanges.length}</summary><ul>${completions}</ul></details>` : ''}
+      ${result.possibleCompletions ? '<p>Возможно, некоторые записи были выполнены в одной версии, но без надёжной связи между экземплярами это нельзя подтвердить. При объединении обе останутся для ручной проверки.</p>' : ''}
       ${group('Только на устройстве', result.onlyLocal, 'Если выбрать облако, этих строк не будет в рабочем списке.')}
       ${group('Только в облаке', result.onlyCloud, 'Если выбрать устройство, этих строк не будет в рабочем списке.')}
       ${moves ? `<details class="conflict-group"><summary>Разные секции: ${result.moved.length}</summary><ul>${moves}</ul></details>` : ''}
       ${result.reordered ? '<p>Порядок общих задач различается. Сохранится порядок выбранной версии.</p>' : ''}
       ${result.markersChanged ? '<p>Заголовки секций или их даты различаются. Проверьте полные версии ниже.</p>' : ''}
-      ${!result.identical && !result.onlyLocal.length && !result.onlyCloud.length && !result.moved.length && !result.reordered && !result.markersChanged ? '<p>Строки задач совпадают. Различаются пробелы или пустые строки.</p>' : ''}
+      ${!result.identical && !result.onlyLocal.length && !result.onlyCloud.length && !result.completionChanges.length && !result.moved.length && !result.reordered && !result.markersChanged ? '<p>Строки задач совпадают. Различаются пробелы или пустые строки.</p>' : ''}
       ${result.identical ? '<p>Содержимое версий совпадает.</p>' : ''}
       <details class="conflict-group"><summary>Как сравниваются записи</summary><p class="conflict-help">Изменённый текст показан отдельными строками в обеих версиях. Без постоянного номера задачи нельзя надёжно отличить правку от удаления и добавления. Совпадение текста не доказывает, что это одна задача.</p>
       ${!result.baselineAvailable ? '<p>Нет сохранённой версии последней синхронизации. Показаны только различия между текущими списками.</p>' : ''}
@@ -116,14 +150,23 @@
       if (n > (old.get(pair.local.line)?.length || 0)) uncertain.push(pair);
     }
     const cloudRows = [...diff.onlyCloud,
+      ...diff.completionChanges.map(pair => ({ ...pair.cloud, index: pair.right })),
       ...uncertain.map(pair => ({ ...pair.cloud, index: pair.right, uncertain: true }))]
       .sort((a, b) => a.index - b.index);
     const localRows = entries(diff.local).map((row, index) => ({ ...row, index }));
-    const reviewIndices = new Set([...diff.onlyLocal.map(row => row.index), ...uncertain.map(pair => pair.left)]);
+    const reviewIndices = new Set([...diff.onlyLocal.map(row => row.index),
+      ...diff.completionChanges.map(pair => pair.left), ...uncertain.map(pair => pair.left)]);
+    const completionDefaults = new Map();
+    for (const pair of diff.completionChanges) {
+      const localChanged = /^[xX]\s+/.test(pair.local.line) !== pair.baselineCompleted;
+      completionDefaults.set(`local:${pair.left}`, localChanged ? 'keep' : 'skip');
+      completionDefaults.set(`cloud:${pair.right}`, localChanged ? 'skip' : 'keep');
+    }
     // Shared completed/archive matches are also available for an explicit
     // archive decision. Unchanged ordinary shared tasks need no review.
     const archived = buckets(entries(diff.archive || ''), row => archiveKey(row.line));
     const make = (row, side) => ({ ...row, side, id: `${side}:${row.index}`,
+      defaultAction: completionDefaults.get(`${side}:${row.index}`) || 'keep',
       archiveMatch: archived.has(archiveKey(row.line)) });
     const rows = [...localRows.map(row => make(row, 'local')), ...cloudRows.map(row => make(row, 'cloud'))];
     const review = rows.filter(row => row.side === 'cloud' || reviewIndices.has(row.index)
@@ -141,7 +184,7 @@
     }
     const archiveLines = [], archivedLines = [], excludedLines = [];
     const keep = row => {
-      const action = decisions[row.id] || 'keep';
+      const action = decisions[row.id] || row.defaultAction;
       if (action === 'archive') archiveLines.push(row.line);
       if (action === 'archived') archivedLines.push(row.line);
       if (action === 'skip') excludedLines.push(row.line);
@@ -195,15 +238,15 @@
 
   function renderMerge(plan, decisions) {
     const esc = TaskFormat.escapeHtml;
-    return `<div class="conflict-diff"><p>По умолчанию все спорные записи остаются в списке.</p>
+    return `<div class="conflict-diff"><p>По умолчанию изменение статуса выполнения сохраняется в одном экземпляре. Остальные спорные записи остаются в списке.</p>
       ${plan.uncertain ? `<p>Совпадающих новых записей: ${plan.uncertain}. Пока оставлены обе копии.</p>` : ''}
       <details class="conflict-group"><summary>Порядок и архив</summary><p>Порядок и секции устройства сохранятся. Дополнительные облачные задачи пойдут наверх инбокса; ignored останется в ignored.</p>
       <p class="conflict-help">«Не включать» уберёт только выбранную запись из общего списка. Исходные версии останутся в истории браузера. «В архив» перенесёт запись без изменения её текста.</p></details>
-      <ul class="merge-rows">${plan.review.map(row => `<li><label for="merge-${row.id}"><small>${row.side === 'local' ? 'Устройство' : 'Облако'} · ${labels[row.listName]}</small><span class="conflict-task">${esc(row.line)}</span></label>
+      <ul class="merge-rows">${plan.review.map(row => `<li><label for="merge-${row.id}"><small>${row.side === 'local' ? 'Устройство' : 'Облако'} · ${labels[row.listName]}</small><span class="conflict-task">${esc(row.line)}</span>${row.defaultAction === 'skip' ? '<small>Предложено не включать: статус этой задачи изменён в другой версии.</small>' : ''}</label>
         <select id="merge-${row.id}" data-merge-id="${row.id}">
         ${[['keep', 'Оставить в списке'], ['skip', 'Не включать'], ['archive', 'В архив'],
           ...(row.archiveMatch ? [['archived', 'Уже в архиве · не возвращать']] : [])]
-          .map(([value, label]) => `<option value="${value}"${(decisions[row.id] || 'keep') === value ? ' selected' : ''}>${label}</option>`).join('')}</select></li>`).join('')}</ul>
+          .map(([value, label]) => `<option value="${value}"${(decisions[row.id] || row.defaultAction) === value ? ' selected' : ''}>${label}</option>`).join('')}</select></li>`).join('')}</ul>
       ${!plan.review.length ? '<p>Спорных записей нет. Сохранится список устройства.</p>' : ''}</div>`;
   }
 

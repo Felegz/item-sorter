@@ -80,6 +80,31 @@ async function run() {
   assert.equal(result.onlyLocal[0].inBaseline, true);
   assert.equal(result.onlyCloud[0].inBaseline, false);
   assert.equal(result.shared, 0, 'do not guess changed task identity');
+  for (const [local, remote, baseline, expected] of [
+    ['Задача один', 'x 2026-10-08 Задача один', 'Задача один', 'x 2026-10-08 Задача один'],
+    ['x 2026-10-08 Задача один', 'Задача один', 'Задача один', 'x 2026-10-08 Задача один'],
+    ['Задача один', 'x 2026-10-08 Задача один', 'x 2026-10-07 Задача один', 'Задача один'],
+  ]) {
+    const change = cmp.compare(local, remote, baseline, '');
+    assert.equal(change.completionChanges.length, 1, 'completion change must be shown separately');
+    assert.equal(change.onlyLocal.length + change.onlyCloud.length, 0);
+    assert.match(cmp.render(change), /выполнен/);
+    const review = cmp.createMergePlan(change);
+    assert.equal(cmp.finalizeMerge(review).text, expected, 'merge keeps the changed state once');
+    assert.equal(review.review.length, 2, 'both versions remain selectable');
+  }
+  result = cmp.compare('Задача один\n\nЗадача один', 'x 2026-10-08 Задача один', 'Задача один', '');
+  assert.equal(result.completionChanges.length, 1);
+  assert.equal(result.onlyLocal.length, 1, 'independent identical occurrence survives');
+  assert.equal(cmp.finalizeMerge(cmp.createMergePlan(result)).kept, 2);
+  result = cmp.compare('Задача один', 'x 2026-10-08 Задача один', null, '');
+  assert.equal(result.completionChanges.length, 0, 'no baseline means no automatic identity guess');
+  assert.equal(cmp.finalizeMerge(cmp.createMergePlan(result)).kept, 2);
+  assert.match(cmp.render(result), /возможно.*выполнен/i);
+  result = cmp.compare('Задача один', 'x 2026-10-08 Задача один',
+    'Задача один\n\nЗадача один', '');
+  assert.equal(result.completionChanges.length, 0, 'duplicate baseline tasks have ambiguous identity');
+  assert.equal(cmp.finalizeMerge(cmp.createMergePlan(result)).kept, 2);
   result = cmp.compare('Задача один\n', 'Задача один\n\n', null, null);
   assert.equal(result.onlyLocal.length + result.onlyCloud.length, 0);
   assert.match(cmp.render(result), /пустые строки/);
@@ -135,6 +160,20 @@ async function run() {
   assert.throws(() => cmp.createMergePlan(cmp.compare('IGNORED TASKS (2026.10.01)\nОдин\nIGNORED TASKS (2026.10.02)\nДва', '', '', '')), /несколько/);
   plan = cmp.createMergePlan(cmp.compare('', 'Один', '', ''));
   assert.equal(cmp.finalizeMerge(plan).kept, 1);
+
+  // The Dropbox conflict handler must upload one completed occurrence, not
+  // silently restore the active baseline task beside it.
+  h = harness(); h.merge();
+  const completedCloud = { ...cloud, text: 'x 2026-10-08 Задача один' };
+  h.memory.set('dbx_last_tasks', 'Задача один');
+  h.responses.push(completedCloud, archive, completedCloud, { status: 200, json: { rev: 'merged' } });
+  assert.equal(await h.context.dbxResolveConflict(), true);
+  assert.equal(h.memory.get('tasks'), completedCloud.text);
+  assert.equal(h.calls[3].body, completedCloud.text);
+  assert.match(h.dialogs.find(dialog => dialog.title === 'Сравнение версий').html,
+    /На устройстве: активна\. В облаке: выполнена/);
+  assert.match(h.dialogs.find(dialog => dialog.title === 'Что оставить').html,
+    /Предложено не включать: статус этой задачи изменён/);
 
   // Cancel: only downloads, zero mutation including backups and sync metadata.
   h = harness(); h.responses.push(cloud, archive);
