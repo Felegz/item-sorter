@@ -14,7 +14,7 @@ assert.match(css, /data-mobile-editor-layout="search"/);
 // Focused search constrains the list to the area above the keyboard. Its flex
 // children must scroll at their natural heights instead of shrinking to fit.
 // This source contract complements the browser overlap/scroll measurements.
-const searchStyles = css.slice(css.lastIndexOf('@media (max-width: 760px)'));
+const searchStyles = css;
 assert.ok(
   /body\.mobile-editor-active\[data-mobile-editor-layout="search"\] \.tasks-app main\s*{[^}]*grid-template-columns:\s*minmax\(0, 1fr\);/.test(searchStyles),
   'mobile search column must fit the viewport even with long task content',

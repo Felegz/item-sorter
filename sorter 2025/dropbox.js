@@ -21,18 +21,19 @@ const SYNC_STALE_AFTER_MINUTES = 30;
 // Both main screens use this result so the age threshold and wording cannot drift apart.
 function getCompactSyncAge(syncTime, now = Date.now()) {
   const ageMinutes = Math.max(0, Math.floor((now - syncTime) / 60_000));
+  const relative = new Intl.RelativeTimeFormat('ru', { numeric: 'auto', style: 'short' });
   let age;
-  if (ageMinutes < 1) age = 'just now';
-  else if (ageMinutes < 60) age = `${ageMinutes} min ago`;
-  else if (ageMinutes < 1440) age = `${Math.floor(ageMinutes / 60)} h ago`;
-  else age = `${Math.floor(ageMinutes / 1440)} d ago`;
+  if (ageMinutes < 1) age = 'только что';
+  else if (ageMinutes < 60) age = relative.format(-ageMinutes, 'minute');
+  else if (ageMinutes < 1440) age = relative.format(-Math.floor(ageMinutes / 60), 'hour');
+  else age = relative.format(-Math.floor(ageMinutes / 1440), 'day');
 
   const stale = ageMinutes >= SYNC_STALE_AFTER_MINUTES;
   return {
     ageMinutes,
     age,
     state: stale ? 'stale' : 'ok',
-    label: `${stale ? '!' : '✓'} Sync · ${age}`,
+    label: `${stale ? '!' : '✓'} Синхр. ${age}`,
   };
 }
 

@@ -11,7 +11,7 @@ const context = vm.createContext({
   },
 });
 vm.runInContext(fs.readFileSync('sorter 2025/icons.js', 'utf8'), context);
-for (const name of ['minimize-2','pencil','list-filter','sparkles','arrow-up-down','bot','calendar-days','moon','check','undo-2','eye-off','eye','copy','trash']) {
+for (const name of ['minimize-2','pencil','search','list-filter','sparkles','arrow-up-down','bot','calendar-days','moon','check','undo-2','eye-off','eye','copy','trash']) {
   const svg = context.window.SorterIcons.render(name);
   assert.match(svg, /aria-hidden="true"/);
   assert.match(svg, /stroke="currentColor"/);
@@ -36,6 +36,8 @@ assert.equal((gtd.match(/data-sorter-icon="minimize-2"/g) || []).length, 2, 'Ini
 assert.match(gtd, /if \(step\.type === 'text'\).*data-mobile-editor-collapse.*SorterIcons\.render\('minimize-2'\)/, 'Generated text steps use the same control');
 assert.doesNotMatch(gtd, /onclick="[^\"]*"[^>]*data-mobile-editor-collapse/, 'The shared handler owns collapsing, not the GTD controller');
 const taskPage = require('./helpers/task-page-source.cjs')();
+assert.match(taskPage, /class="search-prefix" data-sorter-icon="search"/);
+assert.match(taskPage, /class="filter-prefix" data-sorter-icon="list-filter"/);
 assert.match(taskPage, /openTaskSnooze\(\$\{idx\}\).*SorterIcons\.render\('moon'\)/);
 assert.match(taskPage, /openTaskDueDate\(\$\{idx\}\)">\s*\$\{SorterIcons\.render\('calendar-days'\)/, 'Due date keeps the calendar icon');
 assert.match(taskPage, /openProcess\(\$\{idx\}\).*SorterIcons\.render\('sparkles'\)/);

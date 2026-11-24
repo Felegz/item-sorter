@@ -29,7 +29,7 @@
         <a href="/tasks">Задачи</a>
       </nav>
       <button type="button" id="sync-badge" class="sync-badge" data-state="idle" onclick="dropboxSmartSync()" title="Запустить синхронизацию">
-        <span class="sync-status-text">○ Sync off</span>
+        <span class="sync-status-text">Синхронизация не подключена</span>
       </button>
     </header>
 
@@ -145,7 +145,7 @@ Your text will be stored in browser memory even after page reload, but it's not 
     <script src="task-order-audit.js?v=20261021-reorder"></script>
     <script src="task-order-audit-ui.js?v=20261021-reorder"></script>
     <script src="task-version-comparison.js?v=20261008-merge"></script>
-    <script src="dropbox.js?v=20261008-merge"></script>
+    <script src="dropbox.js?v=20261124-sync-labels"></script>
     <script src="ai-dropbox.js?v=20260906-ai-bridge"></script>
     <script src="todotxt.js?v=20260928-number-hashtag"></script>
     <script>
@@ -167,12 +167,12 @@ Your text will be stored in browser memory even after page reload, but it's not 
         };
 
         if (SorterRuntime.isDeveloperMode) {
-          setBadge('developer', 'DEV · Dropbox off', 'Developer-список изолирован; Dropbox полностью отключён');
+          setBadge('developer', 'Тестовый список', 'Developer-список изолирован; Dropbox полностью отключён');
           return;
         }
 
         if (typeof getToken !== 'function' || !getToken()) {
-          setBadge('off', '○ Sync off', 'Dropbox не подключён');
+          setBadge('off', 'Облако не подключено', 'Dropbox не подключён');
           return;
         }
 
@@ -180,12 +180,12 @@ Your text will be stored in browser memory even after page reload, but it's not 
           : (typeof getLastSyncText === 'function' ? getLastSyncText() : '');
 
         if (status.includes('…') || status.includes('🔄')) {
-          setBadge('loading', '↻ Syncing…', status || 'Идёт синхронизация');
+          setBadge('loading', 'Синхронизация…', status || 'Идёт синхронизация');
           return;
         }
 
         if (/ошиб|не удалось|конфликт/i.test(status)) {
-          setBadge('error', '! Sync failed', status);
+          setBadge('error', 'Ошибка синхронизации', status);
           return;
         }
 
@@ -194,7 +194,7 @@ Your text will be stored in browser memory even after page reload, but it's not 
         catch (_) { sync = null; }
 
         if (!sync?.time) {
-          setBadge('idle', '○ Sync now', 'Dropbox подключён, синхронизация ещё не запускалась');
+          setBadge('idle', 'Синхронизировать', 'Dropbox подключён, синхронизация ещё не запускалась');
           return;
         }
 

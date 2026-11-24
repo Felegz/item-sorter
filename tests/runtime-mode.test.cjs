@@ -164,10 +164,10 @@ function createRuntime(urlString, initialStorage = {}) {
   const now = Date.UTC(2026, 9, 4, 12, 0, 0);
   const recent = syncAge(now - 29 * 60_000, now);
   assert.equal(recent.state, 'ok');
-  assert.equal(recent.label, '✓ Sync · 29 min ago');
+  assert.equal(recent.label, '✓ Синхр. 29 мин. назад');
   const stale = syncAge(now - 30 * 60_000, now);
   assert.equal(stale.state, 'stale');
-  assert.equal(stale.label, '! Sync · 30 min ago');
+  assert.equal(stale.label, '! Синхр. 30 мин. назад');
   for (const css of [mainSyncCss, tasksSyncCss]) {
     assert.match(css, /\.sync-badge\[data-state="stale"\]\s*\{[^}]*248, 113, 113/s);
     assert.doesNotMatch(css, /\.sync-badge\[data-state="stale"\]\s*,/);

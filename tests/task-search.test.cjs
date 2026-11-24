@@ -6,6 +6,9 @@ const TaskFormat = require('../sorter 2025/task-format.js');
 
 const source = fs.readFileSync('sorter 2025/tasks-page.js', 'utf8');
 const page = fs.readFileSync('sorter 2025/tasks.html', 'utf8');
+assert.match(page, /<input id="search" type="search"/);
+assert.doesNotMatch(page, /id="search-clear"/, 'native search clear is the only visible clear control');
+assert.doesNotMatch(source, /getElementById\('search-clear'\)/);
 const start = source.indexOf('    function tokenizeSearch(');
 const end = source.indexOf('    // --- Parsing ---', start);
 assert(start >= 0 && end > start, 'search functions must be present on the tasks page');
@@ -86,9 +89,36 @@ assert.equal(filtered(true, homeAnd).length, 1);
 assert.equal(filtered(true, homeAnd)[0]._raw, 'Первое');
 assert.equal(filtered(false, '').length, 0);
 
+// The browser's native clear changes the search input value and fires input.
+// That path must also mark AUTO as manually edited, without a second button.
+const searchWiringStart = source.indexOf('    // Search');
+const searchWiringEnd = source.indexOf('    // Mobile command bar', searchWiringStart);
+assert(searchWiringStart >= 0 && searchWiringEnd > searchWiringStart);
+const searchEvents = new Map();
+const searchInput = {
+  value: homeAnd,
+  addEventListener(name, callback) { searchEvents.set(name, callback); },
+};
+const searchWiring = vm.createContext({
+  document: {
+    getElementById: id => id === 'search' ? searchInput : null,
+    querySelector: () => ({ classList: { add() {}, remove() {} } }),
+  },
+  autoMode: true, autoSearchEdited: false, ctxF: new Set(['ноут', 'дом']),
+  searchQ: homeAnd, render() {},
+});
+vm.runInContext(source.slice(searchWiringStart, searchWiringEnd), searchWiring);
+searchInput.value = '';
+searchEvents.get('search')();
+assert.equal(searchWiring.searchQ, '');
+assert.equal(searchWiring.autoSearchEdited, true);
+assert.equal(searchWiring.ctxF.size, 0);
+searchInput.oninput();
+assert.equal(searchWiring.searchQ, '', 'input after search is a no-op for the same value');
+
 // The banner offers a real exit and points to the existing home setting.
-assert.match(page, /id="auto-context-exit"[^>]*aria-label="Выйти из автофильтра"/);
-assert.match(page, /id="auto-home-help"[^>]*>Дом не задан\. Настроить: Список → Ещё инструменты → Автоконтекст/);
+assert.match(page, /id="auto-context-exit"[^>]*aria-label="Выключить автофильтр"/);
+assert.match(page, /id="auto-home-help"[^>]*>Дом не задан\. Задать координаты: Список → Ещё инструменты/);
 const bannerStart = source.indexOf('    function renderAutoContextBanner(');
 const bannerEnd = source.indexOf('    function updateAutoSearchQuery(', bannerStart);
 assert(bannerStart >= 0 && bannerEnd > bannerStart);
@@ -99,7 +129,8 @@ const exit = { onclick: null };
 const currentUrl = 'http://localhost:4173/tasks.html?auto=1&mode=developer';
 let exitDestination = '';
 const bannerContext = vm.createContext({
-  autoMode: true, searchQ: homeAnd, autoContextState: { location: 'unset' },
+  autoMode: true, autoSearchEdited: false, contextOperator: 'and', searchQ: homeAnd,
+  autoContextState: { contexts: ['ноут'], location: 'unset' },
   document: { getElementById(id) {
     return ({ 'auto-context-banner': banner, 'auto-context-summary': summary,
       'auto-home-help': help, 'auto-context-exit': exit })[id];
@@ -111,17 +142,23 @@ const bannerContext = vm.createContext({
     return url.pathname + url.search + url.hash;
   } },
   window: { location: { href: currentUrl, replace(value) { exitDestination = value; } } },
+  navigator: {},
 });
 vm.runInContext(source.slice(bannerStart, bannerEnd), bannerContext);
 bannerContext.renderAutoContextBanner();
 assert.equal(banner.hidden, false);
 assert.equal(help.hidden, false);
 assert.equal(help.href, '/?mode=developer');
+assert.match(summary.textContent, /Устройство: ПК; место: дом не задан; режим: И/);
 exit.onclick();
 assert.equal(exitDestination, '/tasks.html?mode=developer');
-bannerContext.autoContextState = { location: 'home' };
+bannerContext.autoContextState = { contexts: ['ноут', 'дом'], location: 'home' };
 bannerContext.renderAutoContextBanner();
 assert.equal(help.hidden, true);
+assert.match(summary.textContent, /Устройство: ПК; место: дом; режим: И/);
+bannerContext.autoSearchEdited = true;
+bannerContext.renderAutoContextBanner();
+assert.match(summary.textContent, /Поиск изменён вручную/);
 
 const autoStart = source.indexOf('    function updateAutoSearchQuery(');
 const autoEnd = source.indexOf('    const originalRender = render;', autoStart);

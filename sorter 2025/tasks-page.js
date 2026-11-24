@@ -284,6 +284,13 @@ const PRI_CHIP_CLS = { A:'pri-a', B:'pri-b', C:'pri-c' };
       const terms = queryTerms(searchQ);
       const show  = getSorted(getFiltered());
       document.getElementById('count').textContent = show.filter(t => !t._sectionHeader && !t._ignored).length;
+      const filterCount = document.getElementById('active-filter-count');
+      if (filterCount) {
+        const selectedCount = Number(Boolean(priF)) + ctxF.size
+          + Number(Boolean(projF)) + Number(Boolean(hashtagF));
+        filterCount.hidden = selectedCount === 0;
+        filterCount.textContent = selectedCount;
+      }
 
       // Ignored toggle button
       const ignoredCount = items.filter(t => t._ignored).length;
@@ -681,7 +688,6 @@ const PRI_CHIP_CLS = { A:'pri-a', B:'pri-b', C:'pri-c' };
       searchQ = '';
       const si = document.getElementById('search');
       si.value = '';
-      document.getElementById('search-clear').style.display = 'none';
       updateAutoSearchQuery(true);
       render();
     }
@@ -776,27 +782,31 @@ const PRI_CHIP_CLS = { A:'pri-a', B:'pri-b', C:'pri-c' };
 
     // Search
     const searchInput = document.getElementById('search');
-    const searchClear = document.getElementById('search-clear');
     const searchHint  = document.querySelector('.search-hint');
     searchInput.oninput = () => {
+      if (searchQ === searchInput.value) return;
       if (autoMode) { autoSearchEdited = true; ctxF.clear(); }
       searchQ = searchInput.value;
-      searchClear.style.display = searchQ ? '' : 'none';
       render();
     };
+    // Native cancel controls may emit `search` as well as `input`.
+    // Both events use one handler; an unchanged value never renders twice.
+    searchInput.addEventListener('search', searchInput.oninput);
     searchInput.addEventListener('focus', () => searchHint?.classList.add('visible'));
     searchInput.addEventListener('blur',  () => { if (!searchQ) searchHint?.classList.remove('visible'); });
-    searchClear.onclick = () => {
-      if (autoMode) { autoSearchEdited = true; ctxF.clear(); }
-      searchInput.value = ''; searchQ = '';
-      searchClear.style.display = 'none';
-      searchHint?.classList.remove('visible');
-      render();
-    };
 
     // Mobile command bar
     const mobilePanelButtons = [...document.querySelectorAll('[data-mobile-panel]')];
     const mobileScrim = document.querySelector('.mobile-scrim');
+    const secondaryTools = document.getElementById('secondary-tools');
+    const mobileToolsViewport = window.matchMedia('(max-width: 760px)');
+    function fitSecondaryToolsToViewport() {
+      // Mobile already has a tools sheet. Keep its existing actions visible
+      // there; only the desktop toolbar uses the nested disclosure.
+      if (secondaryTools) secondaryTools.open = mobileToolsViewport.matches;
+    }
+    fitSecondaryToolsToViewport();
+    mobileToolsViewport.addEventListener('change', fitSecondaryToolsToViewport);
 
     function setMobilePanel(name = '') {
       const current = document.body.dataset.mobilePanel || '';
@@ -870,11 +880,12 @@ const PRI_CHIP_CLS = { A:'pri-a', B:'pri-b', C:'pri-c' };
         searchInput.select();
       }
       if (e.key === 'Escape' && active === searchInput) {
-        searchInput.blur();
+        e.preventDefault();
         if (searchQ) {
-          if (autoMode) { autoSearchEdited = true; ctxF.clear(); }
-          searchInput.value = ''; searchQ = ''; searchClear.style.display = 'none'; render();
+          searchInput.value = '';
+          searchInput.oninput();
         }
+        searchInput.blur();
       }
     });
 
@@ -1318,11 +1329,24 @@ const PRI_CHIP_CLS = { A:'pri-a', B:'pri-b', C:'pri-c' };
       const summary = document.getElementById('auto-context-summary');
       if (!banner || !summary || !autoMode) return;
       banner.hidden = false;
-      const selected = searchQ;
-      let suffix = '';
-      if (autoContextState?.location === 'loading') suffix = ' · определяю место';
-      else if (autoContextState?.error) suffix = ` · ${autoContextState.error}`;
-      summary.textContent = `${selected || 'контексты не выбраны'}${suffix}`;
+      if (autoSearchEdited) {
+        summary.textContent = searchQ
+          ? 'Поиск изменён вручную. Автофильтр всё ещё включён.'
+          : 'Поиск очищен вручную. Автофильтр всё ещё включён.';
+        if (autoContextState?.error) summary.textContent += ` ${autoContextState.error}`;
+      } else {
+        const deviceContext = autoContextState?.contexts?.[0]
+          || SorterAutoContext.detectDeviceContext(navigator, window.innerWidth);
+        const device = deviceContext === 'ноут' ? 'ПК' : 'телефон';
+        const location = autoContextState?.location;
+        const place = location === 'home' ? 'дом'
+          : location === 'away' ? 'город'
+          : location === 'loading' ? 'определяю место'
+          : location === 'unset' ? 'дом не задан'
+          : 'место недоступно';
+        summary.textContent = `Устройство: ${device}; место: ${place}; режим: ${contextOperator === 'and' ? 'И' : 'ИЛИ'}`;
+        if (autoContextState?.error) summary.textContent += `. ${autoContextState.error}`;
+      }
       const homeHelp = document.getElementById('auto-home-help');
       if (homeHelp) {
         homeHelp.hidden = autoContextState?.location !== 'unset';
@@ -1342,7 +1366,6 @@ const PRI_CHIP_CLS = { A:'pri-a', B:'pri-b', C:'pri-c' };
       searchQ = SorterAutoContext.buildAutoSearchQuery(ctxF, contextOperator);
       const input = document.getElementById('search');
       input.value = searchQ;
-      document.getElementById('search-clear').style.display = searchQ ? '' : 'none';
     }
 
     async function initAutoContextMode() {
