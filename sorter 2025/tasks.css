@@ -590,6 +590,11 @@ body {
 }
 
 .tasks-app {
+  --task-top-control-height: 48px;
+  --task-top-control-radius: 12px;
+  --task-top-control-gap: 12px;
+  --task-top-button-width: 112px;
+  --task-top-control-font-size: 0.95rem;
   width: min(100%, 1180px);
   min-height: 100vh;
   margin: 0 auto;
@@ -806,7 +811,7 @@ button:disabled {
 .add-bar {
   display: flex;
   align-items: stretch;
-  gap: 8px;
+  gap: var(--task-top-control-gap);
   margin-bottom: 16px;
 }
 
@@ -818,10 +823,10 @@ button:disabled {
 
 .add-bar :is(input, textarea) {
   width: 100%;
-  min-height: 48px;
+  min-height: var(--task-top-control-height);
   padding: 0 16px;
   border: 1px solid var(--border);
-  border-radius: 12px;
+  border-radius: var(--task-top-control-radius);
   background: var(--bg-card);
   color: var(--fg);
   caret-color: var(--primary);
@@ -848,8 +853,9 @@ button:disabled {
 }
 
 .add-bar button {
-  min-width: 112px;
-  min-height: 48px;
+  min-width: var(--task-top-button-width);
+  min-height: var(--task-top-control-height);
+  border-radius: var(--task-top-control-radius);
   padding: 0 18px;
 }
 
@@ -869,14 +875,14 @@ button:disabled {
 }
 
 .search-bar {
-  min-height: 44px;
+  min-height: var(--task-top-control-height);
   display: flex;
   align-items: center;
   gap: 8px;
   margin-bottom: 7px;
   padding: 0 12px;
   border: 1px solid var(--border);
-  border-radius: 11px;
+  border-radius: var(--task-top-control-radius);
   background: var(--bg-card);
 }
 
@@ -887,7 +893,7 @@ button:disabled {
 
 .search-bar input {
   min-width: 0;
-  min-height: 40px;
+  min-height: calc(var(--task-top-control-height) - 2px);
   flex: 1;
   border: 0;
   background: transparent;
@@ -2571,22 +2577,34 @@ button:disabled {
 @media (min-width: 761px) {
   .tasks-app main {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) minmax(280px, 350px);
+    grid-template-columns: minmax(0, 1fr) var(--task-top-button-width) minmax(0, 1fr);
     grid-template-areas:
-      "capture search"
-      "hint hint"
-      "tabs review"
-      "auto auto"
-      "tools tools"
-      "list list"
-      "ignored ignored";
-    column-gap: 12px;
+      "capture capture search"
+      "hint hint hint"
+      "tabs tabs review"
+      "auto auto auto"
+      "tools tools tools"
+      "list list list"
+      "ignored ignored ignored";
+    column-gap: var(--task-top-control-gap);
     row-gap: 8px;
     padding-top: 16px;
   }
 
   .add-bar { grid-area: capture; margin: 0; }
-  .search-bar { grid-area: search; min-height: 48px; margin: 0; }
+  .add-bar button {
+    height: var(--task-top-control-height);
+    align-self: flex-start;
+  }
+  .search-bar { grid-area: search; height: var(--task-top-control-height); margin: 0; }
+  .search-bar input {
+    height: calc(var(--task-top-control-height) - 2px);
+    min-height: 0;
+    padding-block: 0;
+  }
+  .add-bar :is(input, textarea),
+  .add-bar button,
+  .search-bar input { font-size: var(--task-top-control-font-size); }
   .search-hint { grid-area: hint; margin: 0; }
   .tasks-tabs-row { grid-area: tabs; margin: 0; }
   .old-task-review-action {
